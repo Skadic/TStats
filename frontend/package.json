@@ -1,0 +1,24 @@
+{
+  "name": "@example/basics",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "devDependencies": {
+    "@astrojs/react": "^0.4.1",
+    "@astrojs/svelte": "^0.4.0",
+    "@astrojs/tailwind": "^0.2.4",
+    "astro": "^1.0.0-beta.72",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "svelte": "^3.49.0"
+  },
+  "dependencies": {
+    "react-icons": "^4.4.0",
+    "svelte-icons-pack": "^1.5.0"
+  }
+}

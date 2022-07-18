@@ -1,0 +1,38 @@
+---
+import "../styles/global.css"
+
+import MenuButton from "./MenuButton.svelte";
+
+export interface Props {
+    tournament: string,
+    stage: string,
+    map: string,
+}
+
+const { tournament, stage, map } = await fetch("http://127.0.0.1:8000/api/test_stage")
+    .then(data => {return data.json()}) as Props;
+---
+
+<nav class="header font-nunito">
+   <MenuButton client:load/> <span class="header-text">{tournament}: {stage} {map}</span>
+</nav>
+
+<style>
+    .header {
+        @apply 
+        bg-bgdark flex top-0 left-0 fixed w-screen h-auto items-center 
+        transition-all duration-300 text-3xl;
+    }
+
+    .header-text {
+        @apply text-tx;
+    }
+
+    .header:hover {
+        @apply rounded-b-xl;
+    }
+    .header:hover .header-text {
+        @apply font-black text-tx;
+    }
+
+</style>
