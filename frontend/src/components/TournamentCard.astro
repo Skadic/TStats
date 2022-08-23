@@ -2,15 +2,11 @@
 import { Tournament } from "../ts/Types";
 
 export interface Props {
-    shorthand: string,
+    tournament: Tournament,
 }
 
-const {shorthand} = Astro.props as Props;
+const {tournament} = Astro.props as Props;
 
-const tournaments = await fetch("http://127.0.0.1:8000/api/tournament/by_shorthand/" + shorthand)
-    .then(data =>  data.json());
-
-const tournament = tournaments[0];
 ---
 
 <div class="bg-primary w-auto h-auto rounded-xl flex items-center font-nunito text-tx p-1 pl-2 mb-2 mr-2">

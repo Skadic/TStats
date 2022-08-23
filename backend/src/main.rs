@@ -4,7 +4,8 @@ use rocket::http::Status;
 use rocket::{response::content::RawJson, tokio::sync::Mutex};
 use rocket::{Request, Response};
 use rosu_v2::{Osu, OsuBuilder};
-use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite};
+use sqlx::{Postgres, Pool};
+use sqlx::postgres::PgPoolOptions;
 
 #[macro_use]
 extern crate rocket;
@@ -13,7 +14,7 @@ mod tournament;
 
 #[get("/test_stage")]
 fn hello() -> RawJson<&'static str> {
-    RawJson(r#"{ "tournament": "DM69", "stage": "RO1337", "map": "HD2" }"#)
+    RawJson(r#"{ "id": 69, "tournament": "DM69", "stage": "RO1337", "map": "HD2" }"#)
 }
 
 /// I am stupid and don't know how webdev works so this is here.
@@ -54,10 +55,17 @@ async fn rocket() -> _ {
         .parse::<u64>()
         .expect("OSU_CLIENT_ID must be an unsigned integer");
     let client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
-
-    let pool = SqlitePoolOptions::new()
+    let postgres_connection_url = std::env::var("POSTGRES_URL").expect("POSTGRES_URL not set");
+    
+    //let _pool2 = SqlitePoolOptions::new()
+    //    .max_connections(4)
+    //    .connect("test.db")
+    //    .await
+    //    .expect("Error connecting to database");
+    
+    let pool = PgPoolOptions::new()
         .max_connections(4)
-        .connect("test.db")
+        .connect(&postgres_connection_url)
         .await
         .expect("Error connecting to database");
 
@@ -80,5 +88,5 @@ async fn rocket() -> _ {
                 .await
                 .expect("Could error connecting to osu api"),
         ))
-        .manage::<Pool<Sqlite>>(pool)
+        .manage::<Pool<Postgres>>(pool)
 }

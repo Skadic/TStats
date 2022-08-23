@@ -3,13 +3,18 @@ import "../styles/global.css"
 import Layout from "../layouts/Layout.astro";
 
 import TournamentCard from "../components/TournamentCard.astro";
+import { Tournament } from "../ts/Types";
+
+const tournaments = await fetch("http://127.0.0.1:8000/api/tournament/by_shorthand?shorthand=TTT&shorthand=AGT&shorthand=DM7")
+    .then(data => data.json());
+console.log(tournaments)
 ---
 
 <Layout title="Tourney Stats">
 	<main class="tourney-list pt-12 m-6 grid grid-cols-2">
-		<TournamentCard shorthand="AGT"></TournamentCard>
-		<TournamentCard shorthand="TTT"></TournamentCard>
-		<TournamentCard shorthand="DM7"></TournamentCard>
+		<TournamentCard tournament={tournaments[0]}></TournamentCard>
+		<TournamentCard tournament={tournaments[1]}></TournamentCard>
+		<TournamentCard tournament={tournaments[2]}></TournamentCard>
 	</main>
 </Layout>
 
