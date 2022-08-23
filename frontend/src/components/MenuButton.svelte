@@ -2,24 +2,10 @@
     import "../styles/global.css"
     import Icon from "svelte-icons-pack/Icon.svelte"
     import FiMenu from "svelte-icons-pack/fi/FiMenu"
+    import { addTournament } from "../ts/tournament";
 
     async function click() {
-        let json_string = JSON.stringify({
-            shorthand: "AGT",
-            full_name: "A Good Tournament" 
-        });
-
-        let response = await fetch("http://127.0.0.1:8000/api/tournament/create", {
-            method: "POST",
-            mode: "cors",
-            cache: "no-cache",
-            headers: new Headers({
-                'Content-Type': "application/json"
-            }),
-            body: json_string
-        });
-
-        console.log(response)
+        addTournament("BTE", "Best Tournament Ever")
     }
 </script>
 

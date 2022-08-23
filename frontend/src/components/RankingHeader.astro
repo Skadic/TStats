@@ -9,8 +9,7 @@ export interface Props {
     map: string,
 }
 
-const { tournament, stage, map } = await fetch("http://127.0.0.1:8000/api/test_stage")
-    .then(data => {return data.json()}) as Props;
+const { tournament, stage, map } = Astro.props as Props;
 ---
 
 <nav class="header font-nunito">

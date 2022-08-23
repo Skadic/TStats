@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 
 use rocket::{http::Status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
@@ -36,13 +35,10 @@ pub async fn get_by_shorthand(
     shorthand: Vec<String>,
     db_pool: &State<Pool<Postgres>>,
 ) -> (Status, Option<Json<Vec<Tournament>>>) {
-    println!("Running shorthand endpoint: {shorthand:?}");
-    //let shorthands = shorthands.split(",").collect::<Vec<_>>();
     let result = sqlx::query_as::<Postgres, Tournament>("SELECT * FROM Tournament WHERE shorthand = ANY($1)")
         .bind(&shorthand)
         .fetch_all(&**db_pool)
         .await;
-    println!("Result: {:?}", &result);
 
     match result {
         Ok(vec) => (Status::Ok, Some(Json(vec))),
