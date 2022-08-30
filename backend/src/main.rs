@@ -11,6 +11,7 @@ use sqlx::postgres::PgPoolOptions;
 extern crate rocket;
 
 mod tournament;
+mod stage;
 
 #[get("/test_stage")]
 fn hello() -> RawJson<&'static str> {
@@ -77,7 +78,16 @@ async fn rocket() -> _ {
             routes![
                 tournament::create_tournament,
                 tournament::get_by_shorthand,
+                tournament::get,
                 tournament::get_all
+            ],
+        )
+        .mount(
+            "/api/stage",
+            routes![
+                stage::create,
+                stage::get_all,
+                stage::get
             ],
         )
         .manage::<Mutex<Osu>>(Mutex::new(

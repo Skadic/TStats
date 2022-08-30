@@ -1,0 +1,21 @@
+---
+import "../styles/global.css"
+import { getAllTournaments } from '../ts/Tournament';
+import { Tournament } from "../ts/Types";
+import TournamentCard from './TournamentCard.svelte';
+
+
+let tournaments = await getAllTournaments();
+---
+
+<div class="tview-container">
+    {tournaments.map((tournament: Tournament) => <TournamentCard client:visible tournament={tournament}/>)}       
+</div>
+
+<style>
+.tview-container {
+    @apply p-10;
+}
+</style>
+
+

@@ -1,4 +1,3 @@
-
 use rocket::{http::Status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Postgres};
@@ -18,7 +17,6 @@ pub async fn create_tournament(
     let tournament = tournament.into_inner();
 
     let query_result = sqlx::query("INSERT INTO Tournament(shorthand, full_name) VALUES ($1, $2)")
-        //.bind(tournament.id)
         .bind(tournament.shorthand)
         .bind(tournament.full_name)
         .execute(&**db_pool)
@@ -35,19 +33,38 @@ pub async fn get_by_shorthand(
     shorthand: Vec<String>,
     db_pool: &State<Pool<Postgres>>,
 ) -> (Status, Option<Json<Vec<Tournament>>>) {
-    let result = sqlx::query_as::<Postgres, Tournament>("SELECT * FROM Tournament WHERE shorthand = ANY($1)")
-        .bind(&shorthand)
-        .fetch_all(&**db_pool)
-        .await;
+    let result = sqlx::query_as::<Postgres, Tournament>(
+        "SELECT * FROM Tournament WHERE shorthand = ANY($1)",
+    )
+    .bind(&shorthand)
+    .fetch_all(&**db_pool);
 
-    match result {
+    match result.await {
         Ok(vec) => (Status::Ok, Some(Json(vec))),
         Err(_) => (Status::InternalServerError, None),
     }
 }
 
+#[get("/<tournament_id>")]
+pub async fn get(
+    tournament_id: i32,
+    sqlite_pool: &State<Pool<Postgres>>,
+) -> (Status, Option<Json<Tournament>>) {
+    let result = sqlx::query_as::<_, Tournament>("SELECT * FROM Tournament WHERE id=$1")
+        .bind(tournament_id)
+        .fetch_optional(&**sqlite_pool);
+    match result.await {
+        Ok(tournament) => {
+            tournament.map_or((Status::NotFound, None), |t| (Status::Ok, Some(Json(t))))
+        }
+        Err(_) => (Status::InternalServerError, None),
+    }
+}
+
 #[get("/all")]
-pub async fn get_all(sqlite_pool: &State<Pool<Postgres>>) -> (Status, Option<Json<Vec<Tournament>>>) {
+pub async fn get_all(
+    sqlite_pool: &State<Pool<Postgres>>,
+) -> (Status, Option<Json<Vec<Tournament>>>) {
     let result =
         sqlx::query_as::<_, Tournament>("SELECT * FROM Tournament").fetch_all(&**sqlite_pool);
     match result.await {
@@ -55,5 +72,3 @@ pub async fn get_all(sqlite_pool: &State<Pool<Postgres>>) -> (Status, Option<Jso
         Err(_) => (Status::InternalServerError, None),
     }
 }
-
-
