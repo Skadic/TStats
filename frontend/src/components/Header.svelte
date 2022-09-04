@@ -1,17 +1,13 @@
----
-import "../styles/global.css"
+<script lang="ts">
+import "../styles/app.css"
 
 import MenuButton from "./MenuButton.svelte";
 
-export interface Props {
-    text: string
-}
-
-const { text } = Astro.props as Props;
----
+export let text: string;
+</script>
 
 <nav class="header font-nunito">
-   <MenuButton client:load/> <span class="header-text">{text}</span>
+   <MenuButton/> <span class="header-text">{text}</span>
 </nav>
 
 <style>

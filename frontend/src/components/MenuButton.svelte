@@ -1,8 +1,7 @@
 <script lang="ts">
-  import "../styles/global.css";
+  import "../styles/app.css";
   import Icon from "svelte-icons-pack/Icon.svelte";
   import FiMenu from "svelte-icons-pack/fi/FiMenu";
-  import { addTournament } from "../ts/Tournament";
   import { getAllStages } from "../ts/Stage";
 
   async function click() {

@@ -1,4 +1,4 @@
-import { Tournament } from "./Types";
+import type { Tournament } from "./Types";
 
 export async function addTournament(shorthand: string, full_name: string) {
     let json_string = JSON.stringify({

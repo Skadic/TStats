@@ -1,4 +1,4 @@
-import { Stage } from "./Types";
+import type { Stage } from "./Types";
 
 export async function getAllStages(tournament: number): Promise<Stage[]> {
     return fetch(`http://127.0.0.1:8000/api/stage/${tournament}`, {

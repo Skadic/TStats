@@ -1,10 +1,10 @@
-export interface Tournament {
+export type Tournament = {
     id: number;
     shorthand: string,
     full_name: string,
 }
 
-export interface Stage {
+export type Stage = {
     id: number,
     tournament: number,
     stage_number: number,

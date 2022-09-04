@@ -1,13 +1,9 @@
----
+<script lang="ts">
 import "../styles/global.css"
-import Header from "../components/Header.astro";
+import Header from "../components/Header.svelte";
 
-export interface Props {
-	title: string;
-}
-
-const { title } = Astro.props as Props;
----
+export let title: string;
+</script>
 
 <!DOCTYPE html>
 <html lang="en">

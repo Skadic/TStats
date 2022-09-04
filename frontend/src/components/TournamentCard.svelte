@@ -1,20 +1,16 @@
----
-import "../styles/global.css"
+<script lang="ts">
+import "../styles/app.css"
 import { getAllStages } from "../ts/Stage";
-import { Tournament } from "../ts/Types";
+import type { Tournament } from "../ts/Types";
 
 
-export interface Props {
-    tournament: Tournament
-}
-
-const { tournament } = Astro.props as Props;
+export let tournament: Tournament;
 
 async function openTournament() {
     let stages = await getAllStages(tournament.id);
     console.log(stages)
 }
----
+</script>
 
 <div class="tcard">
     <a href="Pool" class="block w-full h-full">{tournament.full_name} ({tournament.shorthand})</a>
