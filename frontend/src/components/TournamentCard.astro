@@ -1,0 +1,29 @@
+---
+import "../styles/global.css"
+import { getAllStages } from "../ts/Stage";
+import { Tournament } from "../ts/Types";
+
+
+export interface Props {
+    tournament: Tournament
+}
+
+const { tournament } = Astro.props as Props;
+
+async function openTournament() {
+    let stages = await getAllStages(tournament.id);
+    console.log(stages)
+}
+---
+
+<div class="tcard">
+    <a href="Pool" class="block w-full h-full">{tournament.full_name} ({tournament.shorthand})</a>
+</div>
+
+<style>
+
+.tcard {
+    @apply bg-primary w-full h-16 rounded-xl flex font-nunito text-tx p-1 pl-2 mb-2 mr-2;
+}
+
+</style>

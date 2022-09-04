@@ -4,16 +4,14 @@ import "../styles/global.css"
 import MenuButton from "./MenuButton.svelte";
 
 export interface Props {
-    tournament: string,
-    stage: string,
-    map: string,
+    text: string
 }
 
-const { tournament, stage, map } = Astro.props as Props;
+const { text } = Astro.props as Props;
 ---
 
 <nav class="header font-nunito">
-   <MenuButton client:load/> <span class="header-text">{tournament}: {stage} {map}</span>
+   <MenuButton client:load/> <span class="header-text">{text}</span>
 </nav>
 
 <style>
