@@ -12,7 +12,7 @@
 </script>
 
 <div class="tcard">
-	<a href="pool" class="block w-full h-full">{tournament.full_name} ({tournament.shorthand})</a>
+	<a href="/{tournament.id}" class="block w-full h-full">{tournament.full_name} ({tournament.shorthand})</a>
 </div>
 
 <style>

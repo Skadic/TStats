@@ -31,3 +31,16 @@ export async function getAllTournaments(): Promise<Tournament[]> {
     const json = await res.json();
     return json;
 }
+
+export async function getTournament(tournament: number): Promise<Tournament> {
+    const res = await fetch(`http://127.0.0.1:8000/api/tournament/${tournament}`, {
+        method: "GET",
+        mode: "cors",
+        cache: "no-cache",
+        headers: new Headers({
+            'Content-Type': "application/json"
+        }),
+    });
+    const json = await res.json();
+    return json;
+}

@@ -1,17 +1,20 @@
 <script lang="ts">
-	import '../styles/app.css';
-	import { getAllTournaments } from '../ts/Tournament';
-	import TournamentCard from './TournamentCard.svelte';
+	import '$lib/styles/app.css';
+	import { getAllStages } from '$lib/ts/Stage';
+import type { Tournament } from '$lib/ts/Types';
+import StageCard from './StageCard.svelte';
 
-	let promise = getAllTournaments();
+    export let tournament: Tournament;
+
+	let stagePromise = getAllStages(tournament.id);
 </script>
 
-<div class="tview-container">
-	{#await promise}
+<div class="sview-container">
+	{#await stagePromise}
 		<p>...waiting</p>
-	{:then tournaments}
-		{#each tournaments as tournament}
-			<TournamentCard {tournament} />
+	{:then stages}
+		{#each stages as stage}
+			<StageCard stage={stage}/>
 		{/each}
 	{:catch error}
 		<p style="color: red">{error.message}</p>
@@ -19,7 +22,7 @@
 </div>
 
 <style>
-	.tview-container {
+	.sview-container {
 		@apply w-auto overflow-y-auto m-2 grid grid-cols-2 gap-2;
 	}
 </style>
