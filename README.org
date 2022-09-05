@@ -6,6 +6,10 @@ There is barely much of anything implemented yet so this is nowhere near ready.
 This project uses Svelte and Tailwind CSS in the frontend, and Rust, Rocket, sqlx, PostgreSQL and Redis in the backend so far. 
 This might be overkill but it is mostly for me to learn how to do webdev stuff.
 
+** Prerequisites
+
+You should have Rust, NodeJS and Redis installed and a Redis instance running locally.
+
 ** Building & Running
 
 In ~frontend/~:
