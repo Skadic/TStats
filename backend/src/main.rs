@@ -4,14 +4,15 @@ use rocket::http::Status;
 use rocket::{response::content::RawJson, tokio::sync::Mutex};
 use rocket::{Request, Response};
 use rosu_v2::{Osu, OsuBuilder};
-use sqlx::{Postgres, Pool};
 use sqlx::postgres::PgPoolOptions;
+use sqlx::{Pool, Postgres};
 
 #[macro_use]
 extern crate rocket;
 
-mod tournament;
+mod map;
 mod stage;
+mod tournament;
 
 #[get("/test_stage")]
 fn hello() -> RawJson<&'static str> {
@@ -57,21 +58,31 @@ async fn rocket() -> _ {
         .expect("OSU_CLIENT_ID must be an unsigned integer");
     let client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
     let postgres_connection_url = std::env::var("POSTGRES_URL").expect("POSTGRES_URL not set");
-    
+
     //let _pool2 = SqlitePoolOptions::new()
     //    .max_connections(4)
     //    .connect("test.db")
     //    .await
     //    .expect("Error connecting to database");
-    
+
     let pool = PgPoolOptions::new()
         .max_connections(4)
         .connect(&postgres_connection_url)
         .await
         .expect("Error connecting to database");
 
+    let redis_client =
+        redis::Client::open("redis://127.0.0.1/").expect("Error creating Redis client");
+
+    let redis_conn = redis_client
+        .get_tokio_connection()
+        .await
+        .expect("Error establishing connection to Redis Database");
+
     rocket::build()
+        // -- Fairings --
         .attach(CORS)
+        // -- Routes --
         .mount("/api", routes![hello, cors_fix])
         .mount(
             "/api/tournament",
@@ -84,19 +95,18 @@ async fn rocket() -> _ {
         )
         .mount(
             "/api/stage",
-            routes![
-                stage::create,
-                stage::get_all,
-                stage::get
-            ],
+            routes![stage::create, stage::get_all, stage::get],
         )
-        .manage::<Mutex<Osu>>(Mutex::new(
+        .mount("/api/map", routes![map::get_test_map])
+        // -- State Management --
+        .manage::<Osu>(
             OsuBuilder::new()
                 .client_id(client_id)
                 .client_secret(client_secret)
                 .build()
                 .await
                 .expect("Could error connecting to osu api"),
-        ))
+        )
         .manage::<Pool<Postgres>>(pool)
+        .manage::<Mutex<redis::aio::Connection>>(Mutex::new(redis_conn))
 }

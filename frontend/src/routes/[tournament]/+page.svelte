@@ -10,7 +10,12 @@
 </script>
 
 <Layout header headerHeight={64}>
-	<Header slot="header" text="Waiting..." />
+	{#await tournamentPromise}
+		<Header slot="header" text="Waiting..." />
+	{:then tournament}
+		<Header slot="header" text={tournament.full_name} />
+		<TournamentView {tournament} slot="default" />
+	{/await}
 </Layout>
 
 <style>

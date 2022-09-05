@@ -12,6 +12,7 @@ serde = "1.0.139" # Apache/MIT
 serde_json = "1.0.82" # Apache/MIT
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "macros", "sqlite", "postgres"]} # Apache/MIT
 dotenv = "0.15.0" # MIT
+redis = { version = "0.21.6", features = ["tokio-comp"] } # BSD3
 
 
 [toolchain]
