@@ -5,10 +5,10 @@
 @tailwind base;
 
 @layer {
-    body {
-      @apply bg-bglight;
-    }
-    .transition-default {
-        @apply transition-all 
-    }
+	body {
+		@apply bg-bglight;
+	}
+	.transition-default {
+		@apply transition-all;
+	}
 }

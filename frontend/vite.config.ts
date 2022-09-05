@@ -1,11 +1,8 @@
-import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { postcss } from "./postcss.config.cjs";
+import { sveltekit } from '@sveltejs/kit/vite';
+import type { UserConfig } from 'vite';
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [svelte()],
-  css: {
-    postcss
-  }
-})
+const config: UserConfig = {
+	plugins: [sveltekit()]
+};
+
+export default config;
