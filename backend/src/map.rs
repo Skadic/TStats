@@ -1,10 +1,11 @@
-use redis::AsyncCommands;
 use rocket::{http::Status, serde::json::Json, tokio::sync::Mutex, State};
 use rosu_v2::{
     prelude::{Beatmap, Beatmapset, BeatmapsetCovers, GameMode, RankStatus},
     Osu,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::util::get_cached;
 
 #[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub struct MinimizedBeatmapset {
@@ -87,32 +88,14 @@ pub async fn get_test_map(
 ) -> (Status, Option<Json<MinimizedBeatmapset>>) {
     let mut lock = redis_client.lock().await;
 
-    let set = if let Ok(cached) = lock.get::<_, String>("mapset:662395").await {
-        match serde_json::from_str(&cached) {
-            Ok(res) => res,
-            Err(_) => return (Status::InternalServerError, None),
-        }
-    } else {
-        let set = match osu.beatmapset(662395).await {
-            Ok(res) => MinimizedBeatmapset::from(res),
-            Err(_) => return (Status::InternalServerError, None),
-        };
-
-        let json_str = match serde_json::to_string(&set) {
-            Ok(res) => res,
-            Err(_) => return (Status::InternalServerError, None),
-        };
-
-        match lock
-            .set::<&str, String, String>("mapset:662395", json_str)
-            .await
-        {
-            Ok(_) => {}
-            Err(_) => return (Status::InternalServerError, None),
-        }
-
-        set
+    let mapset = match get_cached(&mut lock, "mapset:662395", || async {
+        osu.beatmapset(662395).await
+    })
+    .await
+    {
+        Ok(set) => set,
+        Err(_) => return (Status::InternalServerError, None),
     };
 
-    (Status::Ok, Some(Json(set)))
+    (Status::Ok, Some(Json(mapset.into())))
 }

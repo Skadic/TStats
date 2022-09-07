@@ -10,9 +10,11 @@ use sqlx::{Pool, Postgres};
 #[macro_use]
 extern crate rocket;
 
+mod error;
 mod map;
 mod stage;
 mod tournament;
+mod util;
 
 #[get("/test_stage")]
 fn hello() -> RawJson<&'static str> {
