@@ -1,13 +1,16 @@
 use rocket::{http::Status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Pool, Postgres};
+use sqlx::{FromRow, Pool, MySql};
+
+type DBPool = Pool<MySql>; 
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow, Default)]
 pub struct Stage {
     id: Option<i32>,
-    tournament: Option<i32>,
-    stage_number: i32,
-    name: String,
+    tournament_id: Option<i32>,
+    idx: i32,
+    stage_name: String,
+    best_of: u8,
 }
 
 #[post(
@@ -18,13 +21,14 @@ pub struct Stage {
 pub async fn create(
     tournament_id: i32,
     stage: Json<Stage>,
-    db_pool: &State<Pool<Postgres>>,
+    db_pool: &State<DBPool>,
 ) -> (Status, &'static str) {
     let query_result =
-        sqlx::query("INSERT INTO stage(tournament, name, stage_number) VALUES ($1, $2, $3)")
+        sqlx::query("INSERT INTO stage(tournament_id, idx, stage_name, best_of) VALUES (?, ?, ?, ?)")
             .bind(tournament_id)
-            .bind(&stage.name)
-            .bind(stage.stage_number)
+            .bind(stage.idx)
+            .bind(&stage.stage_name)
+            .bind(stage.best_of)
             .execute(&**db_pool)
             .await;
 
@@ -40,13 +44,13 @@ pub async fn create(
 #[get("/<tournament_id>")]
 pub async fn get_all(
     tournament_id: i32,
-    db_pool: &State<Pool<Postgres>>,
+    db_pool: &State<DBPool>,
 ) -> (Status, Option<Json<Vec<Stage>>>) {
-    let query_result = sqlx::query_as::<Postgres, Stage>(
-        "SELECT stage.id, stage.tournament, stage.stage_number, stage.name
+    let query_result = sqlx::query_as::<MySql, Stage>(
+        "SELECT stage.id, stage.tournament_id, stage.idx, stage.stage_name, stage.best_of
         FROM tournament 
         INNER JOIN stage ON stage.tournament=tournament.id 
-        WHERE tournament.id=$1
+        WHERE tournament.id=?
         ORDER BY stage.stage_number ASC",
     )
     .bind(tournament_id)
@@ -63,13 +67,13 @@ pub async fn get_all(
 pub async fn get(
     tournament_id: i32,
     stage_number: i32,
-    db_pool: &State<Pool<Postgres>>,
+    db_pool: &State<DBPool>,
 ) -> (Status, Option<Json<Stage>>) {
-    let query_result = sqlx::query_as::<Postgres, Stage>(
-        "SELECT stage.id, stage.tournament, stage.stage_number, stage.name
+    let query_result = sqlx::query_as::<MySql, Stage>(
+        "SELECT stage.id, stage.tournament_id, stage.idx, stage.stage_name, stage.best_of
         FROM tournament 
         INNER JOIN stage ON stage.tournament=tournament.id 
-        WHERE stage.stage_number=$1 AND tournament.id=$2",
+        WHERE stage.stage_number=? AND tournament.id=?",
     )
     .bind(&stage_number)
     .bind(tournament_id)

@@ -4,8 +4,8 @@ use rocket::http::Status;
 use rocket::{response::content::RawJson, tokio::sync::Mutex};
 use rocket::{Request, Response};
 use rosu_v2::{Osu, OsuBuilder};
-use sqlx::postgres::PgPoolOptions;
-use sqlx::{Pool, Postgres};
+use sqlx::{MySql, Pool};
+use sqlx::mysql::MySqlPoolOptions;
 
 #[macro_use]
 extern crate rocket;
@@ -59,7 +59,7 @@ async fn rocket() -> _ {
         .parse::<u64>()
         .expect("OSU_CLIENT_ID must be an unsigned integer");
     let client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
-    let postgres_connection_url = std::env::var("POSTGRES_URL").expect("POSTGRES_URL not set");
+    let db_connection_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
 
     //let _pool2 = SqlitePoolOptions::new()
     //    .max_connections(4)
@@ -67,9 +67,15 @@ async fn rocket() -> _ {
     //    .await
     //    .expect("Error connecting to database");
 
-    let pool = PgPoolOptions::new()
+    //let pool = PgPoolOptions::new()
+    //    .max_connections(4)
+    //    .connect(&postgres_connection_url)
+    //    .await
+    //    .expect("Error connecting to database");
+
+    let pool = MySqlPoolOptions::new()
         .max_connections(4)
-        .connect(&postgres_connection_url)
+        .connect(&db_connection_url)
         .await
         .expect("Error connecting to database");
 
@@ -90,7 +96,6 @@ async fn rocket() -> _ {
             "/api/tournament",
             routes![
                 tournament::create_tournament,
-                tournament::get_by_shorthand,
                 tournament::get,
                 tournament::get_all
             ],
@@ -109,6 +114,6 @@ async fn rocket() -> _ {
                 .await
                 .expect("Could error connecting to osu api"),
         )
-        .manage::<Pool<Postgres>>(pool)
+        .manage::<Pool<MySql>>(pool)
         .manage::<Mutex<redis::aio::Connection>>(Mutex::new(redis_conn))
 }
