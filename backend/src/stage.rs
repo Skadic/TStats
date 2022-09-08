@@ -1,8 +1,8 @@
 use rocket::{http::Status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Pool, MySql};
+use sqlx::{FromRow, MySql, Pool};
 
-type DBPool = Pool<MySql>; 
+type DBPool = Pool<MySql>;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow, Default)]
 pub struct Stage {
@@ -23,14 +23,15 @@ pub async fn create(
     stage: Json<Stage>,
     db_pool: &State<DBPool>,
 ) -> (Status, &'static str) {
-    let query_result =
-        sqlx::query("INSERT INTO stage(tournament_id, idx, stage_name, best_of) VALUES (?, ?, ?, ?)")
-            .bind(tournament_id)
-            .bind(stage.idx)
-            .bind(&stage.stage_name)
-            .bind(stage.best_of)
-            .execute(&**db_pool)
-            .await;
+    let query_result = sqlx::query(
+        "INSERT INTO stage(tournament_id, idx, stage_name, best_of) VALUES (?, ?, ?, ?)",
+    )
+    .bind(tournament_id)
+    .bind(stage.idx)
+    .bind(&stage.stage_name)
+    .bind(stage.best_of)
+    .execute(&**db_pool)
+    .await;
 
     match query_result {
         Ok(_) => (Status::Ok, "Successfully created stage."),
@@ -45,7 +46,7 @@ pub async fn create(
 pub async fn get_all(
     tournament_id: i32,
     db_pool: &State<DBPool>,
-) -> (Status, Option<Json<Vec<Stage>>>) {
+) -> Result<Json<Vec<Stage>>, (Status, String)> {
     let query_result = sqlx::query_as::<MySql, Stage>(
         "SELECT stage.id, stage.tournament_id, stage.idx, stage.stage_name, stage.best_of
         FROM tournament 
@@ -57,10 +58,12 @@ pub async fn get_all(
     .fetch_all(&**db_pool)
     .await;
 
-    match query_result {
-        Ok(stages) => (Status::Ok, Some(Json(stages))),
-        Err(_) => (Status::InternalServerError, None),
-    }
+    query_result.map(Json).map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error requesting stages for tournament {tournament_id}: {err}"),
+        )
+    })
 }
 
 #[get("/<tournament_id>/<stage_number>")]
@@ -68,7 +71,7 @@ pub async fn get(
     tournament_id: i32,
     stage_number: i32,
     db_pool: &State<DBPool>,
-) -> (Status, Option<Json<Stage>>) {
+) -> Result<Json<Stage>, (Status, String)> {
     let query_result = sqlx::query_as::<MySql, Stage>(
         "SELECT stage.id, stage.tournament_id, stage.idx, stage.stage_name, stage.best_of
         FROM tournament 
@@ -80,13 +83,15 @@ pub async fn get(
     .fetch_optional(&**db_pool)
     .await;
 
-    if query_result.is_err() {
-        return (Status::InternalServerError, None);
+    if let Err(err) = query_result {
+        return Err((
+            Status::InternalServerError,
+            format!("Error querying stage {stage_number} of tournament {tournament_id}: {err}"),
+        ));
     }
 
-    let query_result = query_result.unwrap();
-    match query_result {
-        Some(stage) => (Status::Ok, Some(Json(stage))),
-        None => (Status::NotFound, None),
-    }
+    query_result
+        .unwrap()
+        .map(Json)
+        .ok_or((Status::NotFound, format!("Stage {tournament_id} not found")))
 }

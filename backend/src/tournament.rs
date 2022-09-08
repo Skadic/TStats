@@ -1,4 +1,4 @@
-use rocket::{http::Status, log::private::error, serde::json::Json, State};
+use rocket::{http::Status, log::private::error, response::status, serde::json::Json, State, futures::FutureExt};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySql, Pool};
 
@@ -15,7 +15,10 @@ pub struct Tournament {
 }
 
 #[post("/create", format = "application/json", data = "<tournament>")]
-pub async fn create_tournament(tournament: Json<Tournament>, db_pool: &State<DBPool>) -> Status {
+pub async fn create_tournament(
+    tournament: Json<Tournament>,
+    db_pool: &State<DBPool>,
+) -> Result<Status, (Status, String)> {
     let tournament = tournament.into_inner();
 
     let query_result = sqlx::query("INSERT INTO tournament(shorthand, full_name, play_format, team_size, score_version) VALUES (?, ?, ?, ?, ?)")
@@ -28,11 +31,11 @@ pub async fn create_tournament(tournament: Json<Tournament>, db_pool: &State<DBP
         .await;
 
     match query_result {
-        Ok(_) => Status::Ok,
-        Err(e) => {
-            error!("Error creating tournament: {}", e);
-            Status::InternalServerError
-        }
+        Ok(_) => Ok(Status::Ok),
+        Err(e) => Err((
+            Status::InternalServerError,
+            format!("Error creating tournament: {e}"),
+        )),
     }
 }
 
@@ -40,28 +43,28 @@ pub async fn create_tournament(tournament: Json<Tournament>, db_pool: &State<DBP
 pub async fn get(
     tournament_id: i32,
     db_pool: &State<DBPool>,
-) -> (Status, Option<Json<Tournament>>) {
-    println!("YES HE CALLED THIS");
+) -> Result<Json<Tournament>, (Status, String)> {
     let result = sqlx::query_as::<_, Tournament>("SELECT * FROM tournament WHERE id=?")
         .bind(tournament_id)
         .fetch_optional(&**db_pool);
+
     match result.await {
-        Ok(tournament) => {
-            tournament.map_or((Status::NotFound, None), |t| (Status::Ok, Some(Json(t))))
-        }
-        Err(_) => (Status::InternalServerError, None),
+        Ok(tournament) => tournament.map(Json).ok_or((
+            Status::NotFound,
+            format!("Tournament with id {tournament_id} does not exist"),
+        )),
+        Err(err) => Err((
+            Status::InternalServerError,
+            format!("Error getting tournament with id {tournament_id}: {err}"),
+        )),
     }
 }
 
 #[get("/all")]
-pub async fn get_all(db_pool: &State<DBPool>) -> (Status, Option<Json<Vec<Tournament>>>) {
-    let result =
-        sqlx::query_as::<_, Tournament>("SELECT * FROM tournament").fetch_all(&**db_pool);
-    match result.await {
-        Ok(vec) => (Status::Ok, Some(Json(vec))),
-        Err(e) => {
-            error!("Error creating tournament: {}", e);
-            (Status::InternalServerError, None)
-        }
-    }
+pub async fn get_all(db_pool: &State<DBPool>) -> Result<Json<Vec<Tournament>>, (Status, String)> {
+    let result = sqlx::query_as::<_, Tournament>("SELECT * FROM tournament").fetch_all(&**db_pool);
+
+    result.await
+        .map(Json)
+        .map_err(|e| (Status::InternalServerError, format!("Error creating tournament: {e}")))
 }

@@ -85,17 +85,17 @@ impl From<Beatmap> for MinimizedBeatmap {
 pub async fn get_test_map(
     osu: &State<Osu>,
     redis_client: &State<Mutex<redis::aio::Connection>>,
-) -> (Status, Option<Json<MinimizedBeatmapset>>) {
+) -> (Status, Result<Json<MinimizedBeatmapset>, String>) {
     let mut lock = redis_client.lock().await;
 
     let mapset = match get_cached(&mut lock, "mapset:662395", || async {
-        osu.beatmapset(662395).await
+        osu.beatmapset(662395).await.map(MinimizedBeatmapset::from)
     })
     .await
     {
         Ok(set) => set,
-        Err(_) => return (Status::InternalServerError, None),
+        Err(err) => return (Status::InternalServerError, Err(format!("Error during retrieval of cached value with key \"mapset:662395\": {}", err))),
     };
 
-    (Status::Ok, Some(Json(mapset.into())))
+    (Status::Ok, Ok(Json(mapset)))
 }
