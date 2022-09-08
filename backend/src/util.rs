@@ -12,12 +12,12 @@ use redis::AsyncCommands;
 /// That value cached under the given key as json and then returned.
 ///
 /// # Errors
-/// 
+///
 /// This function will return:
 /// A Redis variant of CacheError, if the communication or caching with Redis fails.
 /// A Json variant of CacheError, if serialization or deserialization fails.
 /// A different variant of CacheError depending on the errors returned by the supplier.
-/// 
+///
 pub async fn get_cached<Out, Err, Supplier, Fut>(
     connection: &mut redis::aio::Connection,
     key: &str,

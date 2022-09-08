@@ -94,7 +94,15 @@ pub async fn get_test_map(
     .await
     {
         Ok(set) => set,
-        Err(err) => return (Status::InternalServerError, Err(format!("Error during retrieval of cached value with key \"mapset:662395\": {}", err))),
+        Err(err) => {
+            return (
+                Status::InternalServerError,
+                Err(format!(
+                    "Error during retrieval of cached value with key \"mapset:662395\": {}",
+                    err
+                )),
+            )
+        }
     };
 
     (Status::Ok, Ok(Json(mapset)))

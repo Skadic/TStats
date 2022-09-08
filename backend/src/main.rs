@@ -4,8 +4,8 @@ use rocket::http::Status;
 use rocket::{response::content::RawJson, tokio::sync::Mutex};
 use rocket::{Request, Response};
 use rosu_v2::{Osu, OsuBuilder};
-use sqlx::{MySql, Pool};
 use sqlx::mysql::MySqlPoolOptions;
+use sqlx::{MySql, Pool};
 
 #[macro_use]
 extern crate rocket;

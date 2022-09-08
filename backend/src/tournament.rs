@@ -1,4 +1,4 @@
-use rocket::{http::Status, log::private::error, response::status, serde::json::Json, State, futures::FutureExt};
+use rocket::{http::Status, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySql, Pool};
 
@@ -6,7 +6,7 @@ type DBPool = Pool<MySql>;
 
 #[derive(Serialize, Deserialize, FromRow, Debug)]
 pub struct Tournament {
-    id: Option<i32>,
+    id: i32,
     shorthand: String,
     full_name: String,
     play_format: i8,
@@ -21,12 +21,14 @@ pub async fn create_tournament(
 ) -> Result<Status, (Status, String)> {
     let tournament = tournament.into_inner();
 
-    let query_result = sqlx::query("INSERT INTO tournament(shorthand, full_name, play_format, team_size, score_version) VALUES (?, ?, ?, ?, ?)")
-        .bind(tournament.shorthand)
-        .bind(tournament.full_name)
-        .bind(tournament.play_format)
-        .bind(tournament.team_size)
-        .bind(tournament.score_version)
+    let query_result = sqlx::query!(
+            "INSERT INTO tournament(shorthand, full_name, play_format, team_size, score_version) VALUES (?, ?, ?, ?, ?)",
+            tournament.shorthand,
+            tournament.full_name,
+            tournament.play_format,
+            tournament.team_size,
+            tournament.score_version
+        )
         .execute(&**db_pool)
         .await;
 
@@ -44,9 +46,12 @@ pub async fn get(
     tournament_id: i32,
     db_pool: &State<DBPool>,
 ) -> Result<Json<Tournament>, (Status, String)> {
-    let result = sqlx::query_as::<_, Tournament>("SELECT * FROM tournament WHERE id=?")
-        .bind(tournament_id)
-        .fetch_optional(&**db_pool);
+    let result = sqlx::query_as!(
+        Tournament,
+        "SELECT * FROM tournament WHERE id=?",
+        tournament_id
+    )
+    .fetch_optional(&**db_pool);
 
     match result.await {
         Ok(tournament) => tournament.map(Json).ok_or((
@@ -62,9 +67,12 @@ pub async fn get(
 
 #[get("/all")]
 pub async fn get_all(db_pool: &State<DBPool>) -> Result<Json<Vec<Tournament>>, (Status, String)> {
-    let result = sqlx::query_as::<_, Tournament>("SELECT * FROM tournament").fetch_all(&**db_pool);
+    let result = sqlx::query_as!(Tournament, "SELECT * FROM tournament").fetch_all(&**db_pool);
 
-    result.await
-        .map(Json)
-        .map_err(|e| (Status::InternalServerError, format!("Error creating tournament: {e}")))
+    result.await.map(Json).map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error creating tournament: {e}"),
+        )
+    })
 }

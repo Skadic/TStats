@@ -6,11 +6,11 @@ type DBPool = Pool<MySql>;
 
 #[derive(Debug, Clone, Deserialize, Serialize, FromRow, Default)]
 pub struct Stage {
-    id: Option<i32>,
-    tournament_id: Option<i32>,
-    idx: i32,
+    id: i32,
+    tournament_id: i32,
+    idx: i8,
     stage_name: String,
-    best_of: u8,
+    best_of: i8,
 }
 
 #[post(
@@ -23,13 +23,13 @@ pub async fn create(
     stage: Json<Stage>,
     db_pool: &State<DBPool>,
 ) -> (Status, &'static str) {
-    let query_result = sqlx::query(
-        "INSERT INTO stage(tournament_id, idx, stage_name, best_of) VALUES (?, ?, ?, ?)",
+    let query_result = sqlx::query!(
+        "INSERT InTO stage(tournament_id, idx, stage_name, best_of) VALUES (?, ?, ?, ?)",
+        tournament_id,
+        stage.idx,
+        &stage.stage_name,
+        stage.best_of
     )
-    .bind(tournament_id)
-    .bind(stage.idx)
-    .bind(&stage.stage_name)
-    .bind(stage.best_of)
     .execute(&**db_pool)
     .await;
 
@@ -47,14 +47,15 @@ pub async fn get_all(
     tournament_id: i32,
     db_pool: &State<DBPool>,
 ) -> Result<Json<Vec<Stage>>, (Status, String)> {
-    let query_result = sqlx::query_as::<MySql, Stage>(
+    let query_result = sqlx::query_as!(
+        Stage,
         "SELECT stage.id, stage.tournament_id, stage.idx, stage.stage_name, stage.best_of
         FROM tournament 
-        INNER JOIN stage ON stage.tournament=tournament.id 
+        INNER JOIN stage ON stage.tournament_id=tournament.id 
         WHERE tournament.id=?
         ORDER BY stage.stage_number ASC",
+        Some(tournament_id)
     )
-    .bind(tournament_id)
     .fetch_all(&**db_pool)
     .await;
 

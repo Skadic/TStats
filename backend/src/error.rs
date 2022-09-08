@@ -11,7 +11,7 @@ macro_rules! quick_from_err {
                 Self::$var(err)
             }
         }
-    }
+    };
 }
 
 /// An error that might occur when trying to retrieve a cached value using [crate::util::get_cached]
