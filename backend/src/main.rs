@@ -102,7 +102,12 @@ async fn rocket() -> _ {
         )
         .mount(
             "/api/stage",
-            routes![stage::create, stage::get_all, stage::get],
+            routes![
+                stage::create,
+                stage::get_all,
+                stage::get,
+                stage::set_pool_format
+            ],
         )
         .mount("/api/map", routes![map::get_test_map])
         // -- State Management --
