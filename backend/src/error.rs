@@ -37,9 +37,9 @@ impl Display for CacheError {
             "{}",
             match &self {
                 Redis(e) => format!("Error communicating with the Redis cache: {e}"),
-                Json(e) => format!("Error (de-)serializing the requested value"),
-                Osu(e) => format!("Error communicating with the Osu Api"),
-                DBError(e) => format!("Error communicating with the database")
+                Json(e) => format!("Error (de-)serializing the requested value: {e}"),
+                Osu(e) => format!("Error communicating with the Osu Api: {e}"),
+                DBError(e) => format!("Error communicating with the database: {e}")
             }
         )
     }

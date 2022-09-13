@@ -1,8 +1,6 @@
-use std::fmt::format;
-
 use rocket::{http::Status, serde::json::Json, tokio::sync::Mutex, State};
 use rosu_v2::{
-    prelude::{Beatmap, BeatmapCompact, Beatmapset, BeatmapsetCovers, GameMode, RankStatus},
+    prelude::{Beatmap, Beatmapset, BeatmapsetCovers, GameMode, RankStatus},
     Osu,
 };
 use serde::{Deserialize, Serialize};
