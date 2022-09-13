@@ -1,11 +1,16 @@
+use std::fmt::format;
+
 use rocket::{http::Status, serde::json::Json, tokio::sync::Mutex, State};
 use rosu_v2::{
-    prelude::{Beatmap, Beatmapset, BeatmapsetCovers, GameMode, RankStatus},
+    prelude::{Beatmap, BeatmapCompact, Beatmapset, BeatmapsetCovers, GameMode, RankStatus},
     Osu,
 };
 use serde::{Deserialize, Serialize};
+use sqlx::{MySql, Pool};
 
-use crate::util::get_cached;
+use crate::util::{get_cached, get_cached_opt};
+
+type DBPool = Pool<MySql>;
 
 #[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub struct MinimizedBeatmapset {
@@ -106,4 +111,84 @@ pub async fn get_test_map(
     };
 
     (Status::Ok, Ok(Json(mapset)))
+}
+
+#[post("/tournament/<tournament_id>/stage/<stage_idx>/set_map?<map_slot>&<map_id>")]
+pub async fn set_map(
+    tournament_id: u32,
+    stage_idx: u32,
+    map_slot: u32,
+    map_id: u32,
+    osu: &State<Osu>,
+    db_pool: &State<DBPool>,
+    redis_client: &State<Mutex<redis::aio::Connection>>,
+) -> Result<Status, (Status, String)> {
+    let mut client = redis_client.lock().await;
+
+    // Find the stage id and cache it if needs to be retrieved from the database
+    let cache_key = format!("stage:{tournament_id}:{stage_idx}:id");
+    let stage_id = match get_cached_opt(&mut client, &cache_key, || async {
+        // find stage id
+        sqlx::query!(
+            "
+            SELECT stage.id FROM stage 
+            INNER JOIN tournament ON tournament.id = stage.tournament_id
+            WHERE tournament.id=? AND stage.idx=?
+            ",
+            tournament_id,
+            stage_idx
+        )
+        .fetch_optional(&**db_pool)
+        .await
+        .map(|opt| opt.map(|record| record.id))
+    })
+    .await?
+    {
+        Some(stage_id) => stage_id,
+        None => {
+            return Err((
+                Status::NotFound,
+                format!("Stage {stage_idx} of tournament {tournament_id} not found"),
+            ))
+        }
+    };
+
+    // Get the map from the osu api and cache it
+    let map_cache_key = format!("map:{map_id}");
+    let map = match get_cached(&mut client, &map_cache_key, || async {
+        osu.beatmaps([map_id]).await
+    })
+    .await?
+    .into_iter()
+    .next()
+    {
+        Some(map) => map,
+        None => {
+            return Err((
+                Status::NotFound,
+                format!("The map with id {map_id} does not exist"),
+            ))
+        }
+    };
+
+    let mapset_id = map.mapset.unwrap().mapset_id;
+
+    let res = sqlx::query!(
+        "
+        INSERT INTO mappoolslot(stage_id, map_slot, mapset_id, map_id) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE mapset_id=?, map_id=?
+        ",
+        stage_id,
+        map_slot,
+        mapset_id,
+        map.map_id,
+        mapset_id,
+        map.map_id
+    )
+    .execute(&**db_pool)
+    .await;
+
+    match res {
+        Ok(_) => Ok(Status::Ok),
+        Err(e) => Err((Status::InternalServerError, format!("Error setting map with id {map_id} as map {map_slot} in stage {stage_idx} of tournament {tournament_id}: {e}")))
+    }
 }

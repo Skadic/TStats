@@ -54,8 +54,8 @@ pub async fn get_all(
         FROM tournament 
         INNER JOIN stage ON stage.tournament_id=tournament.id 
         WHERE tournament.id=?
-        ORDER BY stage.stage_number ASC",
-        Some(tournament_id)
+        ORDER BY stage.idx ASC",
+        tournament_id
     )
     .fetch_all(&**db_pool)
     .await;
@@ -74,14 +74,14 @@ pub async fn get(
     stage_idx: i32,
     db_pool: &State<DBPool>,
 ) -> Result<Json<Stage>, (Status, String)> {
-    let query_result = sqlx::query_as::<MySql, Stage>(
+    let query_result = sqlx::query_as!(Stage,
         "SELECT stage.id, stage.tournament_id, stage.idx, stage.stage_name, stage.best_of
         FROM tournament 
-        INNER JOIN stage ON stage.tournament=tournament.id 
-        WHERE stage.stage_number=? AND tournament.id=?",
+        INNER JOIN stage ON stage.tournament_id=tournament.id 
+        WHERE stage.idx=? AND tournament.id=?",
+        &stage_idx,
+        tournament_id
     )
-    .bind(&stage_idx)
-    .bind(tournament_id)
     .fetch_optional(&**db_pool)
     .await;
 

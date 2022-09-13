@@ -91,7 +91,7 @@ async fn rocket() -> _ {
         // -- Fairings --
         .attach(CORS)
         // -- Routes --
-        .mount("/api", routes![hello, cors_fix])
+        .mount("/api", routes![hello, cors_fix, map::set_map])
         .mount(
             "/api/tournament",
             routes![

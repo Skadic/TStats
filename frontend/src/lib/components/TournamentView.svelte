@@ -1,10 +1,10 @@
 <script lang="ts">
 	import '$lib/styles/app.css';
 	import { getAllStages } from '$lib/ts/Stage';
-import type { Tournament } from '$lib/ts/Types';
-import StageCard from './StageCard.svelte';
+	import type { Tournament } from '$lib/ts/Types';
+	import StageCard from './StageCard.svelte';
 
-    export let tournament: Tournament;
+	export let tournament: Tournament;
 
 	let stagePromise = getAllStages(tournament.id);
 </script>
@@ -14,7 +14,7 @@ import StageCard from './StageCard.svelte';
 		<p>...waiting</p>
 	{:then stages}
 		{#each stages as stage}
-			<StageCard stage={stage}/>
+			<StageCard {stage} />
 		{/each}
 	{:catch error}
 		<p style="color: red">{error.message}</p>
