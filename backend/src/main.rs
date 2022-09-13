@@ -91,7 +91,7 @@ async fn rocket() -> _ {
         // -- Fairings --
         .attach(CORS)
         // -- Routes --
-        .mount("/api", routes![hello, cors_fix, map::set_map])
+        .mount("/api", routes![hello, cors_fix])
         .mount(
             "/api/tournament",
             routes![
@@ -100,8 +100,9 @@ async fn rocket() -> _ {
                 tournament::get_all
             ],
         )
+        // -- Stages --
         .mount(
-            "/api/stage",
+            "/api/tournament",
             routes![
                 stage::create,
                 stage::get_all,
@@ -110,7 +111,8 @@ async fn rocket() -> _ {
                 stage::get_pool_format
             ],
         )
-        .mount("/api/map", routes![map::get_test_map])
+        // -- Maps --
+        .mount("/api/tournament", routes![map::get_test_map, map::set_map])
         // -- State Management --
         .manage::<Osu>(
             OsuBuilder::new()

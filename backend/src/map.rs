@@ -113,7 +113,7 @@ pub async fn get_test_map(
     (Status::Ok, Ok(Json(mapset)))
 }
 
-#[post("/tournament/<tournament_id>/stage/<stage_idx>/set_map?<map_slot>&<map_id>")]
+#[post("/<tournament_id>/stage/<stage_idx>/set_map?<map_slot>&<map_id>")]
 pub async fn set_map(
     tournament_id: u32,
     stage_idx: u32,

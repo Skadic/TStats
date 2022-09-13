@@ -15,7 +15,7 @@ pub struct Stage {
 }
 
 #[post(
-    "/<tournament_id>/create",
+    "/<tournament_id>/stage/create",
     format = "application/json",
     data = "<stage>"
 )]
@@ -43,7 +43,7 @@ pub async fn create(
     }
 }
 
-#[get("/<tournament_id>")]
+#[get("/<tournament_id>/stage")]
 pub async fn get_all(
     tournament_id: i32,
     db_pool: &State<DBPool>,
@@ -68,7 +68,7 @@ pub async fn get_all(
     })
 }
 
-#[get("/<tournament_id>/<stage_idx>")]
+#[get("/<tournament_id>/stage/<stage_idx>")]
 pub async fn get(
     tournament_id: i32,
     stage_idx: i32,
@@ -100,7 +100,7 @@ pub async fn get(
 
 // TODO Yeah this api is pretty screwed lol. I gotta change that sometime
 #[post(
-    "/<tournament_id>/<stage_idx>/pool_format",
+    "/<tournament_id>/stage/<stage_idx>/pool_format",
     format = "application/json",
     data = "<format>"
 )]
@@ -135,7 +135,7 @@ pub async fn set_pool_format(
     }
 }
 
-#[get("/<tournament_id>/<stage_idx>/pool_format")]
+#[get("/<tournament_id>/stage/<stage_idx>/pool_format")]
 pub async fn get_pool_format(
     tournament_id: i32,
     stage_idx: i32,
