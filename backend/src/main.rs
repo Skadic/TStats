@@ -52,7 +52,7 @@ impl Fairing for CORS {
 
 #[launch]
 async fn rocket() -> _ {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     let client_id = std::env::var("OSU_CLIENT_ID")
         .expect("OSU_CLIENT_ID not set")
@@ -106,7 +106,8 @@ async fn rocket() -> _ {
                 stage::create,
                 stage::get_all,
                 stage::get,
-                stage::set_pool_format
+                stage::set_pool_format,
+                stage::get_pool_format
             ],
         )
         .mount("/api/map", routes![map::get_test_map])
