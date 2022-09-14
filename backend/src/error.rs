@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use redis::RedisError;
-use rocket::{response::{Responder, self}, http::Status};
+use rocket::http::Status;
 use rosu_v2::prelude::OsuError;
 
 /// Implements simple from conversions for Error enum types

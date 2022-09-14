@@ -111,7 +111,7 @@ pub async fn set_pool_format(
     db_pool: &State<DBPool>,
 ) -> (Status, String) {
     // Check if the json is only a mapping to non-negative integers
-    if let Err(_) = serde_json::from_str::<HashMap<String, u8>>(&format) {
+    if serde_json::from_str::<HashMap<String, u8>>(&format).is_err() {
         return (Status::UnprocessableEntity, "Invalid pool format. This should only be a mapping from mod bracket names to number of maps in the bracket".to_owned());
     }
 

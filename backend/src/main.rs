@@ -54,7 +54,7 @@ impl Fairing for CORS {
 #[launch]
 async fn rocket() -> _ {
     match dotenvy::dotenv().ok() {
-        Some(path) => info!(".env file successfully loaded"),
+        Some(path) => info!(".env file successfully loaded from path \"{}\"", path.to_string_lossy()),
         None => warn!("No .env file found")
     };
 
@@ -64,6 +64,7 @@ async fn rocket() -> _ {
         .expect("OSU_CLIENT_ID must be an unsigned integer");
     let client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
     let db_connection_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
+    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL not set");
 
     //let _pool2 = SqlitePoolOptions::new()
     //    .max_connections(4)
@@ -84,7 +85,7 @@ async fn rocket() -> _ {
         .expect("Error connecting to database");
 
     let redis_client =
-        redis::Client::open("redis://127.0.0.1/").expect("Error creating Redis client");
+        redis::Client::open(redis_url).expect("Error creating Redis client");
 
     let redis_conn = redis_client
         .get_tokio_connection()
