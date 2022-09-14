@@ -23,7 +23,7 @@ COPY ./Rocket.toml .
 RUN rm ./target/release/deps/* && cargo build --release
 
 # Move to a slimmer image
-FROM fedora/
+FROM debian:bullseye-slim
 
 # Copy the built binary to our new image
 COPY --from=build ./backend/target/release/backend .
