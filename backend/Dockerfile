@@ -1,5 +1,9 @@
 FROM rust:1.63 as build
 
+ARG DATABASE_URL
+ARG OSU_CLIENT_ID
+ARG OSU_CLIENT_SECRET
+
 # Create new shell project
 RUN USER=root cargo new --bin backend
 WORKDIR /backend
