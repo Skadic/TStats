@@ -5,7 +5,7 @@ RUN USER=root cargo new --bin backend
 WORKDIR /backend
 
 # Copy manifest
-COPY ./Cargo.toml ./Cargo.lock ./
+COPY ./Cargo.toml ./Cargo.lock* ./
 
 # Build only dependencies
 RUN cargo build --release && rm src/*.rs
