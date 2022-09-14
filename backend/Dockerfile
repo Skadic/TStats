@@ -5,16 +5,14 @@ RUN USER=root cargo new --bin backend
 WORKDIR /backend
 
 # Copy manifest
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
+COPY ./Cargo.toml ./Cargo.lock ./
 
 # Build only dependencies
 RUN cargo build --release && rm src/*.rs
 
 # Now that the dependencies are build, copy sources
 COPY ./src ./src
-COPY ./.env ./.env
-COPY ./Rocket.toml ./Rocket.toml
+COPY ./Rocket.toml .
 
 # Build for release
 RUN rm ./target/release/deps/* && cargo build --release

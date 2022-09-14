@@ -1,6 +1,7 @@
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
 use rocket::http::Status;
+use rocket::log::private::{info, warn};
 use rocket::{response::content::RawJson, tokio::sync::Mutex};
 use rocket::{Request, Response};
 use rosu_v2::{Osu, OsuBuilder};
@@ -52,7 +53,10 @@ impl Fairing for CORS {
 
 #[launch]
 async fn rocket() -> _ {
-    dotenvy::dotenv().ok();
+    match dotenvy::dotenv().ok() {
+        Some(path) => info!(".env file successfully loaded"),
+        None => warn!("No .env file found")
+    };
 
     let client_id = std::env::var("OSU_CLIENT_ID")
         .expect("OSU_CLIENT_ID not set")
