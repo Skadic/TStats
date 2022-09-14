@@ -23,7 +23,7 @@ COPY ./Rocket.toml .
 RUN rm ./target/release/deps/* && cargo build --release
 
 # Move to a slimmer image
-FROM debian:bullseye
+FROM debian:bullseye-slim
 
 # Copy the built binary to our new image
 COPY --from=build ./backend/target/release/backend .
@@ -31,6 +31,6 @@ COPY --from=build ./backend/target/release/backend .
 # Try installing CA certificates
 RUN mkdir /usr/local/share/ca-certificates
 COPY ./certificates/* /usr/local/share/ca-certificates
-RUN update-ca-certificates
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
 
 CMD [ "./backend" ]
