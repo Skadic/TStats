@@ -33,4 +33,6 @@ RUN mkdir /usr/local/share/ca-certificates
 COPY ./certificates/* /usr/local/share/ca-certificates
 RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
 
-CMD [ "ls -l && ./backend" ]
+RUN ls -l
+
+CMD [ "./backend" ]
