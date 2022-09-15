@@ -30,7 +30,7 @@ COPY --from=build ./backend/target/release/backend .
 
 # Try installing CA certificates
 RUN mkdir /usr/local/share/ca-certificates
-COPY ./certificates/* /usr/local/share/ca-certificates
+COPY ./certificates/* /usr/local/share/ca-certificates/
 RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
 
 RUN ls -l
