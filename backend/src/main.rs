@@ -58,12 +58,16 @@ async fn rocket() -> _ {
         None => warn!("No .env file found")
     };
 
-    let client_id = std::env!("OSU_CLIENT_ID")
+    let client_id = std::env::var("OSU_CLIENT_ID")
+        .expect("OSU_CLIENT_ID not set")
         .parse::<u64>()
         .expect("OSU_CLIENT_ID must be an unsigned integer");
-    let client_secret = std::env!("OSU_CLIENT_SECRET");
-    let db_connection_url = std::env!("DATABASE_URL");
-    let redis_url = std::env!("REDIS_URL");
+    let client_secret = std::env::var("OSU_CLIENT_SECRET")
+        .expect("OSU_CLIENT_SECRET not set");
+    let db_connection_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL not set");
+    let redis_url = std::env::var("REDIS_URL")
+        .expect("REDIS_URL not set");
 
     //let _pool2 = SqlitePoolOptions::new()
     //    .max_connections(4)
