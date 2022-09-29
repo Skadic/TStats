@@ -1,8 +1,8 @@
-use rocket::{http::Status, serde::json::Json, State};
+use rocket::{http::Status, serde::json::Json, State, log::private::info};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, MySql, Pool};
+use sqlx::FromRow;
 
-type DBPool = Pool<MySql>;
+use crate::DBPool;
 
 #[derive(Serialize, Deserialize, FromRow, Debug)]
 pub struct Tournament {
@@ -33,11 +33,18 @@ pub async fn create_tournament(
         .await;
 
     match query_result {
-        Ok(_) => Ok(Status::Ok),
-        Err(e) => Err((
-            Status::InternalServerError,
-            format!("Error creating tournament: {e}"),
-        )),
+        Ok(_) => {
+            info!("Created tournament {}", tournament.shorthand);
+            Ok(Status::Ok)
+        },
+        Err(e) => {
+            let err_msg = format!("Error creating tournament: {e}");
+            error!("{}", err_msg);
+            Err((
+                Status::InternalServerError,
+                err_msg,
+            ))
+        },
     }
 }
 

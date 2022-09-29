@@ -8,10 +8,10 @@ edition = "2021"
 [dependencies]
 rocket = { version = "0.5.0-rc.2", features = ["json"] } # Apache
 rosu-v2 = "0.4.0" # MIT
-serde = "1.0.139" # Apache/MIT
-serde_json = "1.0.82" # Apache/MIT
-sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "macros", "sqlite", "mysql", "json"]} # Apache/MIT
-dotenvy = "0.15.3" # MIT
+serde = "1.0.145" # Apache/MIT
+serde_json = { version = "1.0.85", features = ["raw_value"] } # Apache/MIT
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "macros", "sqlite", "mysql", "json"]} # Apache/MIT
+dotenvy = "0.15.5" # MIT
 redis = { version = "0.21.6", features = ["tokio-comp"] } # BSD3
 
 
