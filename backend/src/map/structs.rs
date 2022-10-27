@@ -1,4 +1,4 @@
-use rosu_v2::prelude::{Beatmap, Beatmapset, BeatmapsetCovers, GameMode, RankStatus};
+use rosu_v2::prelude::{Beatmap, Beatmapset, BeatmapsetCovers, GameMode, RankStatus, BeatmapCompact};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, PartialEq)]
@@ -7,7 +7,7 @@ pub struct PoolSlot {
     pub mapset: MinimizedBeatmapset,
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct MinimizedBeatmapset {
     pub mapset_id: u32,
     pub artist: String,
@@ -44,7 +44,7 @@ impl From<Beatmapset> for MinimizedBeatmapset {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct MinimizedBeatmap {
     pub map_id: u32,
     pub mapset_id: u32,

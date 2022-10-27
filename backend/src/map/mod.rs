@@ -1,12 +1,12 @@
 use crate::{
     map::structs::{MinimizedBeatmapset, PoolSlot},
-    util::get_cached,
+    util::{get_cached, get_cached_opt},
     DBPool,
 };
 use rocket::{http::Status, serde::json::Json, tokio::sync::Mutex, State};
 use rosu_v2::Osu;
 
-use self::util::get_stage_id_cached;
+use self::util::{get_mapset_cached, get_stage_id_cached};
 
 pub mod structs;
 pub mod util;
@@ -38,7 +38,7 @@ pub async fn get_test_map(
     (Status::Ok, Ok(Json(mapset)))
 }
 
-#[post("/<tournament_id>/stage/<stage_idx>/map/set?<map_slot>&<map_id>")]
+#[post("/<tournament_id>/stage/<stage_idx>/pool/set?<map_slot>&<map_id>")]
 pub async fn set_map(
     tournament_id: u32,
     stage_idx: u32,
@@ -103,7 +103,7 @@ pub async fn set_map(
     }
 }
 
-#[get("/<tournament_id>/stage/<stage_idx>/map/<map_slot>")]
+#[get("/<tournament_id>/stage/<stage_idx>/pool/<map_slot>")]
 pub async fn get_map_by_slot(
     tournament_id: u32,
     stage_idx: u32,
@@ -113,7 +113,6 @@ pub async fn get_map_by_slot(
     redis_client: &State<Mutex<redis::aio::Connection>>,
 ) -> Result<Json<PoolSlot>, (Status, String)> {
     let client = redis_client.lock();
-
 
     // Get the mapset and map id for the given pool slot
     let record = {
@@ -149,21 +148,81 @@ pub async fn get_map_by_slot(
     };
 
     let mapset = {
-        let mapset_key = format!("mapset:{}", record.mapset_id);
-        get_cached(&mut *client.await, &mapset_key, || async {
-            osu.beatmapset(record.mapset_id as u32).await
-        })
-        .await
-        .map(MinimizedBeatmapset::from)
-        .map_err(|err| {
-            let err_msg = format!("Error retrieving mapset {} from osu api. Maybe the mapset does not exist: {err}", record.mapset_id);
-            error!("{}", err_msg);
-            (Status::InternalServerError, err_msg)
-        })?
+        get_mapset_cached(&mut *client.await, &**osu, record.mapset_id as u32)
+            .await
+            .map_err(|err| {
+                let err_msg = format!(
+                "Error retrieving mapset {} from osu api. Maybe the mapset does not exist: {err}",
+                record.mapset_id
+            );
+                error!("{}", err_msg);
+                (Status::InternalServerError, err_msg)
+            })?
     };
-    
-    Ok(Json(PoolSlot {
-        map_id: record.map_id as u32,
-        mapset
-    }))
+
+    match mapset {
+        Some(set) => Ok(Json(PoolSlot {
+            map_id: record.map_id as u32,
+            mapset: set,
+        })),
+        None => Err((Status::NotFound, format!("Not found"))),
+    }
+}
+
+#[get("/<tournament_id>/stage/<stage_idx>/pool")]
+pub async fn get_mappool(
+    tournament_id: u32,
+    stage_idx: u32,
+    osu: &State<Osu>,
+    db_pool: &State<DBPool>,
+    redis_client: &State<Mutex<redis::aio::Connection>>,
+) -> Result<Json<Vec<PoolSlot>>, (Status, String)> {
+    let mut client = redis_client.lock().await;
+
+    let records = {
+        let res = sqlx::query!(
+        "
+        SELECT map_slot, mapset_id, map_id FROM mappoolslot INNER JOIN stage ON stage.id=mappoolslot.stage_id WHERE stage.tournament_id=? AND stage.idx=? 
+        ",
+        tournament_id,
+        stage_idx)
+        .fetch_all(&**db_pool)
+        .await;
+
+        // Handle errors from the database
+        if let Err(e) = res {
+            let err_msg = format!("Error retrieving maps for stage of index {stage_idx} in tournament with id {tournament_id}: {e}");
+            error!("{}", err_msg);
+            return Err((Status::InternalServerError, err_msg));
+        }
+
+        // Get each map's data from the osu api or Redis if it is cached
+        let mut result = vec![];
+        for record in res.unwrap().into_iter() {
+            let mapset = get_mapset_cached(&mut *client, &**osu, record.mapset_id as u32).await;
+            // Did an error occur while caching?
+            match mapset {
+                // Was the map found?
+                Ok(opt) => match opt {
+                    Some(map) => result.push(PoolSlot {
+                        map_id: record.map_id as u32,
+                        mapset: map,
+                    }),
+                    None => {
+                        let err_msg = format!("map not found while retrieving mappool");
+                        error!("{}", err_msg);
+                        return Err((Status::NotFound, err_msg));
+                    }
+                },
+                Err(e) => {
+                    let err_msg = format!("Error retrieving maps for stage of index {stage_idx} in tournament with id {tournament_id}: {e}");
+                    error!("{}", err_msg);
+                    return Err((Status::NotFound, err_msg));
+                }
+            }
+        }
+        result
+    };
+
+    Ok(Json(records))
 }

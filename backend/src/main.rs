@@ -130,7 +130,7 @@ async fn rocket() -> _ {
         // -- Maps --
         .mount(
             "/api/tournament",
-            routes![map::get_test_map, map::set_map, map::get_map_by_slot],
+            routes![map::get_test_map, map::set_map, map::get_map_by_slot, map::get_mappool],
         )
         // -- State Management --
         .manage::<Osu>(osu)

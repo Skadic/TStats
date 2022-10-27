@@ -21,7 +21,7 @@ pub enum CacheError {
     Redis(RedisError),
     Json(serde_json::error::Error),
     Osu(OsuError),
-    DBError(sqlx::Error)
+    DBError(sqlx::Error),
 }
 
 quick_from_err!(CacheError, RedisError, Redis);
@@ -39,7 +39,7 @@ impl Display for CacheError {
                 Redis(e) => format!("Error communicating with the Redis cache: {e}"),
                 Json(e) => format!("Error (de-)serializing the requested value: {e}"),
                 Osu(e) => format!("Error communicating with the Osu Api: {e}"),
-                DBError(e) => format!("Error communicating with the database: {e}")
+                DBError(e) => format!("Error communicating with the database: {e}"),
             }
         )
     }
