@@ -6,14 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = { version = "0.5.0-rc.2", features = ["json"] } # Apache
-rosu-v2 = "0.6.1" # MIT
-serde = "1.0.145" # Apache/MIT
-serde_json = { version = "1.0.85", features = ["raw_value"] } # Apache/MIT
-sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "macros", "sqlite", "mysql", "json"]} # Apache/MIT
-dotenvy = "0.15.5" # MIT
-redis = { version = "0.22.1", features = ["tokio-comp"] } # BSD3
-
-
-[toolchain]
-channel = "nightly"
+axum = "0.6"
+dotenvy = "0.15"
+rosu-v2 = "0.8"
+serde = "1.0"
+serde_json = "1.0"
+surrealdb = "1.0.0-beta.9"
+tokio = { version = "1.29", features = ["rt-multi-thread", "macros"] }
