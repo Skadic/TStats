@@ -143,7 +143,7 @@ impl RankRange {
 
     /// Returns the number of tiers in the tournament. For a single rank range, this is just one.
     /// For tiered tournaments, it's the number of rank ranges.
-    pub const fn num_tiers(&self) -> usize {
+    pub fn num_tiers(&self) -> usize {
         match self {
             RankRange::Single(_) => 1,
             RankRange::Tiered(ranges) => ranges.len(),
