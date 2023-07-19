@@ -28,7 +28,7 @@ pub enum TournamentFormat {
     /// one time. So for a 4v4, this parameter is 4.
     Versus { team_size: usize },
     /// A battle royale style tournament.
-    BattleRoyale,
+    BattleRoyale { player_number: usize },
 }
 
 impl TournamentFormat {
@@ -40,7 +40,7 @@ impl TournamentFormat {
 /// A rank range for the current tournament which determines which players are allowed into the
 /// tournament
 #[derive(Debug, PartialEq, Serialize, Deserialize, Hash)]
-#[serde(untagged)]
+//#[serde(untagged)]
 pub enum RankRange {
     /// This tournament has a single rank range
     Single { rank_range: Range<usize> },

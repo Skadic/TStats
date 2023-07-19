@@ -11,7 +11,9 @@ pub struct Stage {
     /// The stage's short name. For example, "QF", "RO16", etc.
     pub name: String,
     /// The tournament this stage is in.
-    pub tournament: RecordId
+    pub tournament: RecordId,
+    /// The brackets in this pool in the order they should appear, e.g. most commonly for std tournaments, this is ["NM", "HD", "HR", "DT", "FM", "TB"].
+    pub pool_brackets: Vec<String>,
 }
 
 impl TableType for Stage {
