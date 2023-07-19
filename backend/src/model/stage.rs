@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
-use surrealdb::opt::RecordId;
+
 use surrealdb::sql::Thing;
 
 use super::TableType;
@@ -20,6 +20,7 @@ pub struct Stage<'a> {
 }
 
 impl<'a> Stage<'a> {
+    /// Creates a new [`Stage`] with the given name, order and pool brackets.
     pub fn new(
         name: &'a str,
         order: usize,
@@ -29,10 +30,7 @@ impl<'a> Stage<'a> {
             id: None,
             name: name.into(),
             order,
-            pool_brackets: pool_brackets
-                .into_iter()
-                .map(|s| s.into())
-                .collect(),
+            pool_brackets: pool_brackets.into_iter().map(|s| s.into()).collect(),
         }
     }
 }

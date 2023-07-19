@@ -17,20 +17,20 @@ use crate::model::{
 };
 use crate::Record;
 
-const MODIFIER_1: [&'static str; 5] = ["Amazing", "Mysterious", "Incredible", "Osu", "Great"];
-const MODIFIER_2: [&'static str; 8] = [
+// These three tables are for generating a random tournament name.
+const MODIFIER_1: [&str; 5] = ["Amazing", "Mysterious", "Incredible", "Osu", "Great"];
+const MODIFIER_2: [&str; 8] = [
     "Newcomer", "Spring", "Fall", "World", "European", "Map", "Anime", "Waifu",
 ];
-const TOURNAMENT: [&'static str; 5] = ["Cup", "Tournament", "Brawl", "Festival", "Showdown"];
+const TOURNAMENT: [&str; 5] = ["Cup", "Tournament", "Brawl", "Festival", "Showdown"];
 
-/// ISO 3166-1 alpha-2 country codes
-const COUNTRIES: [&'static str; 15] = [
+const COUNTRIES: [&str; 15] = [
     "GE", "FR", "IT", "ES", "UK", "US", "CA", "RU", "JP", "CN", "KR", "AU", "NZ", "BR", "AR",
 ];
 
-const STAGES: [&'static str; 6] = ["Q", "RO16", "QF", "SF", "F", "GF"];
+const STAGES: [&str; 6] = ["Q", "RO16", "QF", "SF", "F", "GF"];
 
-const RANK_RANGES: OnceLock<[RankRange; 6]> = OnceLock::new();
+static RANK_RANGES: OnceLock<[RankRange; 6]> = OnceLock::new();
 
 const FORMATS: [TournamentFormat; 4] = [
     TournamentFormat::versus(1),
@@ -43,8 +43,7 @@ const MAP_IDS: [usize; 6] = [3883456, 4192228, 4189337, 3917025, 4141288, 418660
 
 /// Fills the database with test data including a tournament, a few stages, maps for its pools.
 pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
-    let rr = &mut RANK_RANGES;
-    let rank_ranges = rr.get_or_init(|| {
+    let rank_ranges = RANK_RANGES.get_or_init(|| {
         [
             RankRange::single(50..1000),
             RankRange::single(1500..5000),
@@ -55,6 +54,7 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
         ]
     });
 
+    // The following section generates a tournament with a random name, format, and country
     let mut rng = StdRng::from_entropy();
     let tournament_name = format!(
         "{} {} {} {}",
@@ -72,18 +72,20 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
     // a vector of random length containing multiple country codes
     let restriction = COUNTRIES
         .choose_multiple(&mut rng, num_restrictions)
-        .map(|&s| s)
+        .copied()
         .collect::<Vec<&str>>();
     let mut builder = TournamentBuilder::new(
         tournament_name,
         shorthand,
-        FORMATS[rng.gen_range(0..FORMATS.len())].clone(),
+        FORMATS[rng.gen_range(0..FORMATS.len())],
         rng.gen(),
     );
+
+    // We only add country restrictions or rank ranges sometimes
     if rng.gen_bool(0.5) {
         builder = builder.country_restriction(restriction);
     }
-    if rng.gen_bool(0.5) {
+    if rng.gen_bool(0.75) {
         builder = builder.with_rank_range(rank_ranges.choose(&mut rng).unwrap().clone());
     }
 
@@ -94,22 +96,29 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
         .await
         .unwrap();
 
+    // For each stage, we create a record and add some maps to its pool
     for (stage_order, &stage_name) in STAGES.iter().enumerate() {
+        // Insert the stage
         let stage: Record = db
             .create(Stage::table_name())
             .content(Stage::new(stage_name, stage_order, ["NM", "HD", "HR"]))
             .await
             .unwrap();
 
+        // Generate the connection between the tournament and the stage
         let _: Record = db
             .create(IsStage::table_name())
             .content(IsStage::new(&tournament.id, &stage.id))
             .await
             .unwrap();
 
+        // Add a few maps to the stage's pool
         for bracket_order in 0..3 {
+            // Choose a random map
             let choice = MAP_IDS.choose(&mut rng).unwrap().to_string();
-            let map: PoolMap = match db.update((PoolMap::table_name(), &choice)).await {
+
+            // We try to insert the map into the database, and if it already exists, we just get it
+            let _: PoolMap = match db.update((PoolMap::table_name(), &choice)).await {
                 Ok(map) => map,
                 Err(e) => {
                     dbg!(&e);
@@ -117,6 +126,8 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
                     continue;
                 }
             };
+
+            // Generate the connection between the stage and the map
             let _: Record = db
                 .create(PoolContains::table_name())
                 .content(PoolContains::new(

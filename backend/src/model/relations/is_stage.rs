@@ -1,6 +1,6 @@
+use crate::model::TableType;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
-use crate::model::TableType;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IsStage {

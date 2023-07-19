@@ -5,8 +5,8 @@ use log::{debug, error, info, warn};
 use surrealdb::{engine::remote::ws::Client, Surreal};
 
 use crate::model::{tournament::Tournament, TableType};
-use crate::Record;
 use crate::routes::ById;
+use crate::Record;
 
 /// Get all tournaments
 pub async fn get_all_tournaments(

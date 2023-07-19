@@ -1,26 +1,13 @@
-use axum::{
-    routing::get,
-    routing::post,
-    Router
-};
+use axum::{routing::get, routing::post, Router};
 use log::info;
-use rand::prelude::SliceRandom;
-use rand::{Rng, SeedableRng};
+
 use serde::{Deserialize, Serialize};
-use surrealdb::{
-    engine::remote::ws::Ws,
-    opt::auth::Root,
-    sql::Thing,
-    Surreal,
-};
+use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, sql::Thing, Surreal};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use crate::model::TableType;
-
 mod model;
 mod routes;
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Record {

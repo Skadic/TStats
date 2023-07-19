@@ -5,6 +5,6 @@ pub struct ById {
     id: String,
 }
 
-pub mod tournament;
-pub mod stage;
 pub mod debug;
+pub mod stage;
+pub mod tournament;

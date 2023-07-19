@@ -1,7 +1,7 @@
-use std::borrow::Cow;
-use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use crate::model::TableType;
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use surrealdb::sql::Thing;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PoolContains<'a> {
@@ -15,7 +15,12 @@ pub struct PoolContains<'a> {
 }
 
 impl<'a> PoolContains<'a> {
-    pub fn new(tournament: &Thing, stage: &Thing, bracket: impl Into<Cow<'a, str>>, bracket_order: usize) -> Self {
+    pub fn new(
+        tournament: &Thing,
+        stage: &Thing,
+        bracket: impl Into<Cow<'a, str>>,
+        bracket_order: usize,
+    ) -> Self {
         Self {
             id: None,
             tournament: tournament.clone(),

@@ -1,11 +1,9 @@
-use std::io::IsTerminal;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use log::{debug, error};
 use surrealdb::sql::{Id, Thing};
 use surrealdb::{engine::remote::ws::Client, Surreal};
-use tracing::field::debug;
 
 use crate::model::relations::is_stage::IsStage;
 use crate::model::stage::Stage;
@@ -44,11 +42,11 @@ pub async fn get_all_stages(
         (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
     })?;
 
-    return match stage_opt {
+    match stage_opt {
         Some(stages) if stages.stages.is_empty() => Ok(Json(Vec::new())),
         None => Ok(Json(Vec::new())),
         Some(stages) => Ok(Json(stages.stages)),
-    };
+    }
 }
 
 pub async fn create_stage(
