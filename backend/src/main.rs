@@ -4,7 +4,7 @@ use log::info;
 
 use serde::{Deserialize, Serialize};
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, sql::Thing, Surreal};
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
@@ -60,7 +60,11 @@ async fn main() -> surrealdb::Result<()> {
         )
         .route("/api/stage/all", get(routes::stage::get_all_stages))
         .route("/api/stage", post(routes::stage::create_stage))
-        .layer(CorsLayer::new().allow_methods([Method::GET, Method::POST]).allow_origin(["http://localhost:5173".parse().unwrap()]))
+        .layer(CorsLayer::new()
+            .allow_methods([Method::GET, Method::POST])
+            .allow_origin(["http://localhost:5173".parse().unwrap()])
+            .allow_headers(["content-type".parse().unwrap()])
+        )
         .with_state(db);
 
     info!("Starting server");

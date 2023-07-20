@@ -5,9 +5,9 @@ export async function load({ fetch, params }) {
         method: "GET",
         headers: new Headers({
             'Content-Type': "application/json",
-            'Access-Control-Allow-Origin': 'http://localhost:3000'
         }),
     });
+    console.log(res.status)
     const tournaments: Tournament[] = await res.json();
 
     return { 

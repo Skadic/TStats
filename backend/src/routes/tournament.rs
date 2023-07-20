@@ -2,9 +2,11 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use log::{debug, error, info, warn};
+use serde::{Deserialize, Serialize};
 use surrealdb::{engine::remote::ws::Client, Surreal};
 
 use crate::model::{tournament::Tournament, TableType};
+use crate::model::stage::Stage;
 use crate::routes::ById;
 use crate::Record;
 
@@ -21,14 +23,27 @@ pub async fn get_all_tournaments(
         })
 }
 
-/// Get a tournament by its ID
+/// A tournament including all its stages
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtendedTournament<'a> {
+    #[serde(flatten)]
+    tournament: Tournament<'a>,
+    stages: Vec<Stage<'a>>,
+}
+
+/// Get a tournament by its ID including its stages
 pub async fn get_tournament(
     State(db): State<Surreal<Client>>,
     Query(param): Query<ById>,
-) -> Result<Json<Option<Tournament<'static>>>, (StatusCode, String)> {
-    // Find the tournament with the given ID
-    db.select((Tournament::table_name(), &param.id))
-        .await
+) -> Result<Json<Option<ExtendedTournament<'static>>>, (StatusCode, String)> {
+    // Find the tournament with the given ID including all its stages
+    db.query(r#"SELECT *, ->is_stage->stage as stages FROM type::thing("tournament", $id) FETCH stages;"#)
+        .bind(("id", &param.id))
+        .await.map_err(|e| {
+        error!("error fetching tournament with id \"{}\": {e}", &param.id);
+        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?
+        .take(0)
         .map(|opt: Option<_>| {
             if opt.is_none() {
                 info!("tournament with id \"{}\" not found", &param.id);

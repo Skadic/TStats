@@ -7,16 +7,18 @@
 </script>
 
 <div class="tournamentCard">
-	<h1>{tournament.name}</h1>
-	<h2>
-		<span class="rankRange">
-            {rankRange} 
-            {#if rankRange != "Open Rank"}
-{tournament.bws ? 'with BWS' : 'without BWS'}
-            {/if}
-        </span>
-		<span class="tournamentFormat">{formatTournamentFormat(tournament)}</span>
-	</h2>
+	<a href="/tournament/{tournament.id.split(':')[1]}">
+		<h1>{tournament.name}</h1>
+		<h2>
+			<span class="rankRange">
+				{rankRange}
+				{#if rankRange != 'Open Rank'}
+					{tournament.bws ? 'with BWS' : 'without BWS'}
+				{/if}
+			</span>
+			<span class="tournamentFormat">{formatTournamentFormat(tournament)}</span>
+		</h2>
+	</a>
 </div>
 
 <style>
@@ -25,7 +27,7 @@
 	}
 
 	.tournamentCard {
-		@apply text-ctp-base rounded-lg p-2 bg-gradient-to-br from-ctp-pink to-ctp-mauve;
+		@apply text-ctp-base rounded-lg p-2 bg-gradient-to-br from-ctp-pink to-ctp-mauve min-w-full min-h-full;
 	}
 
 	.tournamentFormat {
