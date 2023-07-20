@@ -36,7 +36,7 @@
 							<td class="font-bold">{range.split(':')[0]}</td>
 							<td class="pl-3">{range.split(':')[1].split('-')[0]}</td>
 							<td class="px-1 m-0">-</td>
-							<td>{range.split(':')[1].split('-')[1]}</td>
+							<td class="">{range.split(':')[1].split('-')[1]}</td>
 						</tr>
 					{/each}
 				</table>
@@ -66,7 +66,7 @@
 	<div class="stageList">
 		{#each stages as stage}
 			<div class="stageCard">
-				<StageCard {stage} />
+				<StageCard {stage} has_best_of={formatTournamentFormat(tournament).includes("v")} />
 			</div>
 		{:else}
 			<div class="stageCard">No stages found</div>
@@ -95,7 +95,7 @@
 	}
 
 	.infoHeading {
-		@apply flex text-2xl font-bold items-center justify-center;
+		@apply flex text-2xl font-bold text-center items-center justify-center;
 	}
 
 	.infoContent {

@@ -101,7 +101,7 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
         // Insert the stage
         let stage: Record = db
             .create(Stage::table_name())
-            .content(Stage::new(stage_name, stage_order, ["NM", "HD", "HR"]))
+            .content(Stage::new(stage_name, stage_order, rng.gen_range(1..4) * 2 + 1, ["NM", "HD", "HR"]))
             .await
             .unwrap();
 

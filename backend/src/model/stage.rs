@@ -15,6 +15,8 @@ pub struct Stage<'a> {
     pub name: Cow<'a, str>,
     /// The stage's order in the tournament. For example, the first stage is 0, the second stage is 1, etc.
     pub order: usize,
+    /// The best-of of this stage's matches.
+    pub best_of: usize,
     /// The brackets in this pool in the order they should appear, e.g. most commonly for std tournaments, this is ["NM", "HD", "HR", "DT", "FM", "TB"].
     pub pool_brackets: Vec<Cow<'a, str>>,
 }
@@ -24,6 +26,7 @@ impl<'a> Stage<'a> {
     pub fn new(
         name: &'a str,
         order: usize,
+        best_of: usize,
         pool_brackets: impl IntoIterator<Item = &'a str>,
     ) -> Self {
         Self {
@@ -31,6 +34,7 @@ impl<'a> Stage<'a> {
             name: name.into(),
             order,
             pool_brackets: pool_brackets.into_iter().map(|s| s.into()).collect(),
+            best_of,
         }
     }
 }
