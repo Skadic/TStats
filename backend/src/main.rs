@@ -30,17 +30,18 @@ async fn main() -> surrealdb::Result<()> {
         username: "root",
         password: "root",
     })
-    .await?;
+        .await?;
 
     db.use_ns("default").use_db("tstats").await?;
 
-    info!("Setting up tables");
-    db.query(include_str!("../db/schema/tournament.sql"))
-        .await?;
-    db.query(include_str!("../db/schema/stage.sql")).await?;
-    db.query(include_str!("../db/schema/is_stage.sql")).await?;
-    db.query(include_str!("../db/schema/map.sql")).await?;
-    db.query(include_str!("../db/schema/pool_contains.sql"))
+    info!("Setting up table schemas");
+    db.query("BEGIN TRANSACTION")
+        .query(include_str!("../db/schema/tournament.sql"))
+        .query(include_str!("../db/schema/stage.sql"))
+        .query(include_str!("../db/schema/is_stage.sql"))
+        .query(include_str!("../db/schema/map.sql"))
+        .query(include_str!("../db/schema/pool_contains.sql"))
+        .query("COMMIT TRANSACTION")
         .await?;
 
     // build our application

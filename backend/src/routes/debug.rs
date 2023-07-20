@@ -6,7 +6,7 @@ use rand::{
     prelude::{SliceRandom, StdRng},
     Rng, SeedableRng,
 };
-use surrealdb::{engine::remote::ws::Client, Surreal};
+use surrealdb::{engine::remote::ws::Client, Response, Surreal};
 
 use crate::model::{
     map::PoolMap,
@@ -106,19 +106,21 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
             .unwrap();
 
         // Generate the connection between the tournament and the stage
+        IsStage::relate(&db, &tournament.id, &stage.id).await.unwrap();
+        /*
         let _: Record = db
             .create(IsStage::table_name())
             .content(IsStage::new(&tournament.id, &stage.id))
             .await
             .unwrap();
-
+         */
         // Add a few maps to the stage's pool
         for bracket_order in 0..3 {
             // Choose a random map
             let choice = MAP_IDS.choose(&mut rng).unwrap().to_string();
 
             // We try to insert the map into the database, and if it already exists, we just get it
-            let _: PoolMap = match db.update((PoolMap::table_name(), &choice)).await {
+            let map: PoolMap = match db.update((PoolMap::table_name(), &choice)).await {
                 Ok(map) => map,
                 Err(e) => {
                     dbg!(&e);
@@ -128,16 +130,22 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
             };
 
             // Generate the connection between the stage and the map
+            PoolContains::relate(&db, &stage.id, map.database_id().unwrap(), "NM", bracket_order)
+                .await
+                .unwrap();
+            /*
             let _: Record = db
                 .create(PoolContains::table_name())
                 .content(PoolContains::new(
-                    &tournament.id,
                     &stage.id,
+                    map.database_id().unwrap(),
                     "NM",
                     bracket_order,
                 ))
                 .await
                 .unwrap();
+
+             */
         }
     }
     StatusCode::OK

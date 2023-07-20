@@ -24,4 +24,4 @@ DEFINE FIELD country_restriction.* ON TABLE tournament TYPE string
   ASSERT $value != NONE AND $value = /[A-Z]{2}/
   VALUE $value;
 
-DEFINE INDEX id ON TABLE tournament COLUMNS name UNIQUE;
+DEFINE INDEX unique_name ON TABLE tournament COLUMNS name UNIQUE;

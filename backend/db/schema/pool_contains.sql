@@ -8,4 +8,4 @@ DEFINE FIELD bracket ON TABLE pool_contains TYPE string
 DEFINE FIELD bracket_order ON TABLE pool_contains TYPE int
     ASSERT $value != NONE AND $value >= 0;
 
-DEFINE INDEX id ON TABLE pool_contains COLUMNS in, out UNIQUE;
+DEFINE INDEX unique_slot ON TABLE pool_contains COLUMNS in, bracket, bracket_order UNIQUE;

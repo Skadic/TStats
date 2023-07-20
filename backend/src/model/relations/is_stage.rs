@@ -1,6 +1,8 @@
 use crate::model::TableType;
 use serde::{Deserialize, Serialize};
+use surrealdb::engine::remote::ws::Client;
 use surrealdb::sql::Thing;
+use surrealdb::{Response, Surreal};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IsStage {
@@ -18,6 +20,14 @@ impl IsStage {
             tournament: tournament.clone(),
             stage: stage.clone(),
         }
+    }
+
+    pub async fn relate(db: &Surreal<Client>, tournament: &Thing, stage: &Thing) -> surrealdb::Result<()> {
+        let _: Response = db
+            .query("RELATE $in->is_stage->$out;")
+            .bind(IsStage::new(tournament, stage))
+            .await?;
+        Ok(())
     }
 }
 
