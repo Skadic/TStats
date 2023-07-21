@@ -1,8 +1,11 @@
-use crate::model::TableType;
+use async_trait::async_trait;
+use crate::model::{TableRelation, TableType};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::remote::ws::Client;
 use surrealdb::sql::Thing;
 use surrealdb::{Response, Surreal};
+use crate::model::stage::Stage;
+use crate::model::tournament::Tournament;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IsStage {
@@ -21,14 +24,6 @@ impl IsStage {
             stage: stage.clone(),
         }
     }
-
-    pub async fn relate(db: &Surreal<Client>, tournament: &Thing, stage: &Thing) -> surrealdb::Result<()> {
-        let _: Response = db
-            .query("RELATE $in->is_stage->$out;")
-            .bind(IsStage::new(tournament, stage))
-            .await?;
-        Ok(())
-    }
 }
 
 impl TableType for IsStage {
@@ -38,5 +33,16 @@ impl TableType for IsStage {
 
     fn database_id(&self) -> Option<&Thing> {
         self.id.as_ref()
+    }
+}
+
+#[async_trait]
+impl TableRelation<Tournament<'_>, Stage<'_>> for IsStage {
+    fn input_relation(&self) -> &Thing {
+        &self.tournament
+    }
+
+    fn output_relation(&self) -> &Thing {
+        &self.stage
     }
 }

@@ -8,6 +8,5 @@ DEFINE FIELD pool_brackets.* ON TABLE stage TYPE string
   ASSERT $value != NONE AND $value = /[A-Z]{1,3}/;
 DEFINE FIELD order ON TABLE stage TYPE int
   ASSERT $value != NONE AND $value >= 0;
--- A best of can only be an odd number
 DEFINE FIELD best_of ON TABLE stage TYPE int
-  ASSERT $value != NONE AND $value >= 1 AND function($value) {  return $value % 2 == 1; };
+  ASSERT $value != NONE AND $value >= 1;

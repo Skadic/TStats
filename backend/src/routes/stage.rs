@@ -7,7 +7,7 @@ use surrealdb::{engine::remote::ws::Client, Surreal};
 
 use crate::model::relations::is_stage::IsStage;
 use crate::model::stage::Stage;
-use crate::model::TableType;
+use crate::model::{TableRecord, TableRelation, TableType};
 use crate::Record;
 
 #[derive(Debug, serde::Deserialize)]
@@ -54,20 +54,16 @@ pub async fn create_stage(
     Query(params): Query<ByTournamentId>,
     Json(stage): Json<Stage<'static>>,
 ) -> Result<(StatusCode, String), (StatusCode, String)> {
-    let stage: Stage = db
-        .create(Stage::table_name())
-        .content(stage)
-        .await
-        .map_err(|e| {
-            error!("failed to create stage: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-        })?;
+    let stage: Stage = stage.insert(&db).await.map_err(|e| {
+        error!("failed to create stage: {e}");
+        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
 
     let tournament: Thing = ("tournament".to_string(), Id::from(params.tournament_id)).into();
     debug!("tournament: {:?}", &tournament);
-    let _: Record = db
-        .create(IsStage::table_name())
-        .content(IsStage::new(&tournament, stage.id.as_ref().unwrap()))
+
+    IsStage::new(&tournament, stage.id.as_ref().unwrap())
+        .relate(&db)
         .await
         .map_err(|e| {
             error!("failed to create is_stage relation: {e}");

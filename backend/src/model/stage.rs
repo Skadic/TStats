@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use serde::{Deserialize, Serialize};
 
 use surrealdb::sql::Thing;
+use crate::model::TableRecord;
 
 use super::TableType;
 
@@ -48,3 +49,5 @@ impl TableType for Stage<'_> {
         self.id.as_ref()
     }
 }
+
+impl TableRecord for Stage<'_> {}

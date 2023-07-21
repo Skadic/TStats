@@ -1,5 +1,5 @@
 -- We want this table schemaless because format and rank range can have multiple variants
-DEFINE TABLE tournament SCHEMALESS;
+DEFINE TABLE tournament SCHEMAFULL;
 
 -- The tournament's full name
 DEFINE FIELD name ON TABLE tournament TYPE string
@@ -8,10 +8,10 @@ DEFINE FIELD name ON TABLE tournament TYPE string
 DEFINE FIELD shorthand ON TABLE tournament TYPE string
   ASSERT $value != NONE;
 -- The tournament format, (like 3v3 versus)
-DEFINE FIELD format ON TABLE tournament TYPE object
+DEFINE FIELD format ON TABLE tournament FLEXIBLE TYPE object
   ASSERT $value != NONE;
 -- Rank ranges are optional for open rank tournaments
-DEFINE FIELD rank_range ON TABLE tournament TYPE object
+DEFINE FIELD rank_range ON TABLE tournament FLEXIBLE TYPE object
   VALUE $value OR NULL;
 -- Whether the tournament uses badge weighting
 DEFINE FIELD bws ON TABLE tournament TYPE bool

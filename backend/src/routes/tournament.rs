@@ -5,8 +5,8 @@ use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use surrealdb::{engine::remote::ws::Client, Surreal};
 
-use crate::model::{tournament::Tournament, TableType};
 use crate::model::stage::Stage;
+use crate::model::{tournament::Tournament, TableRecord, TableType};
 use crate::routes::ById;
 use crate::Record;
 
@@ -63,8 +63,8 @@ pub async fn create_tournament(
     Json(tournament): Json<Tournament<'_>>,
 ) -> Result<(StatusCode, String), (StatusCode, String)> {
     let name = tournament.name.clone();
-    db.create(Tournament::table_name())
-        .content(tournament)
+    tournament
+        .insert(&db)
         .await
         // Hint to the compiler that we want to create a record
         .map(|r: Record| {

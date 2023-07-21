@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use surrealdb::sql::Thing;
+use crate::model::TableRecord;
 
 use super::TableType;
 
@@ -20,3 +21,5 @@ impl TableType for PoolMap {
         self.id.as_ref()
     }
 }
+
+impl TableRecord for PoolMap {}

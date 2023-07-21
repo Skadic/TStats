@@ -3,6 +3,7 @@ use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
+use crate::model::TableRecord;
 
 use super::TableType;
 
@@ -160,3 +161,5 @@ impl TableType for Tournament<'_> {
         self.id.as_ref()
     }
 }
+
+impl TableRecord for Tournament<'_> {}

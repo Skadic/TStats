@@ -1,9 +1,11 @@
-use crate::model::TableType;
+use crate::model::{TableRelation, TableType};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use surrealdb::engine::remote::ws::Client;
 use surrealdb::sql::Thing;
 use surrealdb::{Response, Surreal};
+use crate::model::map::PoolMap;
+use crate::model::stage::Stage;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PoolContains<'a> {
@@ -33,6 +35,7 @@ impl<'a> PoolContains<'a> {
         }
     }
 
+    /*
     #[inline]
     pub async fn relate(db: &Surreal<Client>, stage: &Thing, map: &Thing, bracket: impl Into<Cow<'a, str>>, bracket_order: usize) -> surrealdb::Result<()> {
         let _: Response = db
@@ -46,6 +49,8 @@ impl<'a> PoolContains<'a> {
             .await?;
         Ok(())
     }
+
+     */
 }
 
 impl TableType for PoolContains<'_> {
@@ -55,5 +60,15 @@ impl TableType for PoolContains<'_> {
 
     fn database_id(&self) -> Option<&Thing> {
         self.id.as_ref()
+    }
+}
+
+impl TableRelation<Stage<'_>, PoolMap> for PoolContains<'_> {
+    fn input_relation(&self) -> &Thing {
+        &self.stage
+    }
+
+    fn output_relation(&self) -> &Thing {
+        &self.map
     }
 }

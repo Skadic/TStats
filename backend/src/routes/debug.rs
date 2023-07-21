@@ -6,16 +6,15 @@ use rand::{
     prelude::{SliceRandom, StdRng},
     Rng, SeedableRng,
 };
-use surrealdb::{engine::remote::ws::Client, Response, Surreal};
+use surrealdb::{engine::remote::ws::Client, Surreal};
 
 use crate::model::{
     map::PoolMap,
     relations::{is_stage::IsStage, pool_contains::PoolContains},
     stage::Stage,
     tournament::{RankRange, Tournament, TournamentBuilder, TournamentFormat},
-    TableType,
+    TableRecord, TableRelation, TableType,
 };
-use crate::Record;
 
 // These three tables are for generating a random tournament name.
 const MODIFIER_1: [&str; 5] = ["Amazing", "Mysterious", "Incredible", "Osu", "Great"];
@@ -90,30 +89,29 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
     }
 
     debug!("Inserting test data into database");
-    let tournament: Record = db
-        .create(Tournament::table_name())
-        .content(builder.build())
-        .await
-        .unwrap();
+    let tournament: Tournament = builder.build().insert(&db).await.unwrap();
 
     // For each stage, we create a record and add some maps to its pool
     for (stage_order, &stage_name) in STAGES.iter().enumerate() {
         // Insert the stage
-        let stage: Record = db
-            .create(Stage::table_name())
-            .content(Stage::new(stage_name, stage_order, rng.gen_range(1..4) * 2 + 1, ["NM", "HD", "HR"]))
-            .await
-            .unwrap();
+        let stage: Stage = Stage::new(
+            stage_name,
+            stage_order,
+            rng.gen_range(1..4) * 2 + 1,
+            ["NM", "HD", "HR"],
+        )
+        .insert(&db)
+        .await
+        .unwrap();
 
         // Generate the connection between the tournament and the stage
-        IsStage::relate(&db, &tournament.id, &stage.id).await.unwrap();
-        /*
-        let _: Record = db
-            .create(IsStage::table_name())
-            .content(IsStage::new(&tournament.id, &stage.id))
-            .await
-            .unwrap();
-         */
+        IsStage::new(
+            tournament.database_id().unwrap(),
+            stage.database_id().unwrap(),
+        )
+        .relate(&db)
+        .await
+        .unwrap();
         // Add a few maps to the stage's pool
         for bracket_order in 0..3 {
             // Choose a random map
@@ -130,22 +128,15 @@ pub async fn fill_test_data(State(db): State<Surreal<Client>>) -> StatusCode {
             };
 
             // Generate the connection between the stage and the map
-            PoolContains::relate(&db, &stage.id, map.database_id().unwrap(), "NM", bracket_order)
-                .await
-                .unwrap();
-            /*
-            let _: Record = db
-                .create(PoolContains::table_name())
-                .content(PoolContains::new(
-                    &stage.id,
-                    map.database_id().unwrap(),
-                    "NM",
-                    bracket_order,
-                ))
-                .await
-                .unwrap();
-
-             */
+            PoolContains::new(
+                stage.database_id().unwrap(),
+                map.database_id().unwrap(),
+                "NM",
+                bracket_order,
+            )
+            .relate(&db)
+            .await
+            .unwrap();
         }
     }
     StatusCode::OK
