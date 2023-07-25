@@ -5,14 +5,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, DeriveEntityModel, PartialEq, Hash)]
 #[sea_orm(table_name = "pool_map")]
 pub struct Model {
+    /// The id of the tournament this pool belongs to.
     #[sea_orm(primary_key)]
     pub tournament_id: i32,
+    /// The index of the stage in the tournament this pool belongs to.
     #[sea_orm(primary_key)]
     pub stage_order: i16,
+    /// The order of this bracket in the stage. E.g. if this is the first bracket in the pool, this is 0.
     #[sea_orm(primary_key)]
     pub bracket_order: i16,
-    /// The map's osu id. Note, that this is *not* the mapset id.
+    /// The number of the map in the bracket. Note that this is zero indexed, so e.g. NM1 will have map_order 0, NM2 will have map_order 1, etc.
     #[sea_orm(primary_key)]
+    pub map_order: i16,
+    /// The map's osu id. Note, that this is *not* the mapset id.
     pub map_id: i64,
 }
 

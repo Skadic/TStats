@@ -115,8 +115,6 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
 
         // Add a few maps to the stage's pool
         for bracket_order in 0..BRACKETS.len() {
-            // Choose a random map
-            let choice = *MAP_IDS.choose(&mut rng).unwrap();
 
             // insert the pool bracket
             let bracket = pool_bracket::ActiveModel {
@@ -126,13 +124,18 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
                 bracket_order: ActiveValue::Set(bracket_order as i16),
             }.insert(db).await.unwrap();
 
-            // insert the map into the bracket
-            let map = pool_map::ActiveModel {
-                tournament_id: ActiveValue::Set(tournament.id),
-                stage_order: ActiveValue::Set(stage_order as i16),
-                bracket_order: ActiveValue::Set(bracket_order as i16),
-                map_id: ActiveValue::Set(choice as i64),
-            }.insert(db).await.unwrap();
+            for map_order in 0..2 {
+                // Choose a random map
+                let choice = *MAP_IDS.choose(&mut rng).unwrap();
+                // insert the map into the bracket
+                let _map = pool_map::ActiveModel {
+                    tournament_id: ActiveValue::Set(tournament.id),
+                    stage_order: ActiveValue::Set(stage_order as i16),
+                    bracket_order: ActiveValue::Set(bracket_order as i16),
+                    map_order: ActiveValue::Set(map_order),
+                    map_id: ActiveValue::Set(choice as i64),
+                }.insert(db).await.unwrap();
+            }
         }
     }
     StatusCode::OK

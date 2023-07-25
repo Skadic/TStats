@@ -75,7 +75,10 @@ async fn main() {
             get(routes::tournament::get_tournament).post(routes::tournament::create_tournament),
         )
         .route("/api/stage/all", get(routes::stage::get_all_stages))
-        .route("/api/stage", post(routes::stage::create_stage))
+        .route(
+            "/api/stage",
+            get(routes::stage::get_stage).post(routes::stage::create_stage),
+        )
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])

@@ -1,16 +1,13 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use sea_orm::{
-    query::*, ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait,
-    IntoActiveModel,
-};
+use sea_orm::{query::*, ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::model::entities::{StageEntity, TournamentEntity};
 use crate::model::models::{Stage, Tournament};
 use crate::model::stage;
-use crate::routes::ById;
+use crate::routes::{ById, tournament};
 
 /// Get all tournaments
 pub async fn get_all_tournaments(
@@ -52,8 +49,7 @@ pub async fn get_tournament(
     };
 
     // Find all stages of the tournament
-    let stages = StageEntity::find()
-        .filter(stage::Column::TournamentId.eq(param.id))
+    let stages = tournament.find_related(StageEntity)
         .order_by_asc(stage::Column::StageOrder)
         .all(db)
         .await
