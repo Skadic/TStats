@@ -1,53 +1,74 @@
-use std::borrow::Cow;
-
+use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use surrealdb::sql::Thing;
-use crate::model::TableRecord;
-
-use super::TableType;
-
 /// A stage in a tournament.
-#[derive(Debug, PartialEq, Serialize, Deserialize, Hash)]
-pub struct Stage<'a> {
-    /// The stage's ID.
-    pub id: Option<Thing>,
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel)]
+#[sea_orm(table_name = "stage")]
+pub struct Model {
+    /// The id of the tournament the stage belongs to.
+    #[sea_orm(primary_key)]
+    pub tournament_id: i32,
     /// The stage's short name. For example, "QF", "RO16", etc.
-    pub name: Cow<'a, str>,
+    pub name: String,
     /// The stage's order in the tournament. For example, the first stage is 0, the second stage is 1, etc.
-    pub order: usize,
+    #[sea_orm(primary_key, column_type = "TinyInteger")]
+    pub stage_order: i16,
     /// The best-of of this stage's matches.
-    pub best_of: usize,
-    /// The brackets in this pool in the order they should appear, e.g. most commonly for std tournaments, this is ["NM", "HD", "HR", "DT", "FM", "TB"].
-    pub pool_brackets: Vec<Cow<'a, str>>,
+    #[sea_orm(column_type = "TinyInteger")]
+    pub best_of: i16,
 }
 
-impl<'a> Stage<'a> {
-    /// Creates a new [`Stage`] with the given name, order and pool brackets.
+#[derive(Debug, Serialize, Deserialize, EnumIter, DeriveRelation, Copy, Clone)]
+pub enum Relation {
+    /// A tournament can have many stages.
+    #[sea_orm(
+        belongs_to = "super::tournament::Entity",
+        from = "Column::TournamentId",
+        to = "super::tournament::Column::Id"
+    )]
+    Tournament,
+    /// A stage has multiple pool brackets
+    #[sea_orm(has_many = "super::pool_bracket::Entity")]
+    PoolBrackets,
+    /// A stage has multiple maps in its pool
+    #[sea_orm(has_many = "super::pool_map::Entity")]
+    PoolMap,
+}
+
+impl Related<super::tournament::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tournament.def()
+    }
+}
+
+impl Related<super::pool_bracket::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PoolBrackets.def()
+    }
+}
+
+impl Related<super::pool_map::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PoolMap.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}
+
+impl Model {
+    /// Creates a new Stage with the given name, order and pool brackets.
     pub fn new(
-        name: &'a str,
-        order: usize,
+        name: impl Into<String>,
+        stage_order: usize,
         best_of: usize,
-        pool_brackets: impl IntoIterator<Item = &'a str>,
+        //pool_brackets: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
         Self {
-            id: None,
+            tournament_id: 0,
             name: name.into(),
-            order,
-            pool_brackets: pool_brackets.into_iter().map(|s| s.into()).collect(),
-            best_of,
+            stage_order: stage_order as i16,
+            //pool_brackets: pool_brackets.into_iter().map(|s| s.into()).collect(),
+            best_of: best_of as i16,
         }
     }
 }
-
-impl TableType for Stage<'_> {
-    fn table_name() -> &'static str {
-        "stage"
-    }
-
-    fn database_id(&self) -> Option<&Thing> {
-        self.id.as_ref()
-    }
-}
-
-impl TableRecord for Stage<'_> {}

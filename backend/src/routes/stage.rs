@@ -1,14 +1,9 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use log::{debug, error};
-use surrealdb::sql::{Id, Thing};
-use surrealdb::{engine::remote::ws::Client, Surreal};
+use sea_orm::DatabaseConnection;
 
-use crate::model::relations::is_stage::IsStage;
-use crate::model::stage::Stage;
-use crate::model::{TableRecord, TableRelation, TableType};
-use crate::Record;
+use crate::model::models::Stage;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ByTournamentId {
@@ -17,58 +12,21 @@ pub struct ByTournamentId {
 
 #[derive(Debug, serde::Deserialize)]
 struct Stages {
-    stages: Vec<Stage<'static>>,
+    stages: Vec<Stage>,
 }
 
-/// Get all tournaments
+/// Get all stages
 pub async fn get_all_stages(
-    State(db): State<Surreal<Client>>,
+    State(db): State<DatabaseConnection>,
     Query(param): Query<ByTournamentId>,
-) -> Result<Json<Vec<Stage<'static>>>, (StatusCode, String)> {
-    let mut response = db
-        .query(
-            r#"SELECT ->is_stage->stage as stages FROM type::thing("tournament", $id) FETCH stages"#,
-        )
-        .bind(("id", param.tournament_id))
-        .await
-        .map_err(|e| {
-            error!("failed to query stages: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-        })?;
-    debug!("{:?}", &response);
-
-    let stage_opt: Option<Stages> = response.take(0).map_err(|e| {
-        error!("failed to parse stages: {e}");
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
-
-    match stage_opt {
-        Some(stages) if stages.stages.is_empty() => Ok(Json(Vec::new())),
-        None => Ok(Json(Vec::new())),
-        Some(stages) => Ok(Json(stages.stages)),
-    }
+) -> Result<Json<Vec<Stage>>, (StatusCode, String)>  {
+    todo!("implement get_all_stages")
 }
 
 pub async fn create_stage(
-    State(db): State<Surreal<Client>>,
+    State(db): State<DatabaseConnection>,
     Query(params): Query<ByTournamentId>,
-    Json(stage): Json<Stage<'static>>,
+    Json(stage): Json<Stage>,
 ) -> Result<(StatusCode, String), (StatusCode, String)> {
-    let stage: Stage = stage.insert(&db).await.map_err(|e| {
-        error!("failed to create stage: {e}");
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
-
-    let tournament: Thing = ("tournament".to_string(), Id::from(params.tournament_id)).into();
-    debug!("tournament: {:?}", &tournament);
-
-    IsStage::new(&tournament, stage.id.as_ref().unwrap())
-        .relate(&db)
-        .await
-        .map_err(|e| {
-            error!("failed to create is_stage relation: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-        })?;
-
-    Ok((StatusCode::OK, stage.id.as_ref().unwrap().to_string()))
+    todo!("implement create_stage")
 }
