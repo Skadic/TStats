@@ -3,10 +3,9 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use log::info;
+use log::{info, LevelFilter};
 use sea_orm::{
-    sea_query::Table, ConnectionTrait, Database, DatabaseConnection, EntityTrait,
-    Schema,
+    sea_query::Table, ConnectionTrait, Database, DatabaseConnection, EntityTrait, Schema,
 };
 use tower_http::cors::CorsLayer;
 use tracing::Level;
@@ -21,7 +20,12 @@ mod routes;
 
 #[tokio::main]
 async fn main() {
-    tracing_log::LogTracer::init().unwrap();
+    tracing_log::LogTracer::builder()
+        .ignore_crate("sqlx")
+        .ignore_crate("hyper")
+        .with_max_level(LevelFilter::Trace)
+        .init()
+        .unwrap();
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::DEBUG)
         .finish();
@@ -91,8 +95,10 @@ async fn drop_table<E: EntityTrait>(db: &DatabaseConnection, table: E) {
 async fn create_table<E: EntityTrait>(db: &DatabaseConnection, entity: E) {
     let builder = db.get_database_backend();
     let schema = Schema::new(builder);
-    match db.execute(builder.build(&schema.create_table_from_entity(entity)))
-        .await {
+    match db
+        .execute(builder.build(&schema.create_table_from_entity(entity)))
+        .await
+    {
         Ok(_) => info!("Created table '{}'", entity.table_name()),
         Err(e) => info!("Failed to create table '{}': {e}", entity.table_name()),
     };
