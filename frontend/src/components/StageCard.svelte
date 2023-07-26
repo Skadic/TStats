@@ -5,7 +5,7 @@
 </script>
 
 <div class="stageCard">
-	<a href="/stage/{stage.id.split(':')[1]}">
+	<a href="/tournament/{stage.tournament_id}/stage/{stage.stage_order}">
 		<h1>{stage.name}</h1>
 		{#if has_best_of} <h2>Best of {stage.best_of}</h2> {/if}
 	</a>

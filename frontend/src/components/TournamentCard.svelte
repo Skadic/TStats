@@ -7,7 +7,7 @@
 </script>
 
 <div class="tournamentCard">
-	<a href="/tournament/{tournament.id.split(':')[1]}">
+	<a href="/tournament/{tournament.id}">
 		<h1>{tournament.name}</h1>
 		<h2>
 			<span class="rankRange">

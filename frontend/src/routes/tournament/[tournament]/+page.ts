@@ -1,11 +1,25 @@
-import type { Stage } from '$lib/Stage';
-import type { ExtendedTournament } from '$lib/Tournament.js';
+export type StageResult  = {
+	name: string,
+	best_of: number	
+}
 
-export async function load({ fetch, params }) {
+export type TournamentResult = {
+	id: number,
+	name: string,
+	shorthand: string,
+	format: any,
+	rank_range: any,
+	bws: boolean,
+	stages: StageResult[]
+	country_restrictions: string[]
+}
+
+export async function load({ fetch, params }): Promise<TournamentResult> {
+	
 	const res = await fetch(
 		`http://127.0.0.1:3000/api/tournament?` +
 			new URLSearchParams({
-				id: params.tournament
+				id: params.tournament,
 			}),
 		{
 			method: 'GET',
@@ -14,11 +28,10 @@ export async function load({ fetch, params }) {
 			})
 		}
 	);
-	//console.log(await res.json())
-	const tournament: ExtendedTournament = await res.json();
+	
+	const js = await res.json();
+	//console.log(js);
+	const tournament: TournamentResult = js;
 
-	return {
-		tournament: tournament,
-		stages: tournament.stages,
-	};
+	return tournament;
 }

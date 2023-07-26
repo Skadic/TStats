@@ -21,9 +21,9 @@ mod routes;
 #[tokio::main]
 async fn main() {
     tracing_log::LogTracer::builder()
+        .with_max_level(LevelFilter::Trace)
         .ignore_crate("sqlx")
         .ignore_crate("hyper")
-        .with_max_level(LevelFilter::Trace)
         .init()
         .unwrap();
     let subscriber = FmtSubscriber::builder()
@@ -69,7 +69,7 @@ async fn main() {
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])
-                .allow_origin(["http://localhost:5173".parse().unwrap()])
+                .allow_origin(["http://localhost:4173".parse().unwrap(), "http://localhost:5173".parse().unwrap(),])
                 .allow_headers(["content-type".parse().unwrap()]),
         )
         .with_state(db);

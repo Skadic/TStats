@@ -1,24 +1,23 @@
 import type { Stage } from "./Stage";
 
 export type Tournament = {
-    id: string,
+    id: number,
     name: string,
     shorthand: string,
     format: any,
     rank_range: any,
     bws: boolean,
-    country_restriction: string[],
 }
 
 export type ExtendedTournament = {
-    id: string,
+    id: number,
     name: string,
     shorthand: string,
     format: any,
     rank_range: any,
     bws: boolean,
-    country_restriction: string[],
     stages: Stage[],
+    country_restrictions: string[],
 }
 
 export type RankRange = {
@@ -27,7 +26,7 @@ export type RankRange = {
 }
 
 export function formatRankRange(tournament: any): string {
-    if (tournament.rank_range === null) {
+    if (tournament === "OpenRank") {
         return "Open Rank";
     } if (tournament.rank_range["Tiered"] !== undefined) {
         return "Tiered";
@@ -37,12 +36,12 @@ export function formatRankRange(tournament: any): string {
 }
 
 export function formatRankRangeDetailed(tournament: any): string[] {
-    if (tournament.rank_range === null) {
+    if (tournament.rank_range === "OpenRank") {
         return ["Open Rank"];
     } if (tournament.rank_range["Tiered"] !== undefined) {
         return tournament.rank_range["Tiered"].map((o: RankRange, i: number) => `Tier ${i+1}: ` + o.start + "-" + o.end);
     } else {
-        return [tournament.rank_range["Single"].start + "-" + tournament.rank_range["Single"].end];
+        return [tournament.rank_range["Single"].start.toString(), tournament.rank_range["Single"].end.toString()];
     }
 }
 

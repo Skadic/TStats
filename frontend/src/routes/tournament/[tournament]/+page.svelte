@@ -1,17 +1,13 @@
 <script lang="ts">
 	import type { Stage } from '$lib/Stage';
-	import {
-		formatRankRangeDetailed,
-		formatTournamentFormat,
-		type ExtendedTournament
-	} from '$lib/Tournament';
+	import { formatRankRangeDetailed, formatTournamentFormat } from '$lib/Tournament';
 	import Flag from '../../../components/Flag.svelte';
 	import StageCard from '../../../components/StageCard.svelte';
+	import type { StageResult, TournamentResult } from './+page';
 
-	export let data;
-	let tournament: ExtendedTournament = data.tournament;
-	let stages: Stage[] = data.stages;
-	stages.sort((a: Stage, b: Stage) => a.order - b.order);
+	export let data: TournamentResult;
+	let tournament: TournamentResult = data;
+	let stages: StageResult[] = data.stages;
 	let rankRanges = formatRankRangeDetailed(tournament);
 </script>
 
@@ -25,10 +21,10 @@
 		<div class="infoContent">
 			{#if rankRanges[0] == 'Open Rank'}
 				Open Rank
-			{:else if rankRanges.length == 1}
-				<span>{rankRanges[0].split('-')[0]}</span>
+			{:else if rankRanges.length == 2}
+				<span>{rankRanges[0]}</span>
 				<span class="px-1 m-0">-</span>
-				<span>{rankRanges[0].split('-')[1]}</span>
+				<span>{rankRanges[1]}</span>
 			{:else}
 				<table class="min-w-full">
 					{#each rankRanges as range}
@@ -42,7 +38,6 @@
 				</table>
 			{/if}
 		</div>
-
 		<!-- BWS -->
 		{#if rankRanges[0] != 'Open Rank'}
 			<div class="infoHeading">BWS</div>
@@ -54,19 +49,28 @@
 		<div class="infoContent">{formatTournamentFormat(tournament)}</div>
 
 		<!-- Country Restrictions -->
-		{#if tournament.country_restriction !== null && tournament.country_restriction.length > 0}
+		{#if tournament.country_restrictions !== null && tournament.country_restrictions.length > 0}
 			<div class="infoHeading">Country Restrictions</div>
 			<div class="infoContent">
-				{#each tournament.country_restriction as country}
+				{#each tournament.country_restrictions as country}
 					<Flag country={country.toLowerCase()} />
 				{/each}
 			</div>
 		{/if}
 	</div>
+	<div></div>
 	<div class="stageList">
-		{#each stages as stage}
+		{#each stages as stage, i}
 			<div class="stageCard">
-				<StageCard {stage} has_best_of={formatTournamentFormat(tournament).includes("v")} />
+				<StageCard
+					stage={{
+						name: stage.name,
+						tournament_id: tournament.id,
+						best_of: stage.best_of,
+						stage_order: i
+					}}
+					has_best_of={formatTournamentFormat(tournament).includes('v')}
+				/>
 			</div>
 		{:else}
 			<div class="stageCard">No stages found</div>
@@ -80,8 +84,8 @@
 	}
 
 	.container {
-		@apply grid grid-cols-2 min-w-full p-3 px-6 bg-ctp-mantle rounded-xl;
-		grid-template-columns: 60% auto;
+		@apply grid grid-cols-2 p-3 px-6 bg-ctp-mantle rounded-xl;
+		grid-template-columns: 60% 2em auto;
 	}
 
 	.tournamentInfo {

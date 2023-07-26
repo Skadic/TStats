@@ -1,15 +1,12 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait,
-    QueryFilter, QueryOrder,
-};
-use serde::{Serialize};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait, QueryFilter, QueryOrder};
+use serde::Serialize;
 
 use crate::model::entities::{PoolBracketEntity, PoolMapEntity};
+use crate::model::models::PoolBracket;
 use crate::model::{entities::StageEntity, models::Stage, *};
-use crate::model::models::{PoolBracket, PoolMap};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ByTournamentId {
@@ -43,7 +40,7 @@ pub async fn get_all_stages(
 }
 
 #[derive(Debug, Serialize)]
-pub struct ExtendedStage {
+pub struct ExtendedStageResult {
     #[serde(flatten)]
     stage: Stage,
     brackets: Vec<ExtendedPoolBracket>,
@@ -51,9 +48,8 @@ pub struct ExtendedStage {
 
 #[derive(Debug, Serialize)]
 pub struct ExtendedPoolBracket {
-    #[serde(flatten)]
-    bracket: PoolBracket,
-    maps: Vec<PoolMap>,
+    name: String,
+    maps: Vec<usize>,
 }
 
 pub async fn get_stage(
@@ -62,7 +58,7 @@ pub async fn get_stage(
         tournament_id,
         stage_order,
     }): Query<ByTournamentIdAndStageOrder>,
-) -> Result<(StatusCode, Json<Option<ExtendedStage>>), (StatusCode, String)> {
+) -> Result<(StatusCode, Json<Option<ExtendedStageResult>>), (StatusCode, String)> {
     let Some(stage) = StageEntity::find_by_id((tournament_id, stage_order))
         .one(db)
         .await
@@ -89,10 +85,16 @@ pub async fn get_stage(
             )
         })?
         .into_iter()
-        .map(|(bracket, maps)| ExtendedPoolBracket { bracket, maps })
+        .map(|(bracket, maps)| ExtendedPoolBracket {
+            name: bracket.name,
+            maps: maps.into_iter().map(|m| m.map_id as usize).collect(),
+        })
         .collect::<Vec<_>>();
 
-    Ok((StatusCode::OK, Json(Some(ExtendedStage { stage, brackets }))))
+    Ok((
+        StatusCode::OK,
+        Json(Some(ExtendedStageResult { stage, brackets })),
+    ))
 }
 
 /// Creates a new stage in a tournament

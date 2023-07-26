@@ -1,13 +1,16 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use sea_orm::{query::*, ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait};
-use serde::{Deserialize, Serialize};
+use sea_orm::{
+    query::*, ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait, IntoActiveModel,
+    ModelTrait,
+};
+use serde::Serialize;
 
-use crate::model::entities::{StageEntity, TournamentEntity};
-use crate::model::models::{Stage, Tournament};
+use crate::model::entities::{CountryRestrictionEntity, StageEntity, TournamentEntity};
+use crate::model::models::Tournament;
 use crate::model::stage;
-use crate::routes::{ById};
+use crate::routes::ById;
 
 /// Get all tournaments
 pub async fn get_all_tournaments(
@@ -22,19 +25,26 @@ pub async fn get_all_tournaments(
     Ok(Json(tournaments))
 }
 
+#[derive(Debug, Serialize)]
+pub struct SlimStage {
+    name: String,
+    best_of: i16,
+}
+
 /// A tournament including all its stages
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExtendedTournament {
+#[derive(Debug, Serialize)]
+pub struct ExtendedTournamentResult {
     #[serde(flatten)]
     tournament: Tournament,
-    stages: Vec<Stage>,
+    stages: Vec<SlimStage>,
+    country_restrictions: Vec<String>,
 }
 
 /// Get a tournament by its ID including its stages
 pub async fn get_tournament(
     State(ref db): State<DatabaseConnection>,
     Query(param): Query<ById>,
-) -> Result<Json<Option<ExtendedTournament>>, (StatusCode, String)> {
+) -> Result<Json<Option<ExtendedTournamentResult>>, (StatusCode, String)> {
     // Find the tournament with the given ID
     let Some(tournament) = TournamentEntity::find_by_id(param.id)
         .one(db)
@@ -49,7 +59,8 @@ pub async fn get_tournament(
     };
 
     // Find all stages of the tournament
-    let stages = tournament.find_related(StageEntity)
+    let stages = tournament
+        .find_related(StageEntity)
         .order_by_asc(stage::Column::StageOrder)
         .all(db)
         .await
@@ -58,9 +69,33 @@ pub async fn get_tournament(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("failed to get stages: {e}"),
             )
-        })?;
+        })?
+        .into_iter()
+        .map(|stage| SlimStage {
+            name: stage.name,
+            best_of: stage.best_of,
+        })
+        .collect();
 
-    Ok(Json(Some(ExtendedTournament { tournament, stages })))
+    let country_restrictions = tournament
+        .find_related(CountryRestrictionEntity)
+        .all(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to get country restrictions: {e}"),
+            )
+        })?
+        .into_iter()
+        .map(|cr| cr.name)
+        .collect::<Vec<String>>();
+
+    Ok(Json(Some(ExtendedTournamentResult {
+        tournament,
+        stages,
+        country_restrictions,
+    })))
 }
 
 /// Create a new tournament

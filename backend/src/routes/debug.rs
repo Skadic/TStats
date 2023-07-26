@@ -24,7 +24,7 @@ const BRACKETS: [&str; 3] = ["NM", "HD", "HR"];
 
 const STAGES: [&str; 6] = ["Q", "RO16", "QF", "SF", "F", "GF"];
 
-static RANK_RANGES: OnceLock<[RankRange; 6]> = OnceLock::new();
+static RANK_RANGES: OnceLock<[RankRange; 9]> = OnceLock::new();
 
 const FORMATS: [TournamentFormat; 4] = [
     TournamentFormat::versus(1),
@@ -41,6 +41,9 @@ const MAP_IDS: [usize; 9] = [
 pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusCode {
     let rank_ranges = RANK_RANGES.get_or_init(|| {
         [
+            RankRange::OpenRank,
+            RankRange::OpenRank,
+            RankRange::OpenRank,
             RankRange::single(50..1000),
             RankRange::single(1500..5000),
             RankRange::single(10000..100000),
@@ -109,14 +112,16 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
 
         // Add a few maps to the stage's pool
         for (bracket_order, &bracket_name) in BRACKETS.iter().enumerate() {
-
             // insert the pool bracket
             let _bracket = pool_bracket::ActiveModel {
                 name: ActiveValue::Set(bracket_name.to_string()),
                 tournament_id: ActiveValue::Set(tournament.id),
                 stage_order: ActiveValue::Set(stage_order as i16),
                 bracket_order: ActiveValue::Set(bracket_order as i16),
-            }.insert(db).await.unwrap();
+            }
+            .insert(db)
+            .await
+            .unwrap();
 
             for map_order in 0..2 {
                 // Choose a random map
@@ -128,7 +133,10 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
                     bracket_order: ActiveValue::Set(bracket_order as i16),
                     map_order: ActiveValue::Set(map_order),
                     map_id: ActiveValue::Set(choice as i64),
-                }.insert(db).await.unwrap();
+                }
+                .insert(db)
+                .await
+                .unwrap();
             }
         }
     }
