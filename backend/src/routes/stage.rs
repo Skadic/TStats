@@ -5,7 +5,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait,
     QueryFilter, QueryOrder,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 
 use crate::model::entities::{PoolBracketEntity, PoolMapEntity};
 use crate::model::{entities::StageEntity, models::Stage, *};

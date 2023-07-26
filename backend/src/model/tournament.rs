@@ -1,10 +1,7 @@
 use std::ops::Range;
 
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::{ArrayType, ValueType, ValueTypeErr};
 use serde::{Deserialize, Serialize};
-
-use crate::model::tournament::RankRange::OpenRank;
 
 /// A tournament with its associated data.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel)]
@@ -64,68 +61,6 @@ impl Related<super::pool_map::Entity> for Entity {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-/// A builder for tournament [`Model`] objects.
-pub struct TournamentBuilder {
-    tournament: Model,
-}
-
-impl TournamentBuilder {
-    /// Creates a new [`TournamentBuilder`] with the given name, shorthand, format and whether the tournament uses badge-weighting..
-    pub fn new(
-        name: impl Into<String>,
-        shorthand: impl Into<String>,
-        format: TournamentFormat,
-        bws: bool,
-    ) -> Self {
-        TournamentBuilder {
-            tournament: Model {
-                id: 0,
-                name: name.into(),
-                shorthand: shorthand.into(),
-                format,
-                rank_range: OpenRank,
-                bws,
-            },
-        }
-    }
-
-    /// Sets this tournament's rank restriction to a single rank range.
-    #[allow(dead_code)]
-    pub fn single_rank_range(mut self, rank: Range<usize>) -> Self {
-        self.tournament.rank_range = RankRange::Single(rank);
-        self
-    }
-
-    /// Sets this tournament's rank restriction to a multiple rank ranges for tiered tournaments.
-    #[allow(dead_code)]
-    pub fn tiered_rank_range(mut self, ranks: impl IntoIterator<Item = Range<usize>>) -> Self {
-        let mut iter = ranks.into_iter().peekable();
-        if iter.peek().is_none() {
-            self.tournament.rank_range = OpenRank;
-            return self;
-        }
-        self.tournament.rank_range = RankRange::Tiered(iter.collect());
-        self
-    }
-
-    /// Sets this tournament's rank restriction.
-    pub fn with_rank_range(mut self, rank_range: RankRange) -> Self {
-        match rank_range {
-            RankRange::Tiered(v) => self.tiered_rank_range(v),
-            RankRange::Single(range) => self.single_rank_range(range),
-            RankRange::OpenRank => {
-                self.tournament.rank_range = OpenRank;
-                self
-            }
-        }
-    }
-
-    /// Finalizes the building process
-    pub fn build(self) -> Model {
-        self.tournament
-    }
-}
-
 /// The tournament format, detailing the format of a match.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Hash, Clone, Copy, FromJsonQueryResult)]
 pub enum TournamentFormat {
@@ -172,13 +107,12 @@ impl RankRange {
         RankRange::Tiered(rank_ranges.into_iter().collect())
     }
 
-    /// Returns the number of tiers in the tournament. For a single rank range, this is just one.
+    /// Returns the number of tiers in the tournament. For a single rank range or an open rank tournament, this is just one.
     /// For tiered tournaments, it's the number of rank ranges.
     pub fn num_tiers(&self) -> usize {
         match self {
-            RankRange::Single(_) => 1,
             RankRange::Tiered(ranges) => ranges.len(),
-            RankRange::OpenRank => 1
+            _ => 1
         }
     }
 }

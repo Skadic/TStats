@@ -1,8 +1,13 @@
-use axum::http::Method;
-use axum::{routing::get, routing::post, Router};
+use axum::{
+    http::Method,
+    routing::{get, post},
+    Router,
+};
 use log::info;
-use sea_orm::sea_query::Table;
-use sea_orm::{ConnectionTrait, Database, DatabaseConnection, EntityName, Schema};
+use sea_orm::{
+    sea_query::Table, ConnectionTrait, Database, DatabaseConnection, EntityTrait,
+    Schema,
+};
 use tower_http::cors::CorsLayer;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -28,39 +33,17 @@ async fn main() {
         .await
         .unwrap();
 
-    let builder = db.get_database_backend();
-    let schema = Schema::new(builder);
-    db.execute(builder.build(Table::drop().table(PoolMapEntity.table_ref())))
-        .await
-        .unwrap();
-    db.execute(builder.build(Table::drop().table(PoolBracketEntity.table_ref())))
-        .await
-        .unwrap();
-    db.execute(builder.build(Table::drop().table(StageEntity.table_ref())))
-        .await
-        .unwrap();
-    db.execute(builder.build(Table::drop().table(CountryRestrictionEntity.table_ref())))
-        .await
-        .unwrap();
-    db.execute(builder.build(Table::drop().table(TournamentEntity.table_ref())))
-        .await
-        .unwrap();
+    drop_table(&db, PoolMapEntity).await;
+    drop_table(&db, PoolBracketEntity).await;
+    drop_table(&db, StageEntity).await;
+    drop_table(&db, CountryRestrictionEntity).await;
+    drop_table(&db, TournamentEntity).await;
 
-    db.execute(builder.build(&schema.create_table_from_entity(TournamentEntity)))
-        .await
-        .unwrap();
-    db.execute(builder.build(&schema.create_table_from_entity(CountryRestrictionEntity)))
-        .await
-        .unwrap();
-    db.execute(builder.build(&schema.create_table_from_entity(StageEntity)))
-        .await
-        .unwrap();
-    db.execute(builder.build(&schema.create_table_from_entity(PoolBracketEntity)))
-        .await
-        .unwrap();
-    db.execute(builder.build(&schema.create_table_from_entity(PoolMapEntity)))
-        .await
-        .unwrap();
+    create_table(&db, TournamentEntity).await;
+    create_table(&db, CountryRestrictionEntity).await;
+    create_table(&db, StageEntity).await;
+    create_table(&db, PoolBracketEntity).await;
+    create_table(&db, PoolMapEntity).await;
 
     // build our application
     let app = Router::new()
@@ -92,4 +75,25 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+async fn drop_table<E: EntityTrait>(db: &DatabaseConnection, table: E) {
+    let builder = db.get_database_backend();
+    match db
+        .execute(builder.build(Table::drop().table(table.table_ref())))
+        .await
+    {
+        Ok(_) => info!("Dropped table '{}'", table.table_name()),
+        Err(e) => info!("Failed to drop table '{}': {e}", table.table_name()),
+    };
+}
+
+async fn create_table<E: EntityTrait>(db: &DatabaseConnection, entity: E) {
+    let builder = db.get_database_backend();
+    let schema = Schema::new(builder);
+    match db.execute(builder.build(&schema.create_table_from_entity(entity)))
+        .await {
+        Ok(_) => info!("Created table '{}'", entity.table_name()),
+        Err(e) => info!("Failed to create table '{}': {e}", entity.table_name()),
+    };
 }

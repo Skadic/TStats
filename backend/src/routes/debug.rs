@@ -70,19 +70,13 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
         .choose_multiple(&mut rng, num_restrictions)
         .copied()
         .collect::<Vec<&str>>();
-    /*
-    let mut builder = TournamentBuilder::new(
-        tournament_name,
-        shorthand,
-        FORMATS[rng.gen_range(0..FORMATS.len())],
-        rng.gen(),
-    );*/
+
     debug!("Inserting test data into database");
-    let mut tournament = tournament::ActiveModel {
+    let tournament = tournament::ActiveModel {
         id: ActiveValue::NotSet,
         name: ActiveValue::Set(tournament_name),
         shorthand: ActiveValue::Set(shorthand),
-        format: ActiveValue::Set(FORMATS.choose(&mut rng).unwrap().clone()),
+        format: ActiveValue::Set(*FORMATS.choose(&mut rng).unwrap()),
         rank_range: ActiveValue::Set(rank_ranges.choose(&mut rng).unwrap().clone()),
         bws: ActiveValue::Set(rng.gen()),
     };
@@ -111,14 +105,14 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
             best_of: ActiveValue::Set(rng.gen_range(3..6) * 2 + 1),
         };
 
-        let stage = stage.insert(db).await.unwrap();
+        let _stage = stage.insert(db).await.unwrap();
 
         // Add a few maps to the stage's pool
-        for bracket_order in 0..BRACKETS.len() {
+        for (bracket_order, &bracket_name) in BRACKETS.iter().enumerate() {
 
             // insert the pool bracket
-            let bracket = pool_bracket::ActiveModel {
-                name: ActiveValue::Set(BRACKETS[bracket_order].to_string()),
+            let _bracket = pool_bracket::ActiveModel {
+                name: ActiveValue::Set(bracket_name.to_string()),
                 tournament_id: ActiveValue::Set(tournament.id),
                 stage_order: ActiveValue::Set(stage_order as i16),
                 bracket_order: ActiveValue::Set(bracket_order as i16),
