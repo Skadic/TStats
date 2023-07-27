@@ -1,20 +1,26 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// A bracket in a tournament pool, like "the NoMod bracket", "the Hidden bracket", etc.
-#[derive(Clone, Debug, Serialize, Deserialize, DeriveEntityModel, PartialEq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, DeriveEntityModel, PartialEq, Hash, ToSchema)]
 #[sea_orm(table_name = "pool_bracket")]
+#[schema(as = PoolMap)]
 pub struct Model {
     /// The id of the tournament this pool belongs to
     #[sea_orm(primary_key)]
+    #[schema(example = 161)]
     pub tournament_id: i32,
     /// The index of the stage in the tournament this pool belongs to.
     #[sea_orm(primary_key)]
+    #[schema(example = 1)]
     pub stage_order: i16,
     /// The order of this bracket in the stage. E.g. if this is the first bracket in the pool, this is 0.
     #[sea_orm(primary_key)]
+    #[schema(example = 3)]
     pub bracket_order: i16,
     /// The name for this bracket, like "NM", "HD", etc.
+    #[schema(example = "DT")]
     pub name: String,
 }
 

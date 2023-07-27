@@ -11,12 +11,18 @@ axum-macros = "0.3"
 dotenvy = "0.15"
 log = "0.4"
 rand = "0.8"
-rosu-v2 = "0.8"
-sea-orm = { version = "0.11.3", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+rosu-v2 = { version = "0.8", features = ["serialize"] }
+sea-orm = { version = "0.11.3", features = [
+  "sqlx-postgres",
+  "runtime-tokio-rustls",
+] }
 serde = "1.0"
 serde_json = "1.0"
+thiserror = "1.0"
 tokio = { version = "1.29", features = ["rt-multi-thread", "macros"] }
 tower-http = { version = "0.4", features = ["cors"] }
 tracing = "0.1"
 tracing-log = { version = "0.1" }
 tracing-subscriber = { version = "0.3" }
+utoipa = { version = "3.4.3", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "3.1.4", features = ["axum"] }

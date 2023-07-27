@@ -4,32 +4,86 @@ use axum::{
     Router,
 };
 use log::{info, LevelFilter};
+use rosu_v2::prelude::*;
 use sea_orm::{
     sea_query::Table, ConnectionTrait, Database, DatabaseConnection, EntityTrait, Schema,
 };
+use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::model::entities::{
     CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity,
 };
 
 mod model;
+mod osu;
 mod routes;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        routes::debug::fill_test_data,
+        routes::debug::get_beatmap,
+        routes::tournament::get_all_tournaments,
+        routes::tournament::get_tournament,
+        routes::tournament::create_tournament,
+        routes::stage::get_all_stages,
+        routes::stage::get_stage,
+        routes::stage::create_stage,
+    ),
+    components(
+        schemas(
+            model::tournament::Model,
+            model::tournament::RankRestriction,
+            model::tournament::TournamentFormat,
+            model::tournament::RankRange,
+            model::stage::Model,
+            model::pool_bracket::Model,
+            model::pool_map::Model,
+            model::country_restriction::Model,
+            routes::Id,
+            routes::tournament::ExtendedTournamentResult,
+            routes::tournament::SlimStage,
+            routes::stage::TournamentId,
+            routes::stage::TournamentIdAndStageOrder,
+            routes::stage::ExtendedStageResult,
+            routes::stage::ExtendedPoolBracket,
+        )
+    ),
+    tags(
+        (name = "tstats", description = "Backend API for managing tournaments and the associated data")
+    )
+)]
+struct ApiDoc;
 
 #[tokio::main]
 async fn main() {
+    // Setup logger
     tracing_log::LogTracer::builder()
         .with_max_level(LevelFilter::Trace)
         .ignore_crate("sqlx")
         .ignore_crate("hyper")
+        .ignore_crate("rustls")
+        .ignore_crate("h2")
         .init()
         .unwrap();
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::DEBUG)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    // Load environment variables from .env file
+    dotenvy::dotenv().unwrap();
+
+    let osu_client_id = std::env::var("OSU_CLIENT_ID")
+        .expect("OSU_CLIENT_ID not set")
+        .parse::<u64>()
+        .expect("OSU_CLIENT_ID must be a non-negative integer");
+    let osu_client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
 
     info!("Connecting to database...");
 
@@ -48,9 +102,17 @@ async fn main() {
     create_table(&db, StageEntity).await;
     create_table(&db, PoolBracketEntity).await;
     create_table(&db, PoolMapEntity).await;
+    info!("Connected to database and setup tables");
+
+    info!("Connect to osu api");
+
+    let osu = Osu::new(osu_client_id, osu_client_secret)
+        .await
+        .expect("error connecting to osu api");
 
     // build our application
     let app = Router::new()
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/", get(|| async { "Hello, World!" }))
         .route("/test_data", post(routes::debug::fill_test_data))
         .route(
@@ -69,10 +131,15 @@ async fn main() {
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])
-                .allow_origin(["http://localhost:4173".parse().unwrap(), "http://localhost:5173".parse().unwrap(),])
+                .allow_origin([
+                    "http://localhost:4173".parse().unwrap(),
+                    "http://localhost:5173".parse().unwrap(),
+                ])
                 .allow_headers(["content-type".parse().unwrap()]),
         )
-        .with_state(db);
+        .with_state(db)
+        .route("/beatmap", get(routes::debug::get_beatmap))
+        .with_state(Arc::new(osu));
 
     info!("Starting server");
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())

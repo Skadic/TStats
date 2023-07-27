@@ -1,13 +1,16 @@
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use axum::extract::State;
 use axum::http::StatusCode;
+use axum::Json;
 use log::debug;
 use rand::prelude::*;
+use rosu_v2::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection};
 
-use crate::model::tournament::{RankRange, TournamentFormat};
+use crate::model::tournament::{RankRestriction, TournamentFormat};
 use crate::model::*;
+use crate::osu::map::get_map;
 
 // These three tables are for generating a random tournament name.
 const MODIFIER_1: [&str; 5] = ["Amazing", "Mysterious", "Incredible", "Osu", "Great"];
@@ -24,7 +27,7 @@ const BRACKETS: [&str; 3] = ["NM", "HD", "HR"];
 
 const STAGES: [&str; 6] = ["Q", "RO16", "QF", "SF", "F", "GF"];
 
-static RANK_RANGES: OnceLock<[RankRange; 9]> = OnceLock::new();
+static RANK_RANGES: OnceLock<[RankRestriction; 9]> = OnceLock::new();
 
 const FORMATS: [TournamentFormat; 4] = [
     TournamentFormat::versus(1),
@@ -38,18 +41,25 @@ const MAP_IDS: [usize; 9] = [
 ];
 
 /// Fills the database with test data including a tournament, a few stages, maps for its pools.
+#[utoipa::path(
+    post,
+    path = "/test_data",
+    responses(
+        (status = CREATED, description = "Successfully created a test tournament")
+    )
+)]
 pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusCode {
     let rank_ranges = RANK_RANGES.get_or_init(|| {
         [
-            RankRange::OpenRank,
-            RankRange::OpenRank,
-            RankRange::OpenRank,
-            RankRange::single(50..1000),
-            RankRange::single(1500..5000),
-            RankRange::single(10000..100000),
-            RankRange::tiered([1000..1500, 1500..5000, 5000..10000]),
-            RankRange::tiered([1..750, 750..2000]),
-            RankRange::tiered([100..1000, 1000..10000, 10000..100000]),
+            RankRestriction::OpenRank,
+            RankRestriction::OpenRank,
+            RankRestriction::OpenRank,
+            RankRestriction::single(50..1000),
+            RankRestriction::single(1500..5000),
+            RankRestriction::single(10000..100000),
+            RankRestriction::tiered([1000..1500, 1500..5000, 5000..10000]),
+            RankRestriction::tiered([1..750, 750..2000]),
+            RankRestriction::tiered([100..1000, 1000..10000, 10000..100000]),
         ]
     });
 
@@ -140,5 +150,17 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
             }
         }
     }
-    StatusCode::OK
+    StatusCode::CREATED
+}
+
+/// Requests a test beatmap from the osu api.
+#[utoipa::path(
+    get,
+    path = "/beatmap",
+    responses(
+        (status = 200, description = "Successfuly requested beatmap")
+    )
+)]
+pub async fn get_beatmap(State(osu): State<Arc<Osu>>) -> Json<Vec<BeatmapCompact>> {
+    Json(get_map(osu, 2088253).await)
 }

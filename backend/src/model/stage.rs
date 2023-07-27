@@ -1,20 +1,26 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// A stage in a tournament.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel, ToSchema)]
 #[sea_orm(table_name = "stage")]
+#[schema(as = Stage)]
 pub struct Model {
     /// The id of the tournament the stage belongs to.
     #[sea_orm(primary_key)]
+    #[schema(example = 614)]
     pub tournament_id: i32,
     /// The stage's short name. For example, "QF", "RO16", etc.
+    #[schema(example = "RO16")]
     pub name: String,
     /// The stage's order in the tournament. For example, the first stage is 0, the second stage is 1, etc.
+    #[schema(example = 2)]
     #[sea_orm(primary_key, column_type = "TinyInteger")]
     pub stage_order: i16,
     /// The best-of of this stage's matches.
     #[sea_orm(column_type = "TinyInteger")]
+    #[schema(example = 7)]
     pub best_of: i16,
 }
 

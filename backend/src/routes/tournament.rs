@@ -6,13 +6,22 @@ use sea_orm::{
     ModelTrait,
 };
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::model::entities::{CountryRestrictionEntity, StageEntity, TournamentEntity};
 use crate::model::models::Tournament;
 use crate::model::stage;
-use crate::routes::ById;
+use crate::routes::Id;
 
-/// Get all tournaments
+/// Get all tournaments from the database
+#[utoipa::path(
+    get,
+    path = "/tournament/all",
+    responses(
+        (status = 200, description = "Successfuly requested beatmap", body = [Tournament]),
+        (status = 500, description = "Failed requesting tournaments from the database", body = String)
+    )
+)]
 pub async fn get_all_tournaments(
     State(ref db): State<DatabaseConnection>,
 ) -> Result<Json<Vec<Tournament>>, (StatusCode, String)> {
@@ -25,25 +34,44 @@ pub async fn get_all_tournaments(
     Ok(Json(tournaments))
 }
 
-#[derive(Debug, Serialize)]
+/// A stage with all primary key information stripped out
+#[derive(Debug, Serialize, ToSchema)]
+#[schema(example = json!({"name": "QF", "best_of": 7}))]
 pub struct SlimStage {
     name: String,
     best_of: i16,
 }
 
-/// A tournament including all its stages
-#[derive(Debug, Serialize)]
+/// A tournament including all its stages and country restrictions
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ExtendedTournamentResult {
+    /// The tournament itself
     #[serde(flatten)]
     tournament: Tournament,
+    /// The tournament's stages
+    #[schema(example = json!([{"name": "RO16", "best_of": 5}, {"name": "QF", "best_of": 7}]))]
     stages: Vec<SlimStage>,
+    /// The tournament's country restrictions as a vector of country codes.
+    #[schema(example = json!(["UK", "NZ", "FR"]))]
     country_restrictions: Vec<String>,
 }
 
 /// Get a tournament by its ID including its stages
+#[utoipa::path(
+    get,
+    path = "/tournament",
+    params(
+        Id
+    ),
+    responses(
+        (status = 200, description = "Successfuly requested beatmap", body = ExtendedTournamentResult),
+        (status = 404, description = "The tournament with the given id does not exist", body = String),
+        (status = 500, description = "Failed requesting from the database", body = String)
+    )
+)]
 pub async fn get_tournament(
     State(ref db): State<DatabaseConnection>,
-    Query(param): Query<ById>,
+    Query(param): Query<Id>,
 ) -> Result<Json<Option<ExtendedTournamentResult>>, (StatusCode, String)> {
     // Find the tournament with the given ID
     let Some(tournament) = TournamentEntity::find_by_id(param.id)
@@ -77,6 +105,7 @@ pub async fn get_tournament(
         })
         .collect();
 
+    // Find all country restrictions for this tournament in the database
     let country_restrictions = tournament
         .find_related(CountryRestrictionEntity)
         .all(db)
@@ -99,10 +128,19 @@ pub async fn get_tournament(
 }
 
 /// Create a new tournament
+#[utoipa::path(
+    post,
+    path = "/tournament",
+    request_body = Tournament,
+    responses(
+        (status = 201, description = "Successfully created tournament", body = Id, example = json!({ "id": 16 })),
+        (status = 500, description = "Failed to create tournament", body = String)
+    )
+)]
 pub async fn create_tournament(
     State(ref db): State<DatabaseConnection>,
     Json(tournament): Json<Tournament>,
-) -> Result<(StatusCode, String), (StatusCode, String)> {
+) -> Result<(StatusCode, Json<Id>), (StatusCode, String)> {
     let name = tournament.name.clone();
 
     let mut tournament = tournament.into_active_model();
@@ -114,11 +152,5 @@ pub async fn create_tournament(
         )
     })?;
 
-    Ok((
-        StatusCode::CREATED,
-        format!(
-            "tournament with name '{name}' created with id '{}'",
-            tournament.id
-        ),
-    ))
+    Ok((StatusCode::CREATED, Json(Id { id: tournament.id })))
 }

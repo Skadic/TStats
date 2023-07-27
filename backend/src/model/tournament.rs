@@ -2,24 +2,31 @@ use std::ops::Range;
 
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// A tournament with its associated data.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel, ToSchema)]
 #[sea_orm(table_name = "tournament")]
+#[schema(as = Tournament)]
 pub struct Model {
+    /// The database id for this tournament
     #[sea_orm(primary_key, auto_increment = true, unique)]
     #[serde(skip_deserializing)]
+    #[schema(example = 1, required = false)]
     pub id: i32,
     /// The tournament's full name
+    #[schema(example = "My Great Tournament 3")]
     pub name: String,
     /// This tournament's shorthand name
+    #[schema(example = "MGT3")]
     pub shorthand: String,
     /// The tournament format, i.e. how many players are playing at any one time. This should be a [`TournamentFormat`] value.
     pub format: TournamentFormat,
-    /// The tournament's rank range. This should be a [`RankRange`] value.
-    pub rank_range: RankRange,
+    /// The tournament's rank restriction. This should be a [`RankRestriction`] value.
+    pub rank_range: RankRestriction,
     /// Whether this tournament uses badge-weighting to adjust player's ranks.
     #[sea_orm(default_value = true)]
+    #[schema(example = true)]
     pub bws: bool,
 }
 
@@ -62,12 +69,15 @@ impl Related<super::pool_map::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 /// The tournament format, detailing the format of a match.
-#[derive(Debug, PartialEq, Serialize, Deserialize, Hash, Clone, Copy, FromJsonQueryResult)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Copy, FromJsonQueryResult, ToSchema)]
+#[schema(example = json!({"Versus": 3}))]
 pub enum TournamentFormat {
     /// A simple versus match. The parameter is the number of players playing for each team at any
     /// one time. So for a 4v4, this parameter is 4.
+    #[schema(example = 1)]
     Versus(usize),
     /// A battle royale style tournament, the parameter being the number of players.
+    #[schema(example = 10)]
     BattleRoyale(usize),
 }
 
@@ -85,39 +95,60 @@ impl TournamentFormat {
 
 /// A rank range for the current tournament which determines which players are allowed into the
 /// tournament
-#[derive(Debug, PartialEq, Serialize, Deserialize, Hash, Clone, FromJsonQueryResult)]
-//#[serde(untagged)]
-pub enum RankRange {
+#[derive(Debug, PartialEq, Serialize, Deserialize, Hash, Clone, FromJsonQueryResult, ToSchema)]
+#[schema(example = json!({"Single": {"min": 500, "max": 10000}}))]
+pub enum RankRestriction {
     /// Everyone can participate. There is no rank restriction
     OpenRank,
     /// This tournament has a single rank range
-    Single(Range<usize>),
+    Single(RankRange),
     /// This tournament has multiple tiers and therefore multiple rank ranges
-    Tiered(Vec<Range<usize>>),
+    Tiered(Vec<RankRange>),
 }
 
-impl RankRange {
+/// A rank range with a lower and upper bound.
+#[derive(
+    Debug, PartialEq, Serialize, Deserialize, Hash, Clone, Copy, FromJsonQueryResult, ToSchema,
+)]
+#[schema(example = json!({"min": 500, "max": 10000}))]
+pub struct RankRange {
+    /// The rank range's lower bound
+    min: usize,
+    /// The rank range's upper bound
+    max: usize,
+}
+
+impl From<Range<usize>> for RankRange {
+    fn from(value: Range<usize>) -> Self {
+        Self {
+            min: value.start,
+            max: value.end,
+        }
+    }
+}
+
+impl RankRestriction {
     /// Creates a new single rank range.
-    pub fn single(rank_range: Range<usize>) -> Self {
-        RankRange::Single(rank_range)
+    pub fn single(rank_range: impl Into<RankRange>) -> Self {
+        RankRestriction::Single(rank_range.into())
     }
 
-    /// Creates a new tiered rank range with an iterator of rank ranges as input..
-    pub fn tiered(rank_ranges: impl IntoIterator<Item = Range<usize>>) -> Self {
-        RankRange::Tiered(rank_ranges.into_iter().collect())
+    /// Creates a new tiered rank range with an iterator of rank ranges as input.
+    pub fn tiered(rank_ranges: impl IntoIterator<Item = impl Into<RankRange>>) -> Self {
+        RankRestriction::Tiered(rank_ranges.into_iter().map(Into::into).collect())
     }
 
     /// Returns the number of tiers in the tournament. For a single rank range or an open rank tournament, this is just one.
     /// For tiered tournaments, it's the number of rank ranges.
     pub fn num_tiers(&self) -> usize {
         match self {
-            RankRange::Tiered(ranges) => ranges.len(),
-            _ => 1
+            RankRestriction::Tiered(ranges) => ranges.len(),
+            _ => 1,
         }
     }
 }
 
-impl Default for RankRange {
+impl Default for RankRestriction {
     fn default() -> Self {
         Self::OpenRank
     }
