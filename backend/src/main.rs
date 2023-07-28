@@ -3,12 +3,12 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use log::{info, LevelFilter};
+use log::{info, warn, LevelFilter};
 use rosu_v2::prelude::*;
 use sea_orm::{
-    sea_query::Table, ConnectionTrait, Database, DatabaseConnection, EntityTrait, Schema,
+    sea_query::Table, ConnectionTrait, Database, DatabaseConnection, EntityTrait, Schema, ConnectOptions,
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tower_http::cors::CorsLayer;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -77,19 +77,22 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     // Load environment variables from .env file
-    dotenvy::dotenv().unwrap();
+    if let Err(e) = dotenvy::dotenv() {
+        warn!("could not read .env file: {e}");
+    }
 
     let osu_client_id = std::env::var("OSU_CLIENT_ID")
         .expect("OSU_CLIENT_ID not set")
         .parse::<u64>()
         .expect("OSU_CLIENT_ID must be a non-negative integer");
     let osu_client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
 
     info!("Connecting to database...");
 
-    let db: DatabaseConnection = Database::connect("postgres://root:root@localhost:5432/postgres")
-        .await
-        .unwrap();
+    let mut opt = ConnectOptions::new(database_url);
+    opt.connect_timeout(Duration::from_secs(1));
+    let db: DatabaseConnection = Database::connect(opt).await.unwrap();
 
     drop_table(&db, PoolMapEntity).await;
     drop_table(&db, PoolBracketEntity).await;
@@ -104,11 +107,12 @@ async fn main() {
     create_table(&db, PoolMapEntity).await;
     info!("Connected to database and setup tables");
 
-    info!("Connect to osu api");
+    info!("Connecting to osu api...");
 
     let osu = Osu::new(osu_client_id, osu_client_secret)
         .await
         .expect("error connecting to osu api");
+    info!("Connection successful!");
 
     // build our application
     let app = Router::new()

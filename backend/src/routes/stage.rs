@@ -13,8 +13,6 @@ use crate::model::{
     *,
 };
 
-use super::Id;
-
 /// A struct containing a tournament id used for querying
 #[derive(Debug, Clone, Copy, serde::Deserialize, ToSchema, IntoParams)]
 #[schema(example = json!({ "tournament_id": 152 }))]

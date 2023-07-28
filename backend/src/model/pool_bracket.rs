@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 /// A bracket in a tournament pool, like "the NoMod bracket", "the Hidden bracket", etc.
 #[derive(Clone, Debug, Serialize, Deserialize, DeriveEntityModel, PartialEq, Hash, ToSchema)]
 #[sea_orm(table_name = "pool_bracket")]
-#[schema(as = PoolMap)]
+#[schema(as = PoolBracket)]
 pub struct Model {
     /// The id of the tournament this pool belongs to
     #[sea_orm(primary_key)]
