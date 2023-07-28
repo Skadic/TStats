@@ -78,18 +78,19 @@ async fn main() {
 
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
-        warn!("could not read .env file: {e}");
+        warn!("could not read .env file. expecting environment variables to be defined: {e}");
     }
-
     let osu_client_id = std::env::var("OSU_CLIENT_ID")
         .expect("OSU_CLIENT_ID not set")
         .parse::<u64>()
         .expect("OSU_CLIENT_ID must be a non-negative integer");
+    
     let osu_client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
 
     info!("Connecting to database...");
 
+    //let mut opt = ConnectOptions::new("postgres://root:root@127.0.0.1:5432/postgres");
     let mut opt = ConnectOptions::new(database_url);
     opt.connect_timeout(Duration::from_secs(1));
     let db: DatabaseConnection = Database::connect(opt).await.unwrap();
@@ -148,6 +149,7 @@ async fn main() {
     info!("Starting server");
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
 }
@@ -173,4 +175,33 @@ async fn create_table<E: EntityTrait>(db: &DatabaseConnection, entity: E) {
         Ok(_) => info!("Created table '{}'", entity.table_name()),
         Err(e) => info!("Failed to create table '{}': {e}", entity.table_name()),
     };
+}
+
+// source: https://github.com/tokio-rs/axum/blob/main/examples/graceful-shutdown/src/main.rs
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+        info!("Shutdown request from Ctrl+C");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+        info!("Shutdown request from SIGTERM");
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    info!("signal received, starting graceful shutdown");
 }

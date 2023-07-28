@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use sea_orm::entity::prelude::*;
+use sea_orm::FromJsonQueryResult;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
