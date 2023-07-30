@@ -138,12 +138,10 @@ async fn main() {
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])
                 .allow_origin([
-                    "http://localhost:3000".parse().unwrap(),
-                    "http://localhost:8000".parse().unwrap(),
                     "http://localhost:4173".parse().unwrap(),
                     "http://localhost:5173".parse().unwrap(),
-                    "http://tstats-frontend:8000".parse().unwrap(),
-                    "http://tstats-frontend:3000".parse().unwrap(),
+                    "http://tstats.skadic.moe:443".parse().unwrap(),
+                    "http://tstats.skadic.moe:80".parse().unwrap(),
                 ])
                 .allow_headers(["content-type".parse().unwrap()]),
         )
