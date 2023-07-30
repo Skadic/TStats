@@ -118,9 +118,9 @@ async fn main() {
 
     // build our application
     let app = Router::new()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .route("/", get(|| async { "Hello, World!" }))
-        .route("/test_data", post(routes::debug::fill_test_data))
+        .merge(SwaggerUi::new("/api/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/api", get(|| async { "Hello, World!" }))
+        .route("/api/test_data", post(routes::debug::fill_test_data))
         .route(
             "/api/tournament/all",
             get(routes::tournament::get_all_tournaments),

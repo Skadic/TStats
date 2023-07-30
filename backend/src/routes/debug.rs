@@ -43,7 +43,7 @@ const MAP_IDS: [usize; 9] = [
 /// Fills the database with test data including a tournament, a few stages, maps for its pools.
 #[utoipa::path(
     post,
-    path = "/test_data",
+    path = "/api/test_data",
     responses(
         (status = CREATED, description = "Successfully created a test tournament")
     )
@@ -156,7 +156,7 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
 /// Requests a test beatmap from the osu api.
 #[utoipa::path(
     get,
-    path = "/beatmap",
+    path = "/api/beatmap",
     responses(
         (status = 200, description = "Successfuly requested beatmap")
     )
