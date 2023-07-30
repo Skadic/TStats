@@ -140,8 +140,8 @@ async fn main() {
                 .allow_origin([
                     "http://localhost:4173".parse().unwrap(),
                     "http://localhost:5173".parse().unwrap(),
-                    "http://tstats.skadic.moe:443".parse().unwrap(),
-                    "http://tstats.skadic.moe:80".parse().unwrap(),
+                    "https://tstats.skadic.moe:443".parse().unwrap(),
+                    "https://tstats.skadic.moe:80".parse().unwrap(),
                 ])
                 .allow_headers(["content-type".parse().unwrap()]),
         )
