@@ -6,7 +6,8 @@ use axum::{
 use log::{info, warn, LevelFilter};
 use rosu_v2::prelude::*;
 use sea_orm::{
-    sea_query::Table, ConnectionTrait, Database, DatabaseConnection, EntityTrait, Schema, ConnectOptions,
+    sea_query::Table, ConnectOptions, ConnectionTrait, Database, DatabaseConnection, EntityTrait,
+    Schema,
 };
 use std::{sync::Arc, time::Duration};
 use tower_http::cors::CorsLayer;
@@ -22,6 +23,7 @@ use crate::model::entities::{
 mod model;
 mod osu;
 mod routes;
+
 
 #[derive(OpenApi)]
 #[openapi(
@@ -84,12 +86,11 @@ async fn main() {
         .expect("OSU_CLIENT_ID not set")
         .parse::<u64>()
         .expect("OSU_CLIENT_ID must be a non-negative integer");
-    
+
     let osu_client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
 
     info!("Connecting to database...");
-
     //let mut opt = ConnectOptions::new("postgres://root:root@127.0.0.1:5432/postgres");
     let mut opt = ConnectOptions::new(database_url);
     opt.connect_timeout(Duration::from_secs(1));
@@ -137,8 +138,12 @@ async fn main() {
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])
                 .allow_origin([
+                    "http://localhost:3000".parse().unwrap(),
+                    "http://localhost:8000".parse().unwrap(),
                     "http://localhost:4173".parse().unwrap(),
                     "http://localhost:5173".parse().unwrap(),
+                    "http://tstats-frontend:8000".parse().unwrap(),
+                    "http://tstats-frontend:3000".parse().unwrap(),
                 ])
                 .allow_headers(["content-type".parse().unwrap()]),
         )

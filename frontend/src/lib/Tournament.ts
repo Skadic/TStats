@@ -26,7 +26,8 @@ export type RankRange = {
 }
 
 export function formatRankRange(tournament: any): string {
-    if (tournament === "OpenRank") {
+  console.log(tournament);
+    if (tournament.rank_range === "OpenRank") {
         return "Open Rank";
     } if (tournament.rank_range["Tiered"] !== undefined) {
         return "Tiered";

@@ -17,7 +17,7 @@ export type TournamentResult = {
 export async function load({ fetch, params }): Promise<TournamentResult> {
 	
 	const res = await fetch(
-		`http://127.0.0.1:3000/api/tournament?` +
+		`http://tstats.skadic.moe/api/tournament?` +
 			new URLSearchParams({
 				id: params.tournament,
 			}),

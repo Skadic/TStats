@@ -1,7 +1,7 @@
 import type { Tournament } from "$lib/Tournament";
 
 export async function load({ fetch, params }) {
-    const res = await fetch(`http://127.0.0.1:3000/api/tournament/all`, {
+    const res = await fetch(`http://tstats.skadic.moe/api/tournament/all`, {
         method: "GET",
         headers: new Headers({
             'Content-Type': "application/json",
