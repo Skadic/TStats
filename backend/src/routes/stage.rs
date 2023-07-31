@@ -31,7 +31,7 @@ pub struct TournamentIdAndStageOrder {
 /// Get all stages for a given tournament
 #[utoipa::path(
     get,
-    path = "/stage/all",
+    path = "/api/stage/all",
     params(TournamentId),
     responses(
         (status = 200, description = "Return all stages for the given tournament", body = [Stage]),
@@ -95,7 +95,7 @@ pub struct ExtendedPoolBracket {
 /// Get a stage together with its pool brackets and their maps
 #[utoipa::path(
     get,
-    path = "/stage",
+    path = "/api/stage",
     params(TournamentIdAndStageOrder),
     responses(
         (status = 200, description = "Return the given stage with extra data", body = ExtendedStageResult),
@@ -154,7 +154,7 @@ pub async fn get_stage(
 /// Creates a new stage in a tournament
 #[utoipa::path(
     post,
-    path = "/stage",
+    path = "/api/stage",
     request_body = Stage,
     responses(
         (status = 201, description = "Stage Created"),

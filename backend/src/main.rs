@@ -85,6 +85,21 @@ async fn main() -> miette::Result<()> {
         .into_diagnostic()
         .wrap_err("setting default subscriber failed")?;
 
+    {
+        let api_yaml = ApiDoc::openapi()
+            .to_yaml()
+            .into_diagnostic()
+            .wrap_err("error serializing api docs to yaml")?;
+        let mut api_doc_file = File::create("apidoc.yaml")
+            .into_diagnostic()
+            .wrap_err("could not open apidoc.yaml file")?;
+        api_doc_file
+            .write_all(api_yaml.as_bytes())
+            .into_diagnostic()
+            .wrap_err("could not write to the apidoc.yaml")?;
+        info!("API documentation written to apidoc.yaml")
+    }
+
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
@@ -132,20 +147,6 @@ async fn main() -> miette::Result<()> {
         .into_diagnostic()
         .wrap_err("error connecting to osu api")?;
     info!("Connection successful!");
-
-    {
-        let api_yaml = ApiDoc::openapi()
-            .to_yaml()
-            .into_diagnostic()
-            .wrap_err("error serializing api docs to yaml")?;
-        let mut api_doc_file = File::create("apidoc.yaml")
-            .into_diagnostic()
-            .wrap_err("could not open apidoc.yaml file")?;
-        api_doc_file
-            .write_all(api_yaml.as_bytes())
-            .into_diagnostic()
-            .wrap_err("could not write to the apidoc.yaml")?;
-    }
 
     // build our application
     let app = Router::new()

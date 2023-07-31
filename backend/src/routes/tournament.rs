@@ -16,7 +16,7 @@ use crate::routes::Id;
 /// Get all tournaments from the database
 #[utoipa::path(
     get,
-    path = "/tournament/all",
+    path = "/api/tournament/all",
     responses(
         (status = 200, description = "Successfuly requested beatmap", body = [Tournament]),
         (status = 500, description = "Failed requesting tournaments from the database", body = String)
@@ -59,7 +59,7 @@ pub struct ExtendedTournamentResult {
 /// Get a tournament by its ID including its stages
 #[utoipa::path(
     get,
-    path = "/tournament",
+    path = "/api/tournament",
     params(
         Id
     ),
@@ -130,7 +130,7 @@ pub async fn get_tournament(
 /// Create a new tournament
 #[utoipa::path(
     post,
-    path = "/tournament",
+    path = "/api/tournament",
     request_body = Tournament,
     responses(
         (status = 201, description = "Successfully created tournament", body = Id, example = json!({ "id": 16 })),
