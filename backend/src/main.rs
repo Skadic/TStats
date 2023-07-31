@@ -1,15 +1,16 @@
 use axum::{
     http::Method,
-    routing::{get, post},
+    routing::{get, options, post},
     Router,
 };
 use log::{info, warn, LevelFilter};
+use miette::{Context, IntoDiagnostic};
 use rosu_v2::prelude::*;
 use sea_orm::{
     sea_query::Table, ConnectOptions, ConnectionTrait, Database, DatabaseConnection, EntityTrait,
     Schema,
 };
-use std::{sync::Arc, time::Duration};
+use std::{fs::File, io::Write, sync::Arc, time::Duration};
 use tower_http::cors::CorsLayer;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -24,6 +25,9 @@ mod model;
 mod osu;
 mod routes;
 
+async fn cors() -> StatusCode {
+    StatusCode::OK
+}
 
 #[derive(OpenApi)]
 #[openapi(
@@ -63,7 +67,7 @@ mod routes;
 struct ApiDoc;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> miette::Result<()> {
     // Setup logger
     tracing_log::LogTracer::builder()
         .with_max_level(LevelFilter::Trace)
@@ -72,29 +76,41 @@ async fn main() {
         .ignore_crate("rustls")
         .ignore_crate("h2")
         .init()
-        .unwrap();
+        .into_diagnostic()
+        .wrap_err("failed to setup logger")?;
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::DEBUG)
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber)
+        .into_diagnostic()
+        .wrap_err("setting default subscriber failed")?;
 
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
     }
     let osu_client_id = std::env::var("OSU_CLIENT_ID")
-        .expect("OSU_CLIENT_ID not set")
+        .into_diagnostic()
+        .wrap_err("OSU_CLIENT_ID not set")?
         .parse::<u64>()
-        .expect("OSU_CLIENT_ID must be a non-negative integer");
+        .into_diagnostic()
+        .wrap_err("OSU_CLIENT_ID must be a non-negative integer")?;
 
-    let osu_client_secret = std::env::var("OSU_CLIENT_SECRET").expect("OSU_CLIENT_SECRET not set");
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
+    let osu_client_secret = std::env::var("OSU_CLIENT_SECRET")
+        .into_diagnostic()
+        .wrap_err("OSU_CLIENT_SECRET not set")?;
+    let database_url = std::env::var("DATABASE_URL")
+        .into_diagnostic()
+        .wrap_err("DATABASE_URL not set")?;
 
     info!("Connecting to database...");
     //let mut opt = ConnectOptions::new("postgres://root:root@127.0.0.1:5432/postgres");
     let mut opt = ConnectOptions::new(database_url);
     opt.connect_timeout(Duration::from_secs(1));
-    let db: DatabaseConnection = Database::connect(opt).await.unwrap();
+    let db: DatabaseConnection = Database::connect(opt)
+        .await
+        .into_diagnostic()
+        .wrap_err("failed to connect to database")?;
 
     drop_table(&db, PoolMapEntity).await;
     drop_table(&db, PoolBracketEntity).await;
@@ -113,12 +129,29 @@ async fn main() {
 
     let osu = Osu::new(osu_client_id, osu_client_secret)
         .await
-        .expect("error connecting to osu api");
+        .into_diagnostic()
+        .wrap_err("error connecting to osu api")?;
     info!("Connection successful!");
+
+    {
+        let api_yaml = ApiDoc::openapi()
+            .to_yaml()
+            .into_diagnostic()
+            .wrap_err("error serializing api docs to yaml")?;
+        let mut api_doc_file = File::create("apidoc.yaml")
+            .into_diagnostic()
+            .wrap_err("could not open apidoc.yaml file")?;
+        api_doc_file
+            .write_all(api_yaml.as_bytes())
+            .into_diagnostic()
+            .wrap_err("could not write to the apidoc.yaml")?;
+    }
 
     // build our application
     let app = Router::new()
         .merge(SwaggerUi::new("/api/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/", options(cors))
+        .route("/*path", options(cors))
         .route("/api", get(|| async { "Hello, World!" }))
         .route("/api/test_data", post(routes::debug::fill_test_data))
         .route(
@@ -136,12 +169,12 @@ async fn main() {
         )
         .layer(
             CorsLayer::new()
-                .allow_methods([Method::GET, Method::POST])
+                .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
                 .allow_origin([
-                    "http://localhost:4173".parse().unwrap(),
-                    "http://localhost:5173".parse().unwrap(),
-                    "https://tstats.skadic.moe:443".parse().unwrap(),
-                    "https://tstats.skadic.moe:80".parse().unwrap(),
+                    "http://localhost".parse().unwrap(),
+                    "https://localhost".parse().unwrap(),
+                    "http://tstats.skadic.moe".parse().unwrap(),
+                    "https://tstats.skadic.moe".parse().unwrap(),
                 ])
                 .allow_headers(["content-type".parse().unwrap()]),
         )
@@ -154,7 +187,7 @@ async fn main() {
         .serve(app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .unwrap();
+        .into_diagnostic()
 }
 
 async fn drop_table<E: EntityTrait>(db: &DatabaseConnection, table: E) {
