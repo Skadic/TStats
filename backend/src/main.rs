@@ -3,7 +3,7 @@ use axum::{
     routing::{get, options, post},
     Router,
 };
-use log::{info, warn, LevelFilter};
+use log::{info, warn};
 use miette::{Context, IntoDiagnostic};
 use rosu_v2::prelude::*;
 use sea_orm::{
@@ -11,9 +11,12 @@ use sea_orm::{
     Schema,
 };
 use std::{fs::File, io::Write, sync::Arc, time::Duration};
-use tower_http::cors::CorsLayer;
-use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
+use tower_http::{
+    cors::CorsLayer,
+    trace::{self, TraceLayer},
+};
+use tracing::{metadata::LevelFilter, Level};
+use tracing_subscriber::{filter::Targets, prelude::*};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -69,21 +72,14 @@ struct ApiDoc;
 #[tokio::main]
 async fn main() -> miette::Result<()> {
     // Setup logger
-    tracing_log::LogTracer::builder()
-        .with_max_level(LevelFilter::Trace)
-        .ignore_crate("sqlx")
-        .ignore_crate("hyper")
-        .ignore_crate("rustls")
-        .ignore_crate("h2")
-        .init()
-        .into_diagnostic()
-        .wrap_err("failed to setup logger")?;
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .into_diagnostic()
-        .wrap_err("setting default subscriber failed")?;
+    tracing_subscriber::registry()
+        .with(Targets::new().with_targets([
+            ("tstats_backend", LevelFilter::DEBUG),
+            ("rosu_v2", LevelFilter::INFO),
+            ("tower_http", LevelFilter::INFO),
+        ]))
+        .with(tracing_subscriber::fmt::layer().pretty())
+        .init();
 
     {
         let api_yaml = ApiDoc::openapi()
@@ -172,12 +168,19 @@ async fn main() -> miette::Result<()> {
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
                 .allow_origin([
-                    "http://localhost".parse().unwrap(),
-                    "https://localhost".parse().unwrap(),
+                    "http://localhost:5173".parse().unwrap(),
+                    "https://localhost:5173".parse().unwrap(),
                     "http://tstats.skadic.moe".parse().unwrap(),
                     "https://tstats.skadic.moe".parse().unwrap(),
                 ])
                 .allow_headers(["content-type".parse().unwrap()]),
+        )
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(trace::DefaultOnResponse::new().level(Level::INFO))
+                .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
+                .on_failure(trace::DefaultOnFailure::new().level(Level::INFO)),
         )
         .with_state(db)
         .route("/beatmap", get(routes::debug::get_beatmap))
