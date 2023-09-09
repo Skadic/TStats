@@ -7,7 +7,7 @@ use sea_orm::{
 use serde::Serialize;
 use utoipa::{IntoParams, ToSchema};
 
-use crate::model::{
+use model::{
     entities::{PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity},
     models::Stage,
     *,

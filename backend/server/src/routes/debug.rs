@@ -8,8 +8,8 @@ use rand::prelude::*;
 use rosu_v2::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection};
 
-use crate::model::tournament::{RankRestriction, TournamentFormat};
-use crate::model::*;
+use model::tournament::{RankRestriction, TournamentFormat};
+use model::*;
 use crate::osu::map::get_map;
 
 // These three tables are for generating a random tournament name.

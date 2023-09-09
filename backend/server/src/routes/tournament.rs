@@ -8,9 +8,9 @@ use sea_orm::{
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::model::entities::{CountryRestrictionEntity, StageEntity, TournamentEntity};
-use crate::model::models::Tournament;
-use crate::model::stage;
+use model::entities::{CountryRestrictionEntity, StageEntity, TournamentEntity};
+use model::models::Tournament;
+use model::stage;
 use crate::routes::Id;
 
 /// Get all tournaments from the database

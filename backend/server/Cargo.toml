@@ -1,0 +1,28 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+model = { path = "../model" }
+
+axum = { version = "0.6" }
+axum-macros = "0.3"
+dotenvy = "0.15"
+log = "0.4"
+miette = { version = "5.10.0", features = ["fancy"] }
+rand = "0.8"
+rosu-v2 = { version = "0.8", features = ["serialize"] }
+sea-orm = { version = "0.12.1", features = ["runtime-tokio-rustls"] }
+serde = "1.0"
+serde_json = "1.0"
+thiserror = "1.0"
+tokio = { version = "1.29", features = ["rt-multi-thread", "macros", "signal"] }
+tower-http = { version = "0.4", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-log = { version = "0.1" }
+utoipa = { version = "3.4.3", features = ["axum_extras", "yaml"] }
+utoipa-swagger-ui = { version = "3.1.4", features = ["axum"] }
