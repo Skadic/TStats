@@ -6,19 +6,26 @@
 	export let tournaments: Tournament[];
 </script>
 
-<div class="tournamentList">
-	{#each tournaments as tournament}
-		<div class="tournamentCard">
-			<TournamentCard {tournament} />
-		</div>
-	{/each}
+<div id="container">
+	<div id="tournamentList">
+		{#each tournaments as tournament}
+			<div class="tournamentCard">
+				<TournamentCard {tournament} />
+			</div>
+		{/each}
+	</div>
 </div>
 
 <style>
 	.tournamentCard {
-		@apply m-2;
+		@apply m-2 flex-1;
 	}
-    .tournamentList {
-        @apply grid grid-cols-3;
-    }
+	#tournamentList {
+		@apply flex flex-wrap;
+	}
+
+	#container {
+		@apply flex justify-center;
+	}
+
 </style>

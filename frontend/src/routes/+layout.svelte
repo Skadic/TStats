@@ -1,22 +1,15 @@
 <script>
-    import "../styles/app.css"
+	import Navbar from '../components/Navbar.svelte';
+	import '../styles/app.css';
 </script>
 
-<nav class="bg-ctp-mantle">
-    Tournament stats thingy
-</nav>
-
 <body>
-<slot/>
+    <Navbar></Navbar>
+	<slot />
 </body>
 
 <style>
     body {
-        margin: 2%;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
+        margin: 30px;
     }
 </style>

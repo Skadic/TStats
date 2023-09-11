@@ -21,8 +21,8 @@ export type ExtendedTournament = {
 }
 
 export type RankRange = {
-    start: number,
-    end: number
+    min: number,
+    max: number
 }
 
 export function formatRankRange(tournament: any): string {
@@ -32,7 +32,7 @@ export function formatRankRange(tournament: any): string {
     } if (tournament.rank_range["Tiered"] !== undefined) {
         return "Tiered";
     } else {
-        return tournament.rank_range["Single"].start + "-" + tournament.rank_range["Single"].end;
+        return tournament.rank_range["Single"].min + "-" + tournament.rank_range["Single"].max;
     }
 }
 
@@ -40,9 +40,9 @@ export function formatRankRangeDetailed(tournament: any): string[] {
     if (tournament.rank_range === "OpenRank") {
         return ["Open Rank"];
     } if (tournament.rank_range["Tiered"] !== undefined) {
-        return tournament.rank_range["Tiered"].map((o: RankRange, i: number) => `Tier ${i+1}: ` + o.start + "-" + o.end);
+        return tournament.rank_range["Tiered"].map((o: RankRange, i: number) => `Tier ${i+1}: ` + o.min + "-" + o.max);
     } else {
-        return [tournament.rank_range["Single"].start.toString(), tournament.rank_range["Single"].end.toString()];
+        return [tournament.rank_range["Single"].min.toString(), tournament.rank_range["Single"].max.toString()];
     }
 }
 
