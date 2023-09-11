@@ -5,5 +5,5 @@
 
 body {
     font-family: 'Poppins', 'sans-serif';
-    @apply bg-ctp-base text-ctp-text;
+    @apply bg-bg text-text;
 }

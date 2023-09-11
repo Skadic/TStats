@@ -10,6 +10,6 @@
 		@apply bg-black w-full h-full rounded-xl opacity-50;
 	}
 	#container {
-		@apply h-40 rounded-xl bg-gradient-to-br from-ctp-pink to-ctp-mauve text-5xl font-bold;
+		@apply h-40 rounded-xl bg-secondary text-5xl font-bold m-7;
 	}
 </style>

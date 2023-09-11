@@ -4,27 +4,20 @@
 	export let has_best_of: boolean;
 </script>
 
-<div class="stageCard">
-	<a href="/tournament/{stage.tournament_id}/stage/{stage.stage_order}">
-		<h1>{stage.name}</h1>
-		{#if has_best_of} <h2>Best of {stage.best_of}</h2> {/if}
+<div class="text-text rounded-lg p-2 bg-bg-400 container">
+	<a class="flex" href="/tournament/{stage.tournament_id}/stage/{stage.stage_order}">
+		<h1 class="text-3xl font-bold">{stage.name}</h1>
+		{#if has_best_of} <h2 class="flex-1 text-right">Best of {stage.best_of}</h2> {/if}
 	</a>
 </div>
 
 <style>
-	h1 {
-		@apply text-3xl font-bold;
+	.container {
+		transition: all;
+		transition-duration: 0.2s;
 	}
 
-	h2 {
-		@apply flex-1 text-right;
-	}
-
-	.stageCard {
-		@apply text-ctp-base rounded-lg p-2 bg-gradient-to-br from-ctp-pink to-ctp-mauve;
-	}
-
-	a {
-		@apply flex;
+	.container:hover {
+		transform: scale(1.03);
 	}
 </style>

@@ -18,14 +18,28 @@
 
 <style>
 	.tournamentCard {
-		@apply m-2 flex-1;
+		@apply p-2;
+		flex: 0 1;
+		min-width: 95%;
 	}
+
 	#tournamentList {
-		@apply flex flex-wrap;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-around;
+	}
+
+	@media screen and (min-width: 80rem) {
+		.tournamentCard {
+			min-width: 33%;
+		}
+
+		#tournamentList {
+			justify-content: space-between;
+		}
 	}
 
 	#container {
-		@apply flex justify-center;
+		@apply flex;
 	}
-
 </style>
