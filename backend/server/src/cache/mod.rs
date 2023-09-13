@@ -1,6 +1,6 @@
 use std::{convert::Infallible, future::Future};
 
-use redis::{aio::ConnectionLike, AsyncCommands};
+use redis::{aio::ConnectionLike, AsyncCommands, FromRedisValue};
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 use tracing::{info, warn};
@@ -71,7 +71,7 @@ where
     Ok(())
 }
 
-/// Gets a value from redis.
+/// Gets a value from redis. Or `Ok(None)` if it doesn't exist
 ///
 /// # Arguments
 ///
@@ -83,7 +83,7 @@ where
 /// An error can occur when deserialization fails, or the get command in the redis store fails.
 ///
 pub async fn get_cached<V, Conn>(
-    redis: &mut redis::aio::MultiplexedConnection,
+    redis: &mut Conn,
     key: &V::KeyType,
 ) -> Result<Option<V>, CacheError>
 where
@@ -91,19 +91,24 @@ where
     Conn: ConnectionLike + Send + Sync,
 {
     // Try to find the value in the cache
-    Ok(
-        match redis.get::<String, String>(V::full_key_with(key)).await {
-            // If found, just return it
-            Ok(v) => Some(serde_json::from_str(&v)?),
-            // If not found, try getting it from the lambda and cache it
-            Err(e) => match e.kind() {
-                _ => {
-                    warn!("error retrieving from cache: {e}");
-                    None
-                }
-            },
-        },
-    )
+    let Some(s) = redis
+        .get::<String, redis::Value>(V::full_key_with(key))
+        .await
+        .and_then(|v| match v {
+            // If it doesn't exist, we just return "None"
+            redis::Value::Nil => Ok(None),
+            // Otherwise we try to convert it to a string to parse later
+            v => String::from_redis_value(&v).map(Some),
+        })?
+    else {
+        // If it's not found, just return
+        return Ok(None);
+    };
+
+    // Try to parse it to the output value
+    serde_json::from_str::<V>(&s)
+        .map(Some)
+        .map_err(CacheError::from)
 }
 
 /// Tries to get a value from the cache and returns it, if it exist.
@@ -167,24 +172,17 @@ where
     Fut: Future<Output = Result<V, E>>,
 {
     // Try to find the value in the cache
-    let resp = match redis.get::<String, String>(V::full_key_with(key)).await {
-        // If found, just return it
-        Ok(v) => {
-            info!("found value in cache: {v}");
-            serde_json::from_str(&v)?
-        }
-        // If not found, try getting it from the get function and cache it
-        Err(e) => {
-            warn!("error retrieving from cache: {e}");
-            let v = get_fn()
-                .await
-                .map_err(|e| CacheError::Request(Box::new(e)))?;
+    if let Ok(Some(v)) = get_cached::<V, Conn>(redis, key).await {
+    // If found, just return it
+        return Ok(v);
+    }
 
-            cache(redis, &v, expiry_time).await?;
+    // Otherwise, try to get it from the function
+    let v = get_fn()
+        .await
+        .map_err(|e| CacheError::Request(Box::new(e)))?;
 
-            v
-        }
-    };
-
-    Ok(resp)
+    // Cache the value and return it
+    cache(redis, &v, expiry_time).await?;
+    Ok(v)
 }
