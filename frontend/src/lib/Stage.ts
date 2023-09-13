@@ -1,4 +1,4 @@
-import type { PoolBracketExtended } from "./PoolBracket"
+import type { PoolBracket } from "./Pool"
 
 export type Stage = {
     tournament_id: number,
@@ -7,12 +7,24 @@ export type Stage = {
     best_of: number,
 }
 
-export type ExtendedStage = {
-    tournament_id: string,
-    stage_order: number,
-    name: string,
-    best_of: number,
-    pool_brackets: PoolBracketExtended[],
+export class ExtendedStage {
+    tournamentId: string;
+    stageOrder: number;
+    name: string;
+    bestOf: number;
+    poolBrackets: PoolBracket[];
+
+    constructor(tournamentId: string, stageOrder: number, name: string, bestOf: number, poolBrackets: PoolBracket[]) {
+        this.tournamentId = tournamentId;
+        this.stageOrder = stageOrder;
+        this.name = name;
+        this.bestOf = bestOf;
+        this.poolBrackets = poolBrackets;
+    }
+
+    addBracket(poolBracket: PoolBracket) {
+        this.poolBrackets.push(poolBracket);
+    }
 }
 
 
