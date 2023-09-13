@@ -1,6 +1,6 @@
 <script lang="ts">
 	export let data;
-	let stages = data.stage_id;
+	let stages = data.stageId;
 </script>
 
 <p>{JSON.stringify(stages)}</p>

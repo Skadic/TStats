@@ -4,15 +4,15 @@ export type BracketResult = {
 }
 
 export type StageResult = {
-	tournament_id: number,
+	tournamentId: number,
 	name: string,
-	stage_order: number,
-	best_of: number,
+	stageOrder: number,
+	bestOf: number,
 	brackets: BracketResult[]
 }
 
 export async function load({ fetch, params }) {
 	return {
-        stage_id: params.stage,
+        stageId: params.stage,
 	};
 }

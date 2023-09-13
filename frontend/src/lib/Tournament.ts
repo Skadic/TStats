@@ -5,38 +5,38 @@ export class Tournament {
 	name: string;
 	shorthand: string;
 	format: TournamentFormat;
-	num_players: number;
-	rank_range: RankRange[];
+	numPlayers: number;
+	rankRange: RankRange[];
 	bws: boolean;
 
 	constructor(
 		name: string,
 		shorthand: string,
 		format: TournamentFormat,
-		num_players: number,
-		rank_ranges: RankRange[],
+		numPlayers: number,
+		rankRanges: RankRange[],
 		bws: boolean
 	) {
 		this.id = 0;
 		this.name = name;
 		this.shorthand = shorthand;
 		this.format = format;
-		this.num_players = num_players;
-		this.rank_range = rank_ranges;
+		this.numPlayers = numPlayers;
+		this.rankRange = rankRanges;
 		this.bws = bws;
 	}
 
 	static deserialize(obj: any): Tournament {
 		let rr: RankRange[] = [];
-		if (obj.rank_range['Tiered'] !== undefined) {
-			rr = obj.rank_range['Tiered'].map((rr: any) => new RankRange(rr.min, rr.max));
-		} else if (obj.rank_range['Single'] !== undefined) {
-			rr = [new RankRange(obj.rank_range['Single'].min, obj.rank_range['Single'].max)];
+		if (obj.rankRange['Tiered'] !== undefined) {
+			rr = obj.rankRange['Tiered'].map((rr: any) => new RankRange(rr.min, rr.max));
+		} else if (obj.rankRange['Single'] !== undefined) {
+			rr = [new RankRange(obj.rankRange['Single'].min, obj.rankRange['Single'].max)];
 		}
 		let format =
 			obj.format.Versus !== undefined ? TournamentFormat.Versus : TournamentFormat.BattleRoyale;
-		let num_players = obj.format.Versus !== undefined ? obj.format.Versus : obj.format.BattleRoyale;
-		let tm = new Tournament(obj.name, obj.shorthand, format, num_players, rr, obj.bws);
+		let numPlayers = obj.format.Versus !== undefined ? obj.format.Versus : obj.format.BattleRoyale;
+		let tm = new Tournament(obj.name, obj.shorthand, format, numPlayers, rr, obj.bws);
 		if (obj.id !== undefined) {
 			tm.id = obj.id;
 		}
@@ -45,11 +45,11 @@ export class Tournament {
 
 	formatRankRange(): string {
 		console.log(this);
-		switch (this.rank_range.length) {
+		switch (this.rankRange.length) {
 			case 0:
 				return 'Open Rank';
 			case 1:
-				return this.rank_range[0].min + '-' + this.rank_range[0].max;
+				return this.rankRange[0].min + '-' + this.rankRange[0].max;
 			default:
 				return 'Tiered';
 		}
@@ -58,9 +58,9 @@ export class Tournament {
 	formatTournamentFormat(): string {
 		switch (this.format) {
 			case TournamentFormat.Versus:
-				return this.num_players + 'v' + this.num_players;
+				return this.numPlayers + 'v' + this.numPlayers;
 			case TournamentFormat.BattleRoyale:
-				return this.num_players + ' player Battle Royale';
+				return this.numPlayers + ' player Battle Royale';
 		}
 	}
 }
@@ -70,16 +70,16 @@ export class ExtendedTournament {
 	stages: Stage[];
 	countryRestrictions: string[];
 
-	constructor(tournament: Tournament, stages: Stage[], country_restrictions: string[]) {
+	constructor(tournament: Tournament, stages: Stage[], countryRestrictions: string[]) {
 		this.tournament = tournament;
 		this.stages = stages;
-		this.countryRestrictions = country_restrictions;
+		this.countryRestrictions = countryRestrictions;
 	}
 
 	static deserialize(obj: any): ExtendedTournament {
 		const tn: Tournament = Tournament.deserialize(obj);
 		const stages: Stage[] = obj.stages;
-		const countryRestrictions: string[] = obj.country_restrictions;
+		const countryRestrictions: string[] = obj.countryRestrictions;
 
 		let extTn = new ExtendedTournament(tn, stages, countryRestrictions);
 		return extTn;

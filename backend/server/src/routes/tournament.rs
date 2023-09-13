@@ -35,6 +35,7 @@ pub async fn get_all_tournaments(
 /// A stage with all primary key information stripped out
 #[derive(Debug, Serialize, ToSchema)]
 #[schema(example = json!({"name": "QF", "best_of": 7}))]
+#[serde(rename_all="camelCase")]
 pub struct SlimStage {
     name: String,
     best_of: i16,
@@ -42,6 +43,7 @@ pub struct SlimStage {
 
 /// A tournament including all its stages and country restrictions
 #[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all="camelCase")]
 pub struct ExtendedTournamentResult {
     /// The tournament itself
     #[serde(flatten)]

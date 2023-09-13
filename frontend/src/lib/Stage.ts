@@ -1,10 +1,10 @@
 import type { PoolBracket } from "./Pool"
 
 export type Stage = {
-    tournament_id: number,
-    stage_order: number,
+    tournamentId: number,
+    stageOrder: number,
     name: string,
-    best_of: number,
+    bestOf: number,
 }
 
 export class ExtendedStage {

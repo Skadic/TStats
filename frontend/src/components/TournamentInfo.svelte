@@ -5,7 +5,7 @@
 	export let data: ExtendedTournament;
 	let extTournament: ExtendedTournament = data;
 	let tournament: Tournament = data.tournament;
-	let rankRanges: RankRange[] = extTournament.tournament.rank_range;
+	let rankRanges: RankRange[] = extTournament.tournament.rankRange;
 </script>
 
 <div class="tournamentInfo flex flex-wrap w-3/4">
@@ -19,7 +19,7 @@
 		{:else if rankRanges.length == 1}
 			<span>{rankRanges[0].min}</span>
 			<span class="px-1">-</span>
-			<span>{rankRanges[1].max}</span>
+			<span>{rankRanges[0].max}</span>
 		{:else}
 			<table class="min-w-full">
 				{#each rankRanges as range, i}

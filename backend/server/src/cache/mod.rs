@@ -3,7 +3,7 @@ use std::{convert::Infallible, future::Future};
 use redis::{aio::ConnectionLike, AsyncCommands, FromRedisValue};
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::info;
 
 /// A trait for structs cached in the redis store
 pub trait Cacheable: Serialize + DeserializeOwned {

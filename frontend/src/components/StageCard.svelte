@@ -2,13 +2,13 @@
 	import type { Stage } from '$lib/Stage';
 	import PoolList from './PoolList.svelte';
 	export let stage: Stage;
-	export let has_best_of: boolean;
+	export let hasBestOf: boolean;
 </script>
 
 <div class="rounded-t-lg bg-bg-400 duration-200">
 	<div class="flex p-2 rounded-lg bg-bg-500 hover:scale-105 transition-all">
 		<h1 class="text-3xl font-bold">{stage.name}</h1>
-		{#if has_best_of} <h2 class="flex-1 text-right">Best of {stage.best_of}</h2> {/if}
+		{#if hasBestOf} <h2 class="flex-1 text-right">Best of {stage.bestOf}</h2> {/if}
 	</div>
 	<div class="px-4 py-2">
 		<PoolList brackets={[]} />

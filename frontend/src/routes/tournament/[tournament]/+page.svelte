@@ -24,11 +24,11 @@
 				<StageCard
 					stage={{
 						name: stage.name,
-						tournament_id: extTournament.tournament.id,
-						best_of: stage.best_of,
-						stage_order: i
+						tournamentId: extTournament.tournament.id,
+						bestOf: stage.bestOf,
+						stageOrder: i
 					}}
-					has_best_of={extTournament.tournament.formatTournamentFormat().includes('v')}
+					hasBestOf={extTournament.tournament.formatTournamentFormat().includes('v')}
 				/>
 			</div>
 		{:else}
