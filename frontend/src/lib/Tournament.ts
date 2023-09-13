@@ -1,57 +1,102 @@
-import type { Stage } from "./Stage";
+import type { Stage } from './Stage';
 
-export type Tournament = {
-    id: number,
-    name: string,
-    shorthand: string,
-    format: any,
-    rank_range: any,
-    bws: boolean,
+export class Tournament {
+	id: number;
+	name: string;
+	shorthand: string;
+	format: TournamentFormat;
+	num_players: number;
+	rank_range: RankRange[];
+	bws: boolean;
+
+	constructor(
+		name: string,
+		shorthand: string,
+		format: TournamentFormat,
+		num_players: number,
+		rank_ranges: RankRange[],
+		bws: boolean
+	) {
+		this.id = 0;
+		this.name = name;
+		this.shorthand = shorthand;
+		this.format = format;
+		this.num_players = num_players;
+		this.rank_range = rank_ranges;
+		this.bws = bws;
+	}
+
+	static deserialize(obj: any): Tournament {
+		let rr: RankRange[] = [];
+		if (obj.rank_range['Tiered'] !== undefined) {
+			rr = obj.rank_range['Tiered'].map((rr: any) => new RankRange(rr.min, rr.max));
+		} else if (obj.rank_range['Single'] !== undefined) {
+			rr = [new RankRange(obj.rank_range['Single'].min, obj.rank_range['Single'].max)];
+		}
+		let format =
+			obj.format.Versus !== undefined ? TournamentFormat.Versus : TournamentFormat.BattleRoyale;
+		let num_players = obj.format.Versus !== undefined ? obj.format.Versus : obj.format.BattleRoyale;
+		let tm = new Tournament(obj.name, obj.shorthand, format, num_players, rr, obj.bws);
+		if (obj.id !== undefined) {
+			tm.id = obj.id;
+		}
+		return tm;
+	}
+
+	formatRankRange(): string {
+		console.log(this);
+		switch (this.rank_range.length) {
+			case 0:
+				return 'Open Rank';
+			case 1:
+				return this.rank_range[0].min + '-' + this.rank_range[0].max;
+			default:
+				return 'Tiered';
+		}
+	}
+
+	formatTournamentFormat(): string {
+		switch (this.format) {
+			case TournamentFormat.Versus:
+				return this.num_players + 'v' + this.num_players;
+			case TournamentFormat.BattleRoyale:
+				return this.num_players + ' player Battle Royale';
+		}
+	}
 }
 
-export type ExtendedTournament = {
-    id: number,
-    name: string,
-    shorthand: string,
-    format: any,
-    rank_range: any,
-    bws: boolean,
-    stages: Stage[],
-    country_restrictions: string[],
+export class ExtendedTournament {
+	tournament: Tournament;
+	stages: Stage[];
+	countryRestrictions: string[];
+
+	constructor(tournament: Tournament, stages: Stage[], country_restrictions: string[]) {
+		this.tournament = tournament;
+		this.stages = stages;
+		this.countryRestrictions = country_restrictions;
+	}
+
+	static deserialize(obj: any): ExtendedTournament {
+		const tn: Tournament = Tournament.deserialize(obj);
+		const stages: Stage[] = obj.stages;
+		const countryRestrictions: string[] = obj.country_restrictions;
+
+		let extTn = new ExtendedTournament(tn, stages, countryRestrictions);
+		return extTn;
+	}
 }
 
-export type RankRange = {
-    min: number,
-    max: number
+export class RankRange {
+	min: number;
+	max: number;
+
+	constructor(min: number, max: number) {
+		this.min = min;
+		this.max = max;
+	}
 }
 
-export function formatRankRange(tournament: any): string {
-  console.log(tournament);
-    if (tournament.rank_range === "OpenRank") {
-        return "Open Rank";
-    } if (tournament.rank_range["Tiered"] !== undefined) {
-        return "Tiered";
-    } else {
-        return tournament.rank_range["Single"].min + "-" + tournament.rank_range["Single"].max;
-    }
-}
-
-export function formatRankRangeDetailed(tournament: any): string[] {
-    if (tournament.rank_range === "OpenRank") {
-        return ["Open Rank"];
-    } if (tournament.rank_range["Tiered"] !== undefined) {
-        return tournament.rank_range["Tiered"].map((o: RankRange, i: number) => `Tier ${i+1}: ` + o.min + "-" + o.max);
-    } else {
-        return [tournament.rank_range["Single"].min.toString(), tournament.rank_range["Single"].max.toString()];
-    }
-}
-
-export function formatTournamentFormat(tournament: any): string {
-    if (tournament.format["Versus"] !== undefined){
-        let players = tournament.format["Versus"]
-        return players + "v" + players;
-    } else {
-        return tournament.format["BattleRoyale"] + " player Battle Royale";
-    }
-    return ""
+export enum TournamentFormat {
+	Versus = 'Versus',
+	BattleRoyale = 'BattleRoyale'
 }

@@ -3,14 +3,13 @@
 	import '../styles/app.css';
 </script>
 
-<body class="m-2 lg:m-4">
-    <Navbar></Navbar>
-	<slot />
+<body>
+	<div class="w-full py-4 bg-bg-400 shadow-bg-400 shadow-md">
+		<Navbar />
+	</div>
+	<div class="w-full max-w-full flex flex-col items-center justify-center p-6">
+		<div class="max-w-7xl">
+			<slot />
+		</div>
+	</div>
 </body>
-
-<style>
-	body {
-        margin: 0 auto;
-        max-width: 1200px;
-	}
-</style>

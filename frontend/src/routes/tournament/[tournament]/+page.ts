@@ -1,37 +1,28 @@
-export type StageResult  = {
-	name: string,
-	best_of: number	
-}
+import { ExtendedTournament } from '$lib/Tournament.js';
 
 export type TournamentResult = {
-	id: number,
-	name: string,
-	shorthand: string,
-	format: any,
-	rank_range: any,
-	bws: boolean,
-	stages: StageResult[]
-	country_restrictions: string[]
-}
+	tournament: ExtendedTournament;
+};
 
 export async function load({ fetch, params }): Promise<TournamentResult> {
-	
 	const res = await fetch(
-		`http://tstats.skadic.moe/api/tournament?` +
+		`http://0.0.0.0:3000/api/tournament?` +
 			new URLSearchParams({
-				id: params.tournament,
+				id: params.tournament
 			}),
 		{
 			method: 'GET',
 			headers: new Headers({
-				'Content-Type': 'application/json',
+				'Content-Type': 'application/json'
 			})
 		}
 	);
-	
+
 	const js = await res.json();
 	//console.log(js);
-	const tournament: TournamentResult = js;
+	const tournament: ExtendedTournament = ExtendedTournament.deserialize(js);
 
-	return tournament;
+	return {
+		tournament
+	};
 }

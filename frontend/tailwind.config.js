@@ -54,6 +54,10 @@ export default {
 					800: '#fbdfab',
 					900: '#fdefd5'
 				}
+			},
+			minWidth: {
+				'1/2': '50%',
+				'1/3': '33%',
 			}
 		}
 	},

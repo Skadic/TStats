@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { formatRankRangeDetailed, formatTournamentFormat } from '$lib/Tournament';
-	import type { TournamentResult } from '../routes/tournament/[tournament]/+page';
+	import type { ExtendedTournament, RankRange, Tournament } from '$lib/Tournament';
 	import Flag from './Flag.svelte';
 
-	export let data: TournamentResult;
-	let tournament: TournamentResult = data;
-	let rankRanges = formatRankRangeDetailed(tournament);
+	export let data: ExtendedTournament;
+	let extTournament: ExtendedTournament = data;
+	let tournament: Tournament = data.tournament;
+	let rankRanges: RankRange[] = extTournament.tournament.rank_range;
 </script>
 
 <div class="tournamentInfo flex flex-wrap w-3/4">
@@ -14,40 +14,40 @@
 		Rank Range{#if rankRanges.length > 1}s{/if}
 	</div>
 	<div class="infoContent">
-		{#if rankRanges[0] == 'Open Rank'}
+		{#if rankRanges.length == 0}
 			Open Rank
-		{:else if rankRanges.length == 2}
-			<span>{rankRanges[0]}</span>
-			<span class="px-1 m-0">-</span>
-			<span>{rankRanges[1]}</span>
+		{:else if rankRanges.length == 1}
+			<span>{rankRanges[0].min}</span>
+			<span class="px-1">-</span>
+			<span>{rankRanges[1].max}</span>
 		{:else}
 			<table class="min-w-full">
-				{#each rankRanges as range}
+				{#each rankRanges as range, i}
 					<tr>
-						<td class="font-bold">{range.split(':')[0]}</td>
-						<td class="pl-3">{range.split(':')[1].split('-')[0]}</td>
-						<td class="px-1 m-0">-</td>
-						<td class="">{range.split(':')[1].split('-')[1]}</td>
+						<td class="font-bold">Tier {i + 1}:</td>
+						<td class="pl-3">{range.min}</td>
+						<td class="px-1">-</td>
+						<td class="">{range.max}</td>
 					</tr>
 				{/each}
 			</table>
 		{/if}
 	</div>
 	<!-- BWS -->
-	{#if rankRanges[0] != 'Open Rank'}
+	{#if rankRanges.length == 0}
 		<div class="infoHeading">BWS</div>
 		<div class="infoContent">{tournament.bws ? 'Yes' : 'No'}</div>
 	{/if}
 
 	<!-- Format -->
 	<div class="infoHeading">Match Format</div>
-	<div class="infoContent">{formatTournamentFormat(tournament)}</div>
+	<div class="infoContent">{tournament.formatTournamentFormat()}</div>
 
 	<!-- Country Restrictions -->
-	{#if tournament.country_restrictions !== null && tournament.country_restrictions.length > 0}
+	{#if extTournament.countryRestrictions !== null && extTournament.countryRestrictions.length > 0}
 		<div class="infoHeading">Country Restrictions</div>
 		<div class="infoContent">
-			{#each tournament.country_restrictions as country}
+			{#each extTournament.countryRestrictions as country}
 				<Flag country={country.toLowerCase()} />
 			{/each}
 		</div>

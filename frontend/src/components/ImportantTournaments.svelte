@@ -1,15 +1,3 @@
-<script lang="ts">
-</script>
-
-<div id="container">
-	<div id="inner">Important Tournament</div>
+<div class="h-96 lg:h-52 rounded-2xl lg:rounded-lg bg-secondary text-5xl font-bold">
+	<div id="bg-black w-full h-full rounded-2xl lg:rounded-lg opacity-50">Important Tournament</div>
 </div>
-
-<style>
-	#inner {
-		@apply bg-black w-full h-full rounded-xl opacity-50;
-	}
-	#container {
-		@apply h-40 rounded-xl bg-secondary text-5xl font-bold m-7;
-	}
-</style>
