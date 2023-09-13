@@ -1,4 +1,4 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -6,11 +6,12 @@ use axum::Json;
 use log::debug;
 use rand::prelude::*;
 use rosu_v2::prelude::*;
-use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection};
+use sea_orm::{ActiveModelTrait, ActiveValue};
 
 use model::tournament::{RankRestriction, TournamentFormat};
 use model::*;
-use crate::osu::map::get_map;
+use crate::AppState;
+use crate::osu::map::get_maps;
 
 // These three tables are for generating a random tournament name.
 const MODIFIER_1: [&str; 5] = ["Amazing", "Mysterious", "Incredible", "Osu", "Great"];
@@ -48,7 +49,8 @@ const MAP_IDS: [usize; 9] = [
         (status = CREATED, description = "Successfully created a test tournament")
     )
 )]
-pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusCode {
+pub async fn fill_test_data(State(ref state): State<AppState>) -> StatusCode {
+    let db = &state.db;
     let rank_ranges = RANK_RANGES.get_or_init(|| {
         [
             RankRestriction::OpenRank,
@@ -161,6 +163,6 @@ pub async fn fill_test_data(State(ref db): State<DatabaseConnection>) -> StatusC
         (status = 200, description = "Successfuly requested beatmap")
     )
 )]
-pub async fn get_beatmap(State(osu): State<Arc<Osu>>) -> Json<Vec<BeatmapCompact>> {
-    Json(get_map(osu, 2088253).await)
+pub async fn get_beatmap(State(state): State<AppState>) -> Json<Vec<BeatmapCompact>> {
+    Json(get_maps(state.osu, [2088253]).await)
 }

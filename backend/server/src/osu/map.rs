@@ -1,5 +1,5 @@
 use rosu_v2::prelude::*;
 
-pub async fn get_map(osu: impl AsRef<Osu>, map_id: u32) -> Vec<BeatmapCompact> {
-    osu.as_ref().beatmaps([map_id]).await.unwrap()
+pub async fn get_maps(osu: impl AsRef<Osu>, map_ids: impl IntoIterator<Item=u32>) -> Vec<BeatmapCompact> {
+    osu.as_ref().beatmaps(map_ids).await.unwrap()
 }

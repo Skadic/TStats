@@ -1,9 +1,9 @@
-use axum::extract::{Query, State};
-use axum::http::StatusCode;
-use axum::Json;
-use sea_orm::{
-    ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait, QueryOrder,
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    Json,
 };
+use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, ModelTrait, QueryOrder};
 use serde::Serialize;
 use utoipa::{IntoParams, ToSchema};
 
@@ -12,6 +12,8 @@ use model::{
     models::Stage,
     *,
 };
+
+use crate::AppState;
 
 /// A struct containing a tournament id used for querying
 #[derive(Debug, Clone, Copy, serde::Deserialize, ToSchema, IntoParams)]
@@ -40,17 +42,20 @@ pub struct TournamentIdAndStageOrder {
     )
 )]
 pub async fn get_all_stages(
-    State(ref db): State<DatabaseConnection>,
+    State(ref state): State<AppState>,
     Query(TournamentId { tournament_id }): Query<TournamentId>,
 ) -> Result<Json<Vec<Stage>>, (StatusCode, String)> {
     // Find the tournament with the given id
-    let Some(tournament) = TournamentEntity::find_by_id(tournament_id).one(db).await
+    let Some(tournament) = TournamentEntity::find_by_id(tournament_id)
+        .one(&state.db)
+        .await
         .map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("failed to get tournament: {e}"),
             )
-        })? else {
+        })?
+    else {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("tournament with id '{tournament_id}' does not exist"),
@@ -60,7 +65,7 @@ pub async fn get_all_stages(
     // Get all stages belonging to the tournament
     let stages = tournament
         .find_related(StageEntity)
-        .all(db)
+        .all(&state.db)
         .await
         .map_err(|e| {
             (
@@ -104,7 +109,7 @@ pub struct ExtendedPoolBracket {
     )
 )]
 pub async fn get_stage(
-    State(ref db): State<DatabaseConnection>,
+    State(ref state): State<AppState>,
     Query(TournamentIdAndStageOrder {
         tournament_id,
         stage_order,
@@ -112,14 +117,15 @@ pub async fn get_stage(
 ) -> Result<(StatusCode, Json<Option<ExtendedStageResult>>), (StatusCode, String)> {
     // Find the stage with the given id
     let Some(stage) = StageEntity::find_by_id((tournament_id, stage_order))
-        .one(db)
+        .one(&state.db)
         .await
         .map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("failed to get stage: {e}"),
             )
-        })? else {
+        })?
+    else {
         return Ok((StatusCode::NOT_FOUND, Json(None)));
     };
 
@@ -129,7 +135,7 @@ pub async fn get_stage(
         .order_by_asc(pool_bracket::Column::BracketOrder)
         .find_with_related(PoolMapEntity)
         .order_by_asc(pool_map::Column::MapOrder)
-        .all(db)
+        .all(&state.db)
         .await
         .map_err(|e| {
             (
@@ -162,15 +168,19 @@ pub async fn get_stage(
     )
 )]
 pub async fn create_stage(
-    State(ref db): State<DatabaseConnection>,
+    State(ref state): State<AppState>,
     Json(stage): Json<Stage>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    stage.into_active_model().insert(db).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("failed to create stage: {e}"),
-        )
-    })?;
+    stage
+        .into_active_model()
+        .insert(&state.db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to create stage: {e}"),
+            )
+        })?;
 
     Ok(StatusCode::CREATED)
 }

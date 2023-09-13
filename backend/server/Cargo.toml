@@ -15,6 +15,7 @@ dotenvy = "0.15"
 log = "0.4"
 miette = { version = "5.10.0", features = ["fancy"] }
 rand = "0.8"
+redis = { version = "0.23.3", features = ["tokio-comp"] }
 rosu-v2 = { version = "0.8", features = ["serialize"] }
 sea-orm = { version = "0.12.1", features = ["runtime-tokio-rustls"] }
 serde = "1.0"

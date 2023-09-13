@@ -16,12 +16,22 @@ use tracing::Level;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use model::{entities::{
-    CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity,
-}, drop_table, create_table};
+use model::{
+    create_table, drop_table,
+    entities::{
+        CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity,
+    },
+};
 
 mod osu;
 mod routes;
+
+#[derive(Clone)]
+pub struct AppState {
+    db: DatabaseConnection,
+    osu: Arc<Osu>,
+    redis: redis::Client,
+}
 
 async fn cors() -> StatusCode {
     StatusCode::OK
@@ -97,9 +107,11 @@ pub async fn run_server() -> miette::Result<()> {
     let database_url = std::env::var("DATABASE_URL")
         .into_diagnostic()
         .wrap_err("DATABASE_URL not set")?;
+    let redis_url = std::env::var("REDIS_URL")
+        .into_diagnostic()
+        .wrap_err("REDIS_URL not set")?;
 
     info!("Connecting to database...");
-    //let mut opt = ConnectOptions::new("postgres://root:root@127.0.0.1:5432/postgres");
     let mut opt = ConnectOptions::new(database_url);
     opt.connect_timeout(Duration::from_secs(1));
     let db: DatabaseConnection = Database::connect(opt)
@@ -122,11 +134,19 @@ pub async fn run_server() -> miette::Result<()> {
 
     info!("Connecting to osu api...");
 
-    let osu = Osu::new(osu_client_id, osu_client_secret)
-        .await
-        .into_diagnostic()
-        .wrap_err("error connecting to osu api")?;
+    let osu = Arc::new(
+        Osu::new(osu_client_id, osu_client_secret)
+            .await
+            .into_diagnostic()
+            .wrap_err("error connecting to osu api")?,
+    );
     info!("Connection successful!");
+
+    let redis = redis::Client::open(redis_url)
+        .into_diagnostic()
+        .wrap_err("error connecting to redis")?;
+
+    let state = AppState { db, osu, redis };
 
     // build our application
     let app = Router::new()
@@ -148,6 +168,8 @@ pub async fn run_server() -> miette::Result<()> {
             "/api/stage",
             get(routes::stage::get_stage).post(routes::stage::create_stage),
         )
+        .route("/beatmap", get(routes::debug::get_beatmap))
+        .with_state(state)
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
@@ -165,10 +187,7 @@ pub async fn run_server() -> miette::Result<()> {
                 .on_response(trace::DefaultOnResponse::new().level(Level::INFO))
                 .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
                 .on_failure(trace::DefaultOnFailure::new().level(Level::INFO)),
-        )
-        .with_state(db)
-        .route("/beatmap", get(routes::debug::get_beatmap))
-        .with_state(Arc::new(osu));
+        );
 
     info!("Starting server");
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())

@@ -2,7 +2,7 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use sea_orm::{
-    query::*, ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait, IntoActiveModel,
+    query::*, ActiveModelTrait, ActiveValue, EntityTrait, IntoActiveModel,
     ModelTrait,
 };
 use serde::Serialize;
@@ -11,6 +11,7 @@ use utoipa::ToSchema;
 use model::entities::{CountryRestrictionEntity, StageEntity, TournamentEntity};
 use model::models::Tournament;
 use model::stage;
+use crate::AppState;
 use crate::routes::Id;
 
 /// Get all tournaments from the database
@@ -23,9 +24,9 @@ use crate::routes::Id;
     )
 )]
 pub async fn get_all_tournaments(
-    State(ref db): State<DatabaseConnection>,
+    State(ref state): State<AppState>,
 ) -> Result<Json<Vec<Tournament>>, (StatusCode, String)> {
-    let tournaments = TournamentEntity::find().all(db).await.map_err(|e| {
+    let tournaments = TournamentEntity::find().all(&state.db).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("failed to get all tournaments: {e}"),
@@ -70,12 +71,12 @@ pub struct ExtendedTournamentResult {
     )
 )]
 pub async fn get_tournament(
-    State(ref db): State<DatabaseConnection>,
+    State(ref state): State<AppState>,
     Query(param): Query<Id>,
 ) -> Result<Json<Option<ExtendedTournamentResult>>, (StatusCode, String)> {
     // Find the tournament with the given ID
     let Some(tournament) = TournamentEntity::find_by_id(param.id)
-        .one(db)
+        .one(&state.db)
         .await
         .map_err(|e| {
             (
@@ -90,7 +91,7 @@ pub async fn get_tournament(
     let stages = tournament
         .find_related(StageEntity)
         .order_by_asc(stage::Column::StageOrder)
-        .all(db)
+        .all(&state.db)
         .await
         .map_err(|e| {
             (
@@ -108,7 +109,7 @@ pub async fn get_tournament(
     // Find all country restrictions for this tournament in the database
     let country_restrictions = tournament
         .find_related(CountryRestrictionEntity)
-        .all(db)
+        .all(&state.db)
         .await
         .map_err(|e| {
             (
@@ -138,14 +139,14 @@ pub async fn get_tournament(
     )
 )]
 pub async fn create_tournament(
-    State(ref db): State<DatabaseConnection>,
+    State(ref state): State<AppState>,
     Json(tournament): Json<Tournament>,
 ) -> Result<(StatusCode, Json<Id>), (StatusCode, String)> {
     let name = tournament.name.clone();
 
     let mut tournament = tournament.into_active_model();
     tournament.id = ActiveValue::NotSet;
-    let tournament = tournament.insert(db).await.map_err(|e| {
+    let tournament = tournament.insert(&state.db).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("failed to create tournament with name '{name}': {e}"),
