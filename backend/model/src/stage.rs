@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 /// A stage in a tournament.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel, ToSchema)]
 #[sea_orm(table_name = "stage")]
-#[serde(rename_all="camelCase")]
+#[serde(rename_all = "camelCase")]
 #[schema(as = Stage)]
 pub struct Model {
     /// The id of the tournament the stage belongs to.

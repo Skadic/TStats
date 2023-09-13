@@ -26,6 +26,8 @@ pub trait Cacheable: Serialize + DeserializeOwned {
     }
 }
 
+pub type CacheResult<T> = Result<T, CacheError>;
+
 #[derive(Debug, Error)]
 pub enum CacheError {
     #[error("error during (de)serialization")]
@@ -126,7 +128,7 @@ where
 ///
 /// An error can occur during (de-)seriaization or if the redis set command fails.
 ///
-pub async fn get_cached_or_else<V, Conn, Fut>(
+pub async fn get_cached_or_infallible<V, Conn, Fut>(
     redis: &mut Conn,
     key: &V::KeyType,
     expiry_time: Option<usize>,
@@ -137,7 +139,7 @@ where
     Conn: ConnectionLike + Send + Sync,
     Fut: Future<Output = V>,
 {
-    get_cached_or_else_fallible::<V, Infallible, Conn, _>(redis, key, expiry_time, || async {
+    get_cached_or::<V, Infallible, Conn, _>(redis, key, expiry_time, || async {
         Ok(get_fn().await)
     })
     .await
@@ -159,7 +161,7 @@ where
 /// An error can occur during (de-)seriaization, if the redis set command fails or if the `get_fn`
 /// fails.
 ///
-pub async fn get_cached_or_else_fallible<V, E, Conn, Fut>(
+pub async fn get_cached_or<V, E, Conn, Fut>(
     redis: &mut Conn,
     key: &V::KeyType,
     expiry_time: Option<usize>,
@@ -173,7 +175,7 @@ where
 {
     // Try to find the value in the cache
     if let Ok(Some(v)) = get_cached::<V, Conn>(redis, key).await {
-    // If found, just return it
+        // If found, just return it
         return Ok(v);
     }
 

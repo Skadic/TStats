@@ -62,8 +62,8 @@ async fn cors() -> StatusCode {
             routes::Id,
             routes::tournament::ExtendedTournamentResult,
             routes::tournament::SlimStage,
-            routes::stage::TournamentId,
-            routes::stage::TournamentIdAndStageOrder,
+            routes::TournamentId,
+            routes::TournamentIdAndStageOrder,
             routes::stage::ExtendedStageResult,
             routes::stage::ExtendedPoolBracket,
         )
@@ -108,6 +108,7 @@ pub async fn run_server() -> miette::Result<()> {
             get(routes::stage::get_stage).post(routes::stage::create_stage),
         )
         .route("/beatmap", get(routes::debug::get_beatmap))
+        .route("/pool", get(routes::pool::get_pool))
         .route("/user", get(routes::debug::get_user))
         .with_state(state)
         .layer(

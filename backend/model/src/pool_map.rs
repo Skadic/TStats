@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, DeriveEntityModel, PartialEq, ToSchema)]
 #[sea_orm(table_name = "pool_map")]
 #[schema(as = PoolMap)]
-#[serde(rename_all="camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     /// The id of the tournament this pool belongs to.
     #[sea_orm(primary_key)]

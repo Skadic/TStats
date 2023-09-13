@@ -9,7 +9,7 @@ use utoipa::ToSchema;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel, ToSchema)]
 #[sea_orm(table_name = "tournament")]
 #[schema(as = Tournament)]
-#[serde(rename_all="camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     /// The database id for this tournament
     #[sea_orm(primary_key, auto_increment = true, unique)]
