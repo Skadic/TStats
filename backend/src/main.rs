@@ -1,5 +1,7 @@
-use tracing_subscriber::{prelude::*, filter::{Targets, LevelFilter}};
-
+use tracing_subscriber::{
+    filter::{LevelFilter, Targets},
+    prelude::*,
+};
 
 #[tokio::main]
 async fn main() -> miette::Result<()> {

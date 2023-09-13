@@ -1,4 +1,4 @@
-use sea_orm::{EntityTrait, DatabaseConnection, ConnectionTrait, sea_query::Table, Schema};
+use sea_orm::{sea_query::Table, ConnectionTrait, DatabaseConnection, EntityTrait, Schema};
 
 use log::info;
 
@@ -24,7 +24,6 @@ pub mod entities {
     pub use super::stage::Entity as StageEntity;
     pub use super::tournament::Entity as TournamentEntity;
 }
-
 
 pub async fn drop_table<E: EntityTrait>(db: &DatabaseConnection, table: E) {
     let builder = db.get_database_backend();

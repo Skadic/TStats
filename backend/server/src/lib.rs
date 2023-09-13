@@ -3,7 +3,6 @@ use axum::{
     routing::{get, options, post},
     Router,
 };
-use log::{info, warn};
 use miette::{Context, IntoDiagnostic};
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
@@ -12,7 +11,7 @@ use tower_http::{
     cors::CorsLayer,
     trace::{self, TraceLayer},
 };
-use tracing::Level;
+use tracing::{info, warn, Level};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -23,6 +22,7 @@ use model::{
     },
 };
 
+mod cache;
 mod osu;
 mod routes;
 
@@ -30,7 +30,7 @@ mod routes;
 pub struct AppState {
     db: DatabaseConnection,
     osu: Arc<Osu>,
-    redis: redis::Client,
+    redis: redis::aio::MultiplexedConnection,
 }
 
 async fn cors() -> StatusCode {
@@ -75,78 +75,17 @@ async fn cors() -> StatusCode {
 struct ApiDoc;
 
 pub async fn run_server() -> miette::Result<()> {
-    {
-        let api_yaml = ApiDoc::openapi()
-            .to_yaml()
-            .into_diagnostic()
-            .wrap_err("error serializing api docs to yaml")?;
-        let mut api_doc_file = File::create("apidoc.yaml")
-            .into_diagnostic()
-            .wrap_err("could not open apidoc.yaml file")?;
-        api_doc_file
-            .write_all(api_yaml.as_bytes())
-            .into_diagnostic()
-            .wrap_err("could not write to the apidoc.yaml")?;
-        info!("API documentation written to apidoc.yaml")
-    }
+    write_apidoc()?;
 
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
     }
-    let osu_client_id = std::env::var("OSU_CLIENT_ID")
-        .into_diagnostic()
-        .wrap_err("OSU_CLIENT_ID not set")?
-        .parse::<u64>()
-        .into_diagnostic()
-        .wrap_err("OSU_CLIENT_ID must be a non-negative integer")?;
 
-    let osu_client_secret = std::env::var("OSU_CLIENT_SECRET")
-        .into_diagnostic()
-        .wrap_err("OSU_CLIENT_SECRET not set")?;
-    let database_url = std::env::var("DATABASE_URL")
-        .into_diagnostic()
-        .wrap_err("DATABASE_URL not set")?;
-    let redis_url = std::env::var("REDIS_URL")
-        .into_diagnostic()
-        .wrap_err("REDIS_URL not set")?;
+    let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
+    let (db, redis, osu) = (db?, redis?, osu?);
 
-    info!("Connecting to database...");
-    let mut opt = ConnectOptions::new(database_url);
-    opt.connect_timeout(Duration::from_secs(1));
-    let db: DatabaseConnection = Database::connect(opt)
-        .await
-        .into_diagnostic()
-        .wrap_err("failed to connect to database")?;
-
-    drop_table(&db, PoolMapEntity).await;
-    drop_table(&db, PoolBracketEntity).await;
-    drop_table(&db, StageEntity).await;
-    drop_table(&db, CountryRestrictionEntity).await;
-    drop_table(&db, TournamentEntity).await;
-
-    create_table(&db, TournamentEntity).await;
-    create_table(&db, CountryRestrictionEntity).await;
-    create_table(&db, StageEntity).await;
-    create_table(&db, PoolBracketEntity).await;
-    create_table(&db, PoolMapEntity).await;
-    info!("Connected to database and setup tables");
-
-    info!("Connecting to osu api...");
-
-    let osu = Arc::new(
-        Osu::new(osu_client_id, osu_client_secret)
-            .await
-            .into_diagnostic()
-            .wrap_err("error connecting to osu api")?,
-    );
-    info!("Connection successful!");
-
-    let redis = redis::Client::open(redis_url)
-        .into_diagnostic()
-        .wrap_err("error connecting to redis")?;
-
-    let state = AppState { db, osu, redis };
+    let state = AppState { db, redis, osu };
 
     // build our application
     let app = Router::new()
@@ -169,6 +108,7 @@ pub async fn run_server() -> miette::Result<()> {
             get(routes::stage::get_stage).post(routes::stage::create_stage),
         )
         .route("/beatmap", get(routes::debug::get_beatmap))
+        .route("/user", get(routes::debug::get_user))
         .with_state(state)
         .layer(
             CorsLayer::new()
@@ -195,6 +135,92 @@ pub async fn run_server() -> miette::Result<()> {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .into_diagnostic()
+}
+
+fn write_apidoc() -> miette::Result<()> {
+    let api_yaml = ApiDoc::openapi()
+        .to_yaml()
+        .into_diagnostic()
+        .wrap_err("error serializing api docs to yaml")?;
+    let mut api_doc_file = File::create("apidoc.yaml")
+        .into_diagnostic()
+        .wrap_err("could not open apidoc.yaml file")?;
+    api_doc_file
+        .write_all(api_yaml.as_bytes())
+        .into_diagnostic()
+        .wrap_err("could not write to the apidoc.yaml")?;
+    info!("API documentation written to apidoc.yaml");
+
+    Ok(())
+}
+
+async fn setup_database() -> miette::Result<DatabaseConnection> {
+    let database_url = std::env::var("DATABASE_URL")
+        .into_diagnostic()
+        .wrap_err("DATABASE_URL not set")?;
+    info!("connecting to database...");
+    let mut opt = ConnectOptions::new(database_url);
+    opt.connect_timeout(Duration::from_secs(1));
+    let db: DatabaseConnection = Database::connect(opt)
+        .await
+        .into_diagnostic()
+        .wrap_err("failed to connect to database")?;
+
+    drop_table(&db, PoolMapEntity).await;
+    drop_table(&db, PoolBracketEntity).await;
+    drop_table(&db, StageEntity).await;
+    drop_table(&db, CountryRestrictionEntity).await;
+    drop_table(&db, TournamentEntity).await;
+
+    create_table(&db, TournamentEntity).await;
+    create_table(&db, CountryRestrictionEntity).await;
+    create_table(&db, StageEntity).await;
+    create_table(&db, PoolBracketEntity).await;
+    create_table(&db, PoolMapEntity).await;
+    info!("connected to database and setup tables");
+
+    Ok(db)
+}
+
+async fn setup_redis() -> miette::Result<redis::aio::MultiplexedConnection> {
+    let redis_url = std::env::var("REDIS_URL")
+        .into_diagnostic()
+        .wrap_err("REDIS_URL not set")?;
+    info!("connecting to redis");
+    let client = redis::Client::open(redis_url)
+        .into_diagnostic()
+        .wrap_err("error connecting to redis")?;
+
+    let conn = client
+        .get_multiplexed_tokio_connection()
+        .await
+        .into_diagnostic()
+        .wrap_err("error connecting to redis")?;
+    info!("connection to redis successful");
+
+    Ok(conn)
+}
+
+async fn setup_osu() -> miette::Result<Arc<Osu>> {
+    let osu_client_id = std::env::var("OSU_CLIENT_ID")
+        .into_diagnostic()
+        .wrap_err("OSU_CLIENT_ID not set")?
+        .parse::<u64>()
+        .into_diagnostic()
+        .wrap_err("OSU_CLIENT_ID must be a non-negative integer")?;
+
+    let osu_client_secret = std::env::var("OSU_CLIENT_SECRET")
+        .into_diagnostic()
+        .wrap_err("OSU_CLIENT_SECRET not set")?;
+    info!("connecting to osu api...");
+    let osu = Arc::new(
+        Osu::new(osu_client_id, osu_client_secret)
+            .await
+            .into_diagnostic()
+            .wrap_err("error connecting to osu api")?,
+    );
+    info!("connection to osu api successful");
+    Ok(osu)
 }
 
 // source: https://github.com/tokio-rs/axum/blob/main/examples/graceful-shutdown/src/main.rs

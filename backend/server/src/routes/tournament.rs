@@ -1,18 +1,15 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use sea_orm::{
-    query::*, ActiveModelTrait, ActiveValue, EntityTrait, IntoActiveModel,
-    ModelTrait,
-};
+use sea_orm::{query::*, ActiveModelTrait, ActiveValue, EntityTrait, IntoActiveModel, ModelTrait};
 use serde::Serialize;
 use utoipa::ToSchema;
 
+use crate::routes::Id;
+use crate::AppState;
 use model::entities::{CountryRestrictionEntity, StageEntity, TournamentEntity};
 use model::models::Tournament;
 use model::stage;
-use crate::AppState;
-use crate::routes::Id;
 
 /// Get all tournaments from the database
 #[utoipa::path(
@@ -83,8 +80,12 @@ pub async fn get_tournament(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("failed to get tournament: {e}"),
             )
-        })? else {
-        return Err((StatusCode::NOT_FOUND, format!("tournament with id '{}' not found", param.id)));
+        })?
+    else {
+        return Err((
+            StatusCode::NOT_FOUND,
+            format!("tournament with id '{}' not found", param.id),
+        ));
     };
 
     // Find all stages of the tournament

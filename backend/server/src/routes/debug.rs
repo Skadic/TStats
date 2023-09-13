@@ -3,15 +3,16 @@ use std::sync::OnceLock;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
-use log::debug;
 use rand::prelude::*;
 use rosu_v2::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue};
 
+use crate::osu::map::get_maps;
+use crate::osu::user::OsuUser;
+use crate::AppState;
 use model::tournament::{RankRestriction, TournamentFormat};
 use model::*;
-use crate::AppState;
-use crate::osu::map::get_maps;
+use tracing::debug;
 
 // These three tables are for generating a random tournament name.
 const MODIFIER_1: [&str; 5] = ["Amazing", "Mysterious", "Incredible", "Osu", "Great"];
@@ -165,4 +166,8 @@ pub async fn fill_test_data(State(ref state): State<AppState>) -> StatusCode {
 )]
 pub async fn get_beatmap(State(state): State<AppState>) -> Json<Vec<BeatmapCompact>> {
     Json(get_maps(state.osu, [2088253]).await)
+}
+
+pub async fn get_user(State(mut state): State<AppState>) -> Json<OsuUser> {
+    Json(crate::osu::user::get_user(&mut state.redis, &state.osu, 1235015).await)
 }
