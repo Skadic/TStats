@@ -5,7 +5,7 @@ use axum::{
 };
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, ModelTrait, QueryOrder};
 use serde::Serialize;
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 use model::{
     entities::{PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity},

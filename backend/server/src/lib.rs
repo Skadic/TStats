@@ -48,6 +48,7 @@ async fn cors() -> StatusCode {
         routes::stage::get_all_stages,
         routes::stage::get_stage,
         routes::stage::create_stage,
+        routes::pool::get_pool,
     ),
     components(
         schemas(
@@ -108,7 +109,7 @@ pub async fn run_server() -> miette::Result<()> {
             get(routes::stage::get_stage).post(routes::stage::create_stage),
         )
         .route("/beatmap", get(routes::debug::get_beatmap))
-        .route("/pool", get(routes::pool::get_pool))
+        .route("/api/pool", get(routes::pool::get_pool))
         .route("/user", get(routes::debug::get_user))
         .with_state(state)
         .layer(

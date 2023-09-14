@@ -26,6 +26,18 @@ pub struct Pool {
     brackets: Vec<PoolBracket>,
 }
 
+
+#[utoipa::path(
+    get,
+    path = "/api/pool",
+    params(TournamentIdAndStageOrder),
+    responses(
+        (status = 200, description = "Return the contents of the pool for the given stage in a tournament", body = [FullPoolBracket]),
+        (status = 404, description = "The tournament or stage does not exist", body = String),
+        (status = 500, description = "Error communicating with the database", body = String),
+    )
+)]
+#[axum_macros::debug_handler]
 pub async fn get_pool(
     State(mut state): State<AppState>,
     Query(TournamentIdAndStageOrder {
@@ -44,7 +56,7 @@ pub async fn get_pool(
                 format!("failed to get stage: {e}"),
             )
         })?
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "stage does not exist".to_owned()))?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "stage or tournament does not exist".to_owned()))?;
 
     let pool = stage
         .find_related(PoolBracketEntity)

@@ -8,7 +8,7 @@ use url::Url;
 use crate::cache::{get_cached_or, Cacheable};
 
 /// An osu user
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OsuUser {
     user_id: u32,
