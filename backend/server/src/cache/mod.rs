@@ -1,6 +1,7 @@
 use std::{convert::Infallible, future::Future};
+use std::borrow::BorrowMut;
 
-use redis::{aio::ConnectionLike, AsyncCommands, FromRedisValue};
+use redis::{AsyncCommands, FromRedisValue};
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 use tracing::info;
@@ -50,21 +51,20 @@ pub enum CacheError {
 ///
 /// An error can occur when serialization fails, or the set command in the redis store fails.
 ///
-pub async fn cache<V, Conn>(
-    redis: &mut Conn,
+pub async fn cache<V>(
+    mut redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
     v: &V,
     expiry_time: Option<usize>,
 ) -> Result<(), CacheError>
 where
     V: Cacheable,
-    Conn: ConnectionLike + Send + Sync,
 {
     let serialized = serde_json::to_string(v)?;
 
     let resp = if let Some(time) = expiry_time {
-        redis.set_ex::<String, String, String>(v.full_key(), serialized, time)
+        redis.borrow_mut().set_ex::<String, String, String>(v.full_key(), serialized, time)
     } else {
-        redis.set::<String, String, String>(v.full_key(), serialized)
+        redis.borrow_mut().set::<String, String, String>(v.full_key(), serialized)
     }
     .await?;
 
@@ -84,16 +84,15 @@ where
 ///
 /// An error can occur when deserialization fails, or the get command in the redis store fails.
 ///
-pub async fn get_cached<V, Conn>(
-    redis: &mut Conn,
+pub async fn get_cached<V>(
+    mut redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
     key: &V::KeyType,
 ) -> Result<Option<V>, CacheError>
 where
     V: Cacheable,
-    Conn: ConnectionLike + Send + Sync,
 {
     // Try to find the value in the cache
-    let Some(s) = redis
+    let Some(s) = redis.borrow_mut()
         .get::<String, redis::Value>(V::full_key_with(key))
         .await
         .and_then(|v| match v {
@@ -128,18 +127,17 @@ where
 ///
 /// An error can occur during (de-)seriaization or if the redis set command fails.
 ///
-pub async fn get_cached_or_infallible<V, Conn, Fut>(
-    redis: &mut Conn,
+pub async fn get_cached_or_infallible<V, Fut>(
+    redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
     key: &V::KeyType,
     expiry_time: Option<usize>,
     get_fn: impl FnOnce() -> Fut,
 ) -> Result<V, CacheError>
 where
     V: Cacheable,
-    Conn: ConnectionLike + Send + Sync,
     Fut: Future<Output = V>,
 {
-    get_cached_or::<V, Infallible, Conn, _>(redis, key, expiry_time, || async {
+    get_cached_or::<V, Infallible, _>(redis, key, expiry_time, || async {
         Ok(get_fn().await)
     })
     .await
@@ -161,8 +159,8 @@ where
 /// An error can occur during (de-)seriaization, if the redis set command fails or if the `get_fn`
 /// fails.
 ///
-pub async fn get_cached_or<V, E, Conn, Fut>(
-    redis: &mut Conn,
+pub async fn get_cached_or<V, E, Fut>(
+    mut redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
     key: &V::KeyType,
     expiry_time: Option<usize>,
     get_fn: impl FnOnce() -> Fut,
@@ -170,11 +168,10 @@ pub async fn get_cached_or<V, E, Conn, Fut>(
 where
     V: Cacheable,
     E: 'static + std::error::Error,
-    Conn: ConnectionLike + Send + Sync,
     Fut: Future<Output = Result<V, E>>,
 {
     // Try to find the value in the cache
-    if let Ok(Some(v)) = get_cached::<V, Conn>(redis, key).await {
+    if let Ok(Some(v)) = get_cached::<V>(redis.borrow_mut(), key).await {
         // If found, just return it
         return Ok(v);
     }
@@ -185,6 +182,6 @@ where
         .map_err(|e| CacheError::Request(Box::new(e)))?;
 
     // Cache the value and return it
-    cache(redis, &v, expiry_time).await?;
+    cache::<V>(redis, &v, expiry_time).await?;
     Ok(v)
 }

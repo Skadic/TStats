@@ -110,6 +110,7 @@ pub async fn run_server() -> miette::Result<()> {
         .route("/beatmap", get(routes::debug::get_beatmap))
         .route("/api/pool", get(routes::pool::get_pool))
         .route("/user", get(routes::debug::get_user))
+        .route("/dm8", post(routes::debug::add_dm8))
         .with_state(state)
         .layer(
             CorsLayer::new()

@@ -53,7 +53,7 @@ pub async fn get_user(
     osu: impl AsRef<Osu>,
     user_id: u32,
 ) -> OsuUser {
-    get_cached_or::<OsuUser, OsuError, _, _>(redis, &user_id, Some(60), || async {
+    get_cached_or::<OsuUser, OsuError, _>(redis, &user_id, Some(60), || async {
         let usr = osu.as_ref().user(user_id).await?;
         Ok(usr.into())
     })

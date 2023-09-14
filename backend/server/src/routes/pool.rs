@@ -1,6 +1,7 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
+use futures::future::join_all;
 use sea_orm::{EntityTrait, ModelTrait};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -30,13 +31,11 @@ pub struct FullPoolBracket {
         (status = 500, description = "Error communicating with the database", body = String),
     )
 )]
-pub async fn get_pool(
-    State(mut state): State<AppState>,
-    Query(TournamentIdAndStageOrder {
+#[axum_macros::debug_handler]
+pub async fn get_pool(State(state): State<AppState>, Query(TournamentIdAndStageOrder {
         tournament_id,
         stage_order,
-    }): Query<TournamentIdAndStageOrder>,
-) -> Result<Json<Vec<FullPoolBracket>>, (StatusCode, String)> {
+    }): Query<TournamentIdAndStageOrder>,) -> Result<Json<Vec<FullPoolBracket>>, (StatusCode, String)> {
     let db = &state.db;
 
     let stage = StageEntity::find_by_id((tournament_id, stage_order))
@@ -64,8 +63,8 @@ pub async fn get_pool(
 
     let mut full_pool = Vec::with_capacity(pool.len());
     for (bracket, maps) in pool {
-        full_pool.push(find_map_info(&mut state, bracket, maps).await);
+        full_pool.push(find_map_info(&state, bracket, maps));
     }
 
-    Ok(Json(full_pool))
+    Ok(Json(join_all(full_pool).await))
 }
