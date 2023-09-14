@@ -1,7 +1,8 @@
 <script lang="ts">
-	import type { PoolMap } from '$lib/Pool';
+	import type { Beatmap } from '$lib/Pool';
 
-	export let map: PoolMap;
+	export let map: Beatmap;
+	console.log(map)
 
 	function cover() {
 		return `url('https://assets.ppy.sh/beatmaps/${map.setId}/covers/cover.jpg')`;

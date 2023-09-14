@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use model::entities::{PoolBracketEntity, PoolMapEntity, StageEntity};
-use model::models::{PoolBracket, PoolMap};
+use model::models::PoolBracket;
 
-use crate::osu::map::{get_map, SlimBeatmap};
+use crate::osu::map::{SlimBeatmap, find_map_info};
 use crate::routes::TournamentIdAndStageOrder;
 use crate::AppState;
 
@@ -16,16 +16,9 @@ use crate::AppState;
 #[serde(rename_all = "camelCase")]
 pub struct FullPoolBracket {
     #[serde(flatten)]
-    bracket: PoolBracket,
-    maps: Vec<SlimBeatmap>,
+    pub bracket: PoolBracket,
+    pub maps: Vec<SlimBeatmap>,
 }
-
-#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Pool {
-    brackets: Vec<PoolBracket>,
-}
-
 
 #[utoipa::path(
     get,
@@ -37,7 +30,6 @@ pub struct Pool {
         (status = 500, description = "Error communicating with the database", body = String),
     )
 )]
-#[axum_macros::debug_handler]
 pub async fn get_pool(
     State(mut state): State<AppState>,
     Query(TournamentIdAndStageOrder {
@@ -76,22 +68,4 @@ pub async fn get_pool(
     }
 
     Ok(Json(full_pool))
-}
-
-async fn find_map_info(
-    state: &mut AppState,
-    bracket: PoolBracket,
-    maps: Vec<PoolMap>,
-) -> FullPoolBracket {
-    let mut full_maps = Vec::new();
-
-    for map in maps {
-        let map_id = map.map_id as u32;
-        full_maps.push(get_map(&mut state.redis, &state.osu, map_id).await.unwrap());
-    }
-
-    FullPoolBracket {
-        bracket,
-        maps: full_maps,
-    }
 }

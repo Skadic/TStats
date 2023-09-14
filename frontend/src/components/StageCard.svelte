@@ -1,7 +1,9 @@
 <script lang="ts">
+	import type { PoolBracket } from '$lib/Pool';
 	import type { Stage } from '$lib/Stage';
 	import PoolList from './PoolList.svelte';
 	export let stage: Stage;
+	export let poolBrackets: PoolBracket[];
 	export let hasBestOf: boolean;
 </script>
 
@@ -11,6 +13,6 @@
 		{#if hasBestOf} <h2 class="flex-1 text-right">Best of {stage.bestOf}</h2> {/if}
 	</div>
 	<div class="px-4 py-2">
-		<PoolList brackets={[]} />
+		<PoolList brackets={poolBrackets} />
 	</div>
 </div>

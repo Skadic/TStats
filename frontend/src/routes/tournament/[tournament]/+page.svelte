@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PoolBracket } from '$lib/Pool';
 	import type { Stage } from '$lib/Stage';
 	import type { ExtendedTournament } from '$lib/Tournament';
 	import StageCard from '../../../components/StageCard.svelte';
@@ -8,6 +9,7 @@
 	export let data: TournamentResult;
 	let extTournament: ExtendedTournament = data.tournament;
 	let stages: Stage[] = extTournament.stages;
+	let brackets: PoolBracket[][] = data.poolBrackets;
 </script>
 
 <div class="bg-bg rounded-xl flex flex-col gap-8 p-5">
@@ -28,6 +30,7 @@
 						bestOf: stage.bestOf,
 						stageOrder: i
 					}}
+					poolBrackets={brackets[i]}
 					hasBestOf={extTournament.tournament.formatTournamentFormat().includes('v')}
 				/>
 			</div>

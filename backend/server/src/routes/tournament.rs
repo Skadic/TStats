@@ -8,7 +8,7 @@ use utoipa::ToSchema;
 use crate::routes::Id;
 use crate::AppState;
 use model::entities::{CountryRestrictionEntity, StageEntity, TournamentEntity};
-use model::models::Tournament;
+use model::models::{Tournament, Stage};
 use model::stage;
 
 /// Get all tournaments from the database
@@ -32,15 +32,6 @@ pub async fn get_all_tournaments(
     Ok(Json(tournaments))
 }
 
-/// A stage with all primary key information stripped out
-#[derive(Debug, Serialize, ToSchema)]
-#[schema(example = json!({"name": "QF", "best_of": 7}))]
-#[serde(rename_all = "camelCase")]
-pub struct SlimStage {
-    name: String,
-    best_of: i16,
-}
-
 /// A tournament including all its stages and country restrictions
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -49,8 +40,8 @@ pub struct ExtendedTournamentResult {
     #[serde(flatten)]
     tournament: Tournament,
     /// The tournament's stages
-    #[schema(example = json!([{"name": "RO16", "best_of": 5}, {"name": "QF", "best_of": 7}]))]
-    stages: Vec<SlimStage>,
+    #[schema(example = json!([{"tournamentId": 1, "stageOrder": 2, "name": "RO16", "bestOf": 5}, {"tournamentId": 1, "stageOrder": 2, "name": "QF", "bestOf": 7}]))]
+    stages: Vec<Stage>,
     /// The tournament's country restrictions as a vector of country codes.
     #[schema(example = json!(["UK", "NZ", "FR"]))]
     country_restrictions: Vec<String>,
@@ -103,10 +94,6 @@ pub async fn get_tournament(
             )
         })?
         .into_iter()
-        .map(|stage| SlimStage {
-            name: stage.name,
-            best_of: stage.best_of,
-        })
         .collect();
 
     // Find all country restrictions for this tournament in the database

@@ -1,9 +1,10 @@
 use std::error::Error;
 
+use model::models::{PoolBracket, PoolMap};
 use rosu_v2::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::cache::{get_cached_or, CacheError, CacheResult, Cacheable};
+use crate::{cache::{get_cached_or, CacheError, CacheResult, Cacheable}, AppState, routes::pool::FullPoolBracket};
 
 use super::user::OsuUser;
 
@@ -102,4 +103,23 @@ pub async fn get_map(
     .await?;
 
     Ok(map)
+}
+
+
+pub async fn find_map_info(
+    state: &mut AppState,
+    bracket: PoolBracket,
+    maps: Vec<PoolMap>,
+) -> FullPoolBracket {
+    let mut full_maps = Vec::new();
+
+    for map in maps {
+        let map_id = map.map_id as u32;
+        full_maps.push(get_map(&mut state.redis, &state.osu, map_id).await.unwrap());
+    }
+
+    FullPoolBracket {
+        bracket,
+        maps: full_maps,
+    }
 }

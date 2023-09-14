@@ -62,7 +62,6 @@ async fn cors() -> StatusCode {
             model::country_restriction::Model,
             routes::Id,
             routes::tournament::ExtendedTournamentResult,
-            routes::tournament::SlimStage,
             routes::TournamentId,
             routes::TournamentIdAndStageOrder,
             routes::stage::ExtendedStageResult,
