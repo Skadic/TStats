@@ -20,7 +20,6 @@ export async function load({ fetch, params }): Promise<TournamentResult> {
 			})
 		}
 	);
-	//console.log(js);
 	const tournament: ExtendedTournament = ExtendedTournament.deserialize(
 		await tournamentResult.json()
 	);

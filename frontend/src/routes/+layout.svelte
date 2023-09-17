@@ -8,7 +8,7 @@
 		<Navbar />
 	</div>
 	<div class="w-full max-w-full flex flex-col items-center justify-center p-6">
-		<div class="max-w-7xl">
+		<div class="">
 			<slot />
 		</div>
 	</div>

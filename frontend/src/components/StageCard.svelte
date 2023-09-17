@@ -7,7 +7,7 @@
 	export let hasBestOf: boolean;
 </script>
 
-<div class="rounded-t-lg bg-bg-400 duration-200">
+<div class="rounded-lg pb-4 bg-bg-400 duration-200">
 	<div class="flex p-2 rounded-lg bg-bg-500 hover:scale-105 transition-all">
 		<h1 class="text-3xl font-bold">{stage.name}</h1>
 		{#if hasBestOf} <h2 class="flex-1 text-right">Best of {stage.bestOf}</h2> {/if}
