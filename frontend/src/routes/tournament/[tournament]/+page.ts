@@ -9,7 +9,7 @@ export type TournamentResult = {
 
 export async function load({ fetch, params }): Promise<TournamentResult> {
 	const tournamentResult = await fetch(
-		`http://0.0.0.0:3000/api/tournament?` +
+		`http://172.31.26.242:3000/api/tournament?` +
 			new URLSearchParams({
 				id: params.tournament
 			}),
@@ -30,7 +30,7 @@ export async function load({ fetch, params }): Promise<TournamentResult> {
 	for (let i = 0; i < numStages; i++) {
 		const stage: Stage = tournament.stages[i];
 		const res = fetch(
-			`http://0.0.0.0:3000/api/pool?` +
+			`http://172.31.26.242:3000/api/pool?` +
 				new URLSearchParams({
 					tournament_id: params.tournament,
 					stage_order: stage.stageOrder.toString()

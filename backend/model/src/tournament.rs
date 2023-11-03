@@ -34,6 +34,8 @@ pub struct Model {
 
 #[derive(Debug, Serialize, Deserialize, EnumIter, DeriveRelation, Copy, Clone)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::team::Entity")]
+    Team,
     #[sea_orm(has_many = "super::country_restriction::Entity")]
     CountryRestriction,
     #[sea_orm(has_many = "super::stage::Entity")]
@@ -44,6 +46,12 @@ pub enum Relation {
     PoolMap,
 }
 
+
+impl Related<super::team::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Team.def()
+    }
+}
 impl Related<super::country_restriction::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::CountryRestriction.def()

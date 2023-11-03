@@ -1,7 +1,7 @@
 import { Tournament } from "$lib/Tournament";
 
 export async function load({ fetch, params }) {
-    const res = await fetch(`http://0.0.0.0:3000/api/tournament/all`, {
+    const res = await fetch(`http://172.31.26.242:3000/api/tournament/all`, {
         method: "GET",
         headers: new Headers({
             'Content-Type': "application/json",

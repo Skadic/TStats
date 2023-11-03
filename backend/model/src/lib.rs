@@ -8,6 +8,9 @@ pub mod pool_map;
 pub mod stage;
 pub mod tournament;
 
+pub mod team;
+pub mod player;
+
 #[allow(unused)]
 pub mod models {
     pub use super::country_restriction::Model as CountryRestriction;
@@ -15,6 +18,8 @@ pub mod models {
     pub use super::pool_map::Model as PoolMap;
     pub use super::stage::Model as Stage;
     pub use super::tournament::Model as Tournament;
+    pub use super::team::Model as Team;
+    pub use super::player::Model as Player;
 }
 #[allow(unused)]
 pub mod entities {
@@ -23,6 +28,8 @@ pub mod entities {
     pub use super::pool_map::Entity as PoolMapEntity;
     pub use super::stage::Entity as StageEntity;
     pub use super::tournament::Entity as TournamentEntity;
+    pub use super::team::Entity as TeamEntity;
+    pub use super::player::Entity as PlayerEntity;
 }
 
 pub async fn drop_table<E: EntityTrait>(db: &DatabaseConnection, table: E) {

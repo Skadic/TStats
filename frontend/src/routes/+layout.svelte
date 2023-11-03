@@ -3,13 +3,11 @@
 	import '../styles/app.css';
 </script>
 
-<body>
-	<div class="w-full py-4 bg-bg-400 shadow-bg-400 shadow-md">
+<body class="flex flex-col gap-10">
+	<div class="py-4 bg-bg-400 shadow-bg-400 shadow-md">
 		<Navbar />
 	</div>
-	<div class="w-full max-w-full flex flex-col items-center justify-center p-6">
-		<div class="">
-			<slot />
-		</div>
+	<div class="lg:w-4/5 m-auto flex flex-col justify-center">
+		<slot />
 	</div>
 </body>

@@ -5,12 +5,16 @@
 	console.log(data);
 </script>
 
-<div>
-    <ImportantTournaments></ImportantTournaments>
-	<div class="pb-4"></div>
-	<hr>
-	<div class="pb-4"></div>
-	<TournamentList tournaments={data.tournaments} />
+<div class="">
+	<div class="px-6">
+		<ImportantTournaments />
+	</div>
+	<div class="py-4" />
+	<hr />
+	<div class="py-4" />
+	<div class="px-1">
+		<TournamentList tournaments={data.tournaments} />
+	</div>
 </div>
 
 <style>

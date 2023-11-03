@@ -61,10 +61,20 @@
 	}
 
 	.infoHeading {
-		@apply flex text-2xl font-bold justify-end items-center pr-10;
+		@apply text-2xl font-bold text-left pr-10;
 	}
 
 	.infoContent {
-		@apply flex flex-grow-0 text-xl items-center justify-start pl-10;
+		@apply text-xl pl-10 text-left;
+	}
+
+	@media (min-width: 1024px) {
+		.infoHeading {
+			text-align: right;
+		}
+
+		.infoContent {
+			text-align: left;
+		}
 	}
 </style>

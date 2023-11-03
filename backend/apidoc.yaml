@@ -16,6 +16,45 @@ paths:
       responses:
         '200':
           description: Successfuly requested beatmap
+  /api/pool:
+    get:
+      tags:
+      - routes::pool
+      operationId: get_pool
+      parameters:
+      - name: tournament_id
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+      - name: stage_order
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: Return the contents of the pool for the given stage in a tournament
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FullPoolBracket'
+        '404':
+          description: The tournament or stage does not exist
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Error communicating with the database
+          content:
+            text/plain:
+              schema:
+                type: string
   /api/stage:
     get:
       tags:
@@ -275,13 +314,17 @@ components:
           stages:
             type: array
             items:
-              $ref: '#/components/schemas/SlimStage'
+              $ref: '#/components/schemas/Stage'
             description: The tournament's stages
             example:
-            - best_of: 5
+            - bestOf: 5
               name: RO16
-            - best_of: 7
+              stageOrder: 2
+              tournamentId: 1
+            - bestOf: 7
               name: QF
+              stageOrder: 2
+              tournamentId: 1
       description: A tournament including all its stages and country restrictions
     Id:
       type: object
@@ -401,21 +444,6 @@ components:
         Single:
           max: 10000
           min: 500
-    SlimStage:
-      type: object
-      description: A stage with all primary key information stripped out
-      required:
-      - name
-      - bestOf
-      properties:
-        bestOf:
-          type: integer
-          format: int32
-        name:
-          type: string
-      example:
-        best_of: 7
-        name: QF
     Stage:
       type: object
       description: A stage in a tournament.

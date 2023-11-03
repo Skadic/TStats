@@ -5,7 +5,7 @@
 	export let brackets: PoolBracket[];
 </script>
 
-<div>
+<div class="">
 	{#each brackets as bracket, bracketIndex}
 		<div class="py-2">
 			<h1 class="text-3xl font-bold py-1">{bracket.name}</h1>

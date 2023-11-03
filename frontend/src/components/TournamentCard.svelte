@@ -15,15 +15,15 @@
 			src="https://i.ppy.sh/f49c7b14d7308ee720c1dbd9b6c9d78dd1469a2d/68747470733a2f2f692e6962622e636f2f7a5a6a705076372f6d72656b6b2d6772616e646d61737465722d6375702d62616e6e65722d424554412d4c4f474f2e706e67"
 		/>
 		<div class="p-4">
-			<h1 class="text-5xl lg:text-3xl font-bold text-center">{tournament.name}</h1>
+			<h1 class="text-4xl lg:text-3xl font-bold text-center pb-2">{tournament.name}</h1>
 			<div class="p-2 lg:p-0">
-				<div class="text-xl lg:text-lg">
+				<div class="text-right text-lg lg:text-lg truncate">
 					{rankRange}
 					{#if rankRange != 'Open Rank'}
 						{tournament.bws ? 'with BWS' : 'without BWS'}
 					{/if}
 				</div>
-				<div class="float-right text-xl lg:text-lg">{tournament.formatTournamentFormat()}</div>
+				<div class="text-right text-lg truncate">{tournament.formatTournamentFormat()}</div>
 			</div>
 		</div>
 	</a>

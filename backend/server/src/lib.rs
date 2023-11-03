@@ -8,7 +8,7 @@ use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::{fs::File, io::Write, sync::Arc, time::Duration};
 use tower_http::{
-    cors::CorsLayer,
+    cors::{CorsLayer, AllowOrigin},
     trace::{self, TraceLayer},
 };
 use tracing::{info, warn, Level};
@@ -115,12 +115,7 @@ pub async fn run_server() -> miette::Result<()> {
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-                .allow_origin([
-                    "http://localhost:5173".parse().unwrap(),
-                    "https://localhost:5173".parse().unwrap(),
-                    "http://tstats.skadic.moe".parse().unwrap(),
-                    "https://tstats.skadic.moe".parse().unwrap(),
-                ])
+                .allow_origin(AllowOrigin::any())
                 .allow_headers(["content-type".parse().unwrap()]),
         )
         .layer(
@@ -132,7 +127,7 @@ pub async fn run_server() -> miette::Result<()> {
         );
 
     info!("Starting server");
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+    axum::Server::bind(&"172.31.26.242:3000".parse().unwrap())
         .serve(app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
         .await
