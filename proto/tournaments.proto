@@ -30,20 +30,20 @@ message Tournament {
 }
 
 service TournamentService {
-  rpc GetAll(GetAllRequest) returns (GetAllResponse);
-  rpc Get(GetRequest) returns (Tournament);
+  rpc GetAll(GetAllTournamentsRequest) returns (GetAllTournamentsResponse);
+  rpc Get(GetTournamentRequest) returns (Tournament);
   rpc Create(Tournament) returns (CreateTournamentResponse);
   rpc Update(UpdateTournamentRequest) returns (UpdateTournamentResponse);
   rpc Delete(DeleteTournamentRequest) returns (DeleteTournamentResponse);
 }
 
-message GetAllRequest {}
+message GetAllTournamentsRequest {}
 
-message GetAllResponse {
+message GetAllTournamentsResponse {
   repeated Tournament tournaments = 1;
 }
 
-message GetRequest {
+message GetTournamentRequest {
   int32 id = 1;
 }
 

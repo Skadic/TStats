@@ -62,9 +62,6 @@ async fn cors() -> StatusCode {
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        routes::tournament::get_all_tournaments,
-        routes::tournament::get_tournament,
-        routes::tournament::create_tournament,
         routes::stage::get_all_stages,
         routes::stage::get_stage,
         routes::stage::create_stage,
@@ -81,7 +78,6 @@ async fn cors() -> StatusCode {
             model::pool_map::Model,
             model::country_restriction::Model,
             routes::Id,
-            routes::tournament::ExtendedTournamentResult,
             routes::TournamentId,
             routes::TournamentIdAndStageOrder,
             routes::stage::ExtendedStageResult,

@@ -1,5 +1,50 @@
 syntax = "proto3";
 
+import "pool_brackets.proto";
+
 package stages;
 
-message Stage {}
+message Stage {
+  int32 tournament_id = 1;
+  int32 stage_order = 2;
+  string name = 3;
+  int32 best_of = 4;
+  repeated pool_brackets.PoolBracket pool_brackets = 5;
+}
+
+service StageService {
+  rpc GetAll(GetAllStagesRequest) returns (GetAllStagesResponse);
+  rpc Get(GetRequest) returns (Stage);
+  rpc Create(Stage) returns (CreateStageResponse);
+  rpc Update(UpdateStageRequest) returns (UpdateStageResponse);
+  rpc Delete(DeleteStageRequest) returns (DeleteStageResponse);
+}
+
+message GetAllStagesRequest {}
+
+message GetAllStagesResponse {
+  repeated Stage stages = 1;
+}
+
+message GetRequest {
+  int32 tournament_id = 1;
+  int32 stage_order = 2;
+}
+
+message CreateStageResponse {}
+
+message UpdateStageRequest {
+  int32 tournament_id = 1;
+  int32 stage_order = 2;
+  optional string name = 3;
+  optional int32 best_of = 4;
+}
+
+message UpdateStageResponse {}
+
+message DeleteStageRequest {
+  int32 tournament_id = 1;
+  int32 stage_order = 2;
+}
+
+message DeleteStageResponse {}

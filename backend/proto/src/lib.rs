@@ -98,9 +98,30 @@ pub mod stages {
 
     impl From<model::stage::Model> for Stage {
         fn from(value: Model) -> Self {
-            Stage {}
+            Stage {
+                tournament_id: value.tournament_id,
+                stage_order: value.stage_order as i32,
+                name: value.name,
+                best_of: value.best_of as i32,
+                pool_brackets: vec![]
+            }
         }
     }
+
+    impl From<Stage> for model::stage::Model {
+        fn from(value: Stage) -> Self {
+            Model {
+                tournament_id: value.tournament_id,
+                stage_order: value.stage_order as i16,
+                name: value.name,
+                best_of: value.best_of as i16,
+            }
+        }
+    }
+}
+
+pub mod pool_brackets {
+    tonic::include_proto!("pool_brackets");
 }
 pub mod debug_data {
     tonic::include_proto!("debug");
