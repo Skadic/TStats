@@ -11,9 +11,10 @@ use model::{
 use proto::{
     keys::StageKey,
     tournaments::{
-        Country, CreateTournamentRequest, CreateTournamentResponse, DeleteTournamentRequest,
-        DeleteTournamentResponse, GetAllTournamentsRequest, GetAllTournamentsResponse,
-        GetTournamentRequest, UpdateTournamentRequest, UpdateTournamentResponse,
+        Country, CountryList, CreateTournamentRequest, CreateTournamentResponse,
+        DeleteTournamentRequest, DeleteTournamentResponse, GetAllTournamentsRequest,
+        GetAllTournamentsResponse, GetTournamentRequest, RangeList, UpdateTournamentRequest,
+        UpdateTournamentResponse,
     },
 };
 use proto::{
@@ -91,19 +92,23 @@ impl TournamentService for TournamentServiceImpl {
                     format: tournament.format as u32,
                     bws: tournament.bws,
                 }),
-                rank_restrictions: rank_restriction
-                    .into_iter()
-                    .map(|r| RankRange {
-                        min: r.min as u32,
-                        max: r.max as u32,
-                    })
-                    .collect(),
-                country_restrictions: country_restriction
-                    .into_iter()
-                    .map(|c| Country {
-                        name: c.name.clone(),
-                    })
-                    .collect(),
+                rank_restrictions: Some(RangeList {
+                    ranges: rank_restriction
+                        .into_iter()
+                        .map(|r| RankRange {
+                            min: r.min as u32,
+                            max: r.max as u32,
+                        })
+                        .collect(),
+                }),
+                country_restrictions: Some(CountryList {
+                    countries: country_restriction
+                        .into_iter()
+                        .map(|c| Country {
+                            name: c.name.clone(),
+                        })
+                        .collect(),
+                }),
             };
 
             response.push(Ok(res));
@@ -152,7 +157,7 @@ impl TournamentService for TournamentServiceImpl {
             })
             .collect::<Vec<_>>();
 
-        let rank_restrictions = tournament
+        let ranges = tournament
             .find_related(rank_restriction::Entity)
             .order_by_asc(rank_restriction::Column::Tier)
             .all(&self.0.db)
@@ -163,10 +168,10 @@ impl TournamentService for TournamentServiceImpl {
                 min: r.min as u32,
                 max: r.max as u32,
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         // Find all country restrictions for this tournament in the database
-        let country_restrictions = tournament
+        let countries = tournament
             .find_related(CountryRestrictionEntity)
             .all(&self.0.db)
             .await
@@ -183,8 +188,8 @@ impl TournamentService for TournamentServiceImpl {
                 format: tournament.format as u32,
                 bws: tournament.bws,
             }),
-            country_restrictions,
-            rank_restrictions,
+            country_restrictions: Some(CountryList { countries }),
+            rank_restrictions: Some(RangeList { ranges }),
             stages,
         };
 
@@ -196,7 +201,11 @@ impl TournamentService for TournamentServiceImpl {
         request: Request<CreateTournamentRequest>,
     ) -> Result<Response<CreateTournamentResponse>, Status> {
         use ActiveValue as A;
-        let tournament = request.get_ref();
+        let tournament = request
+            .get_ref()
+            .tournament
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing tournament"))?;
         let name = tournament.name.clone();
         let format = tournament.format as i32;
 
@@ -215,29 +224,32 @@ impl TournamentService for TournamentServiceImpl {
             ))
         })?;
 
-        for (i, range) in tournament.rank_restrictions.iter().enumerate() {
-            let restriction = model::rank_restriction::ActiveModel {
-                tournament_id: A::Set(tournament_model.id),
-                tier: A::Set(i as i32),
-                min: A::Set(range.min as i32),
-                max: A::Set(range.max as i32),
-            };
+        if let Some(ref rank_restrictions) = request.get_ref().rank_restrictions {
+            for (i, range) in rank_restrictions.ranges.iter().enumerate() {
+                let restriction = model::rank_restriction::ActiveModel {
+                    tournament_id: A::Set(tournament_model.id),
+                    tier: A::Set(i as i32),
+                    min: A::Set(range.min as i32),
+                    max: A::Set(range.max as i32),
+                };
 
-            restriction
-                .insert(&self.0.db)
-                .await
-                .map_err(|e| Status::internal(format!("failed to create rank restriction: {e}")))?;
+                restriction.insert(&self.0.db).await.map_err(|e| {
+                    Status::internal(format!("failed to create rank restriction: {e}"))
+                })?;
+            }
         }
 
-        for country in tournament.country_restrictions.iter() {
-            let restriction = model::country_restriction::ActiveModel {
-                tournament_id: A::Set(tournament_model.id),
-                name: A::Set(country.name.clone()),
-            };
+        if let Some(ref country_restrictions) = request.get_ref().country_restrictions {
+            for country in country_restrictions.countries.iter() {
+                let restriction = model::country_restriction::ActiveModel {
+                    tournament_id: A::Set(tournament_model.id),
+                    name: A::Set(country.name.clone()),
+                };
 
-            restriction.insert(&self.0.db).await.map_err(|e| {
-                Status::internal(format!("failed to create country restriction: {e}"))
-            })?;
+                restriction.insert(&self.0.db).await.map_err(|e| {
+                    Status::internal(format!("failed to create country restriction: {e}"))
+                })?;
+            }
         }
 
         Ok(Response::new(CreateTournamentResponse {

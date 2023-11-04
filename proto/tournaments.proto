@@ -23,6 +23,14 @@ message Country {
   string name = 1;
 }
 
+message RangeList {
+  repeated RankRange ranges = 1;
+}
+
+message CountryList {
+  repeated Country countries = 1;
+}
+
 
 service TournamentService {
   rpc GetAll(GetAllTournamentsRequest) returns (stream GetAllTournamentsResponse);
@@ -36,8 +44,8 @@ message GetAllTournamentsRequest {}
 
 message GetAllTournamentsResponse {
   Tournament tournament = 1; 
-  repeated RankRange rank_restrictions = 2;
-  repeated Country country_restrictions = 3;
+  RangeList rank_restrictions = 2;
+  CountryList country_restrictions = 3;
 }
 
 message GetTournamentRequest {
@@ -46,18 +54,15 @@ message GetTournamentRequest {
 
 message GetTournamentResponse {
   Tournament tournament = 1;
-  repeated RankRange rank_restrictions = 2;
-  repeated Country country_restrictions = 3;
+  RangeList rank_restrictions = 2;
+  CountryList country_restrictions = 3;
   repeated stages.Stage stages = 4;
 }
 
 message CreateTournamentRequest {
-  string name = 1;
-  string shorthand = 2;
-  uint32 format = 3;
-  bool bws = 4;
-  repeated RankRange rank_restrictions = 5;
-  repeated Country country_restrictions = 6;
+  Tournament tournament = 1;
+  RangeList rank_restrictions = 2;
+  CountryList country_restrictions = 3;
 }
 
 message CreateTournamentResponse {
@@ -65,14 +70,6 @@ message CreateTournamentResponse {
 }
 
 message UpdateTournamentRequest {
-  message RangeList {
-    repeated RankRange ranges = 1;
-  }
-
-  message CountryList {
-    repeated Country countries = 1;
-  }
-
   keys.TournamentKey key = 1;
   optional string name = 2;
   optional string shorthand = 3;
