@@ -7,6 +7,7 @@ fn main() -> std::io::Result<()> {
         .build_server(true)
         .compile(
             &[
+                "../../proto/keys.proto",
                 "../../proto/tournaments.proto",
                 "../../proto/stages.proto",
                 "../../proto/debug.proto",

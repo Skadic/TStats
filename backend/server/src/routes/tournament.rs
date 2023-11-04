@@ -8,11 +8,19 @@ use model::{
     entities::{CountryRestrictionEntity, StageEntity, TournamentEntity},
     *,
 };
-use proto::tournaments::{tournament_service_server::TournamentService, RankRange};
-use proto::tournaments::{
-    CreateTournamentRequest, CreateTournamentResponse, DeleteTournamentRequest,
-    DeleteTournamentResponse, GetAllTournamentsRequest, GetAllTournamentsResponse,
-    GetTournamentRequest, UpdateTournamentRequest, UpdateTournamentResponse,
+use proto::{
+    keys::StageKey,
+    tournaments::{
+        Country, CreateTournamentRequest, CreateTournamentResponse, DeleteTournamentRequest,
+        DeleteTournamentResponse, GetAllTournamentsRequest, GetAllTournamentsResponse,
+        GetTournamentRequest, UpdateTournamentRequest, UpdateTournamentResponse,
+    },
+};
+use proto::{
+    keys::TournamentKey,
+    tournaments::{
+        tournament_service_server::TournamentService, GetTournamentResponse, RankRange, Tournament,
+    },
 };
 
 use crate::LocalAppState;
@@ -76,11 +84,13 @@ impl TournamentService for TournamentServiceImpl {
             let rank_restriction = &rank_restrictions[i];
             let country_restriction = &country_restrictions[i];
             let res = GetAllTournamentsResponse {
-                id: tournament.id as i32,
-                name: tournament.name.clone(),
-                shorthand: tournament.shorthand.clone(),
-                format: tournament.format as u32,
-                bws: tournament.bws,
+                tournament: Some(Tournament {
+                    key: Some(TournamentKey { id: tournament.id }),
+                    name: tournament.name.clone(),
+                    shorthand: tournament.shorthand.clone(),
+                    format: tournament.format as u32,
+                    bws: tournament.bws,
+                }),
                 rank_restrictions: rank_restriction
                     .into_iter()
                     .map(|r| RankRange {
@@ -90,7 +100,9 @@ impl TournamentService for TournamentServiceImpl {
                     .collect(),
                 country_restrictions: country_restriction
                     .into_iter()
-                    .map(|c| c.name.clone())
+                    .map(|c| Country {
+                        name: c.name.clone(),
+                    })
                     .collect(),
             };
 
@@ -103,8 +115,13 @@ impl TournamentService for TournamentServiceImpl {
     async fn get(
         &self,
         request: Request<GetTournamentRequest>,
-    ) -> Result<Response<proto::tournaments::Tournament>, Status> {
-        let id = request.get_ref().id;
+    ) -> Result<Response<GetTournamentResponse>, Status> {
+        let id = request
+            .get_ref()
+            .key
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing tournament id"))?
+            .id;
         let Some(tournament) = TournamentEntity::find_by_id(id)
             .one(&self.0.db)
             .await
@@ -123,10 +140,19 @@ impl TournamentService for TournamentServiceImpl {
             .await
             .map_err(|e| Status::internal(format!("failed to get stages: {e}")))?
             .into_iter()
-            .map(proto::stages::Stage::from)
+            .map(|stage| proto::stages::Stage {
+                key: Some(StageKey {
+                    tournament_key: Some(TournamentKey {
+                        id: stage.tournament_id,
+                    }),
+                    stage_order: stage.stage_order as u32,
+                }),
+                name: stage.name,
+                best_of: stage.best_of as u32,
+            })
             .collect::<Vec<_>>();
 
-        let rank_ranges = tournament
+        let rank_restrictions = tournament
             .find_related(rank_restriction::Entity)
             .order_by_asc(rank_restriction::Column::Tier)
             .all(&self.0.db)
@@ -136,8 +162,8 @@ impl TournamentService for TournamentServiceImpl {
             .map(|r| RankRange {
                 min: r.min as u32,
                 max: r.max as u32,
-            }).collect();
-
+            })
+            .collect();
 
         // Find all country restrictions for this tournament in the database
         let country_restrictions = tournament
@@ -146,13 +172,21 @@ impl TournamentService for TournamentServiceImpl {
             .await
             .map_err(|e| Status::internal(format!("failed to get country restrictions: {e}")))?
             .into_iter()
-            .map(|cr| cr.name)
-            .collect::<Vec<String>>();
+            .map(|cr| Country { name: cr.name })
+            .collect::<Vec<_>>();
 
-        let mut tournament = proto::tournaments::Tournament::from(tournament);
-        tournament.country_restrictions = country_restrictions;
-        tournament.rank_restrictions = rank_ranges;
-        tournament.stages = stages;
+        let tournament = GetTournamentResponse {
+            tournament: Some(Tournament {
+                key: Some(TournamentKey { id: tournament.id }),
+                name: tournament.name,
+                shorthand: tournament.shorthand,
+                format: tournament.format as u32,
+                bws: tournament.bws,
+            }),
+            country_restrictions,
+            rank_restrictions,
+            stages,
+        };
 
         Ok(Response::new(tournament))
     }
@@ -198,7 +232,7 @@ impl TournamentService for TournamentServiceImpl {
         for country in tournament.country_restrictions.iter() {
             let restriction = model::country_restriction::ActiveModel {
                 tournament_id: A::Set(tournament_model.id),
-                name: A::Set(country.clone()),
+                name: A::Set(country.name.clone()),
             };
 
             restriction.insert(&self.0.db).await.map_err(|e| {
@@ -207,7 +241,9 @@ impl TournamentService for TournamentServiceImpl {
         }
 
         Ok(Response::new(CreateTournamentResponse {
-            id: tournament_model.id,
+            key: Some(TournamentKey {
+                id: tournament_model.id,
+            }),
         }))
     }
 
@@ -215,16 +251,19 @@ impl TournamentService for TournamentServiceImpl {
         &self,
         request: Request<UpdateTournamentRequest>,
     ) -> Result<Response<UpdateTournamentResponse>, Status> {
+        let tournament_id = request
+            .get_ref()
+            .key
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing tournament id"))?
+            .id;
         use ActiveValue as A;
-        let model = TournamentEntity::find_by_id(request.get_ref().id)
+        let model = TournamentEntity::find_by_id(tournament_id)
             .one(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("failed to fetch tournament: {e}")))?
             .ok_or_else(|| {
-                Status::not_found(format!(
-                    "tournament with id {} not found",
-                    request.get_ref().id
-                ))
+                Status::not_found(format!("tournament with id {} not found", tournament_id))
             })?;
 
         let mut model = model.into_active_model();
@@ -245,7 +284,7 @@ impl TournamentService for TournamentServiceImpl {
         {
             // TODO Probably validate rank ranges
             rank_restriction::Entity::delete_many()
-                .filter(rank_restriction::Column::TournamentId.eq(request.get_ref().id))
+                .filter(rank_restriction::Column::TournamentId.eq(tournament_id))
                 .exec(&self.0.db)
                 .await
                 .map_err(|e| {
@@ -254,7 +293,7 @@ impl TournamentService for TournamentServiceImpl {
 
             for (i, range) in ranges.iter().enumerate() {
                 let restriction = rank_restriction::ActiveModel {
-                    tournament_id: A::Set(request.get_ref().id),
+                    tournament_id: A::Set(tournament_id),
                     tier: A::Set(i as i32),
                     min: A::Set(range.min as i32),
                     max: A::Set(range.max as i32),
@@ -286,7 +325,13 @@ impl TournamentService for TournamentServiceImpl {
         &self,
         request: Request<DeleteTournamentRequest>,
     ) -> Result<Response<DeleteTournamentResponse>, Status> {
-        TournamentEntity::delete_by_id(request.get_ref().id)
+        let id = request
+            .get_ref()
+            .key
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing tournament id"))?
+            .id;
+        TournamentEntity::delete_by_id(id)
             .exec(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("could not delete tournament: {e}")))?;

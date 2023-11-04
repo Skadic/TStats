@@ -1,50 +1,59 @@
 syntax = "proto3";
 
-import "pool_brackets.proto";
-
 package stages;
 
+import "keys.proto";
+import "pool_brackets.proto";
+
+
+
 message Stage {
-  int32 tournament_id = 1;
-  int32 stage_order = 2;
-  string name = 3;
-  int32 best_of = 4;
-  repeated pool_brackets.PoolBracket pool_brackets = 5;
+  keys.StageKey key = 1;
+  string name = 2;
+  uint32 best_of = 3;
 }
 
 service StageService {
-  rpc GetAll(GetAllStagesRequest) returns (GetAllStagesResponse);
-  rpc Get(GetRequest) returns (Stage);
-  rpc Create(Stage) returns (CreateStageResponse);
+  rpc GetAll(GetAllStagesRequest) returns (stream GetAllStagesResponse);
+  rpc Get(GetStageRequest) returns (GetStageResponse);
+  rpc Create(CreateStageRequest) returns (CreateStageResponse);
   rpc Update(UpdateStageRequest) returns (UpdateStageResponse);
   rpc Delete(DeleteStageRequest) returns (DeleteStageResponse);
 }
 
-message GetAllStagesRequest {}
-
-message GetAllStagesResponse {
-  repeated Stage stages = 1;
+message GetAllStagesRequest {
+  keys.TournamentKey tournament_key = 1;
 }
 
-message GetRequest {
-  int32 tournament_id = 1;
-  int32 stage_order = 2;
+message GetAllStagesResponse {
+  Stage stage = 1;
+}
+
+message GetStageRequest {
+  keys.StageKey key = 1;
+}
+
+message GetStageResponse {
+  Stage stage = 1;
+  repeated pool_brackets.PoolBracket pool_brackets = 2;
+}
+
+message CreateStageRequest {
+  Stage stage = 1;
 }
 
 message CreateStageResponse {}
 
 message UpdateStageRequest {
-  int32 tournament_id = 1;
-  int32 stage_order = 2;
-  optional string name = 3;
-  optional int32 best_of = 4;
+  keys.StageKey key = 1;
+  optional string name = 2;
+  optional int32 best_of = 3;
 }
 
 message UpdateStageResponse {}
 
 message DeleteStageRequest {
-  int32 tournament_id = 1;
-  int32 stage_order = 2;
+  keys.StageKey key = 1;
 }
 
 message DeleteStageResponse {}

@@ -1,28 +1,32 @@
 syntax = "proto3";
 
+package tournaments;
+
+import "keys.proto";
 import "stages.proto";
 
-package tournaments;
+
+message Tournament {
+  keys.TournamentKey key = 1;
+  string name = 2;
+  string shorthand = 3;
+  uint32 format = 4;
+  bool bws = 5;
+}
 
 message RankRange {
   uint32 min = 1;
   uint32 max = 2;
 }
 
-message Tournament {
-  optional int32 id = 1;
-  string name = 2;
-  string shorthand = 3;
-  uint32 format = 4;
-  bool bws = 5;
-  repeated RankRange rank_restrictions = 6;
-  repeated string country_restrictions = 7;
-  repeated stages.Stage stages = 8;
+message Country {
+  string name = 1;
 }
+
 
 service TournamentService {
   rpc GetAll(GetAllTournamentsRequest) returns (stream GetAllTournamentsResponse);
-  rpc Get(GetTournamentRequest) returns (Tournament);
+  rpc Get(GetTournamentRequest) returns (GetTournamentResponse);
   rpc Create(CreateTournamentRequest) returns (CreateTournamentResponse);
   rpc Update(UpdateTournamentRequest) returns (UpdateTournamentResponse);
   rpc Delete(DeleteTournamentRequest) returns (DeleteTournamentResponse);
@@ -31,17 +35,20 @@ service TournamentService {
 message GetAllTournamentsRequest {}
 
 message GetAllTournamentsResponse {
-  int32 id = 1;
-  string name = 2;
-  string shorthand = 3;
-  uint32 format = 4;
-  bool bws = 5;
-  repeated RankRange rank_restrictions = 6;
-  repeated string country_restrictions = 7;
+  Tournament tournament = 1; 
+  repeated RankRange rank_restrictions = 2;
+  repeated Country country_restrictions = 3;
 }
 
 message GetTournamentRequest {
-  int32 id = 1;
+  keys.TournamentKey key = 1;
+}
+
+message GetTournamentResponse {
+  Tournament tournament = 1;
+  repeated RankRange rank_restrictions = 2;
+  repeated Country country_restrictions = 3;
+  repeated stages.Stage stages = 4;
 }
 
 message CreateTournamentRequest {
@@ -50,11 +57,11 @@ message CreateTournamentRequest {
   uint32 format = 3;
   bool bws = 4;
   repeated RankRange rank_restrictions = 5;
-  repeated string country_restrictions = 6;
+  repeated Country country_restrictions = 6;
 }
 
 message CreateTournamentResponse {
-  int32 id = 1;
+  keys.TournamentKey key = 1;
 }
 
 message UpdateTournamentRequest {
@@ -62,23 +69,23 @@ message UpdateTournamentRequest {
     repeated RankRange ranges = 1;
   }
 
-  message StringList {
-    repeated string countries = 1;
+  message CountryList {
+    repeated Country countries = 1;
   }
 
-  int32 id = 1;
+  keys.TournamentKey key = 1;
   optional string name = 2;
   optional string shorthand = 3;
   optional uint32 format = 4;
   optional bool bws = 5;
   optional RangeList rank_restrictions = 6;
-  optional StringList country_restrictions = 7;
+  optional CountryList country_restrictions = 7;
 }
 
 message UpdateTournamentResponse {}
 
 message DeleteTournamentRequest {
-  int32 id = 1;
+  keys.TournamentKey key = 1;
 }
 
 message DeleteTournamentResponse {}

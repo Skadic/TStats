@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package keys;
+
+message TournamentKey {
+  int32 id = 1;
+}
+
+message StageKey {
+  TournamentKey tournament_key = 1;
+  uint32 stage_order = 2;
+}
