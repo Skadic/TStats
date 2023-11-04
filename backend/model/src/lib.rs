@@ -3,13 +3,13 @@ use sea_orm::{sea_query::Table, ConnectionTrait, DatabaseConnection, EntityTrait
 use log::info;
 
 pub mod country_restriction;
+pub mod player;
 pub mod pool_bracket;
 pub mod pool_map;
+pub mod rank_restriction;
 pub mod stage;
-pub mod tournament;
-
-pub mod player;
 pub mod team;
+pub mod tournament;
 
 #[allow(unused)]
 pub mod models {
@@ -17,6 +17,7 @@ pub mod models {
     pub use super::player::Model as Player;
     pub use super::pool_bracket::Model as PoolBracket;
     pub use super::pool_map::Model as PoolMap;
+    pub use super::rank_restriction::Model as RankRestriction;
     pub use super::stage::Model as Stage;
     pub use super::team::Model as Team;
     pub use super::tournament::Model as Tournament;
@@ -27,6 +28,7 @@ pub mod entities {
     pub use super::player::Entity as PlayerEntity;
     pub use super::pool_bracket::Entity as PoolBracketEntity;
     pub use super::pool_map::Entity as PoolMapEntity;
+    pub use super::rank_restriction::Entity as RankRestrictionEntity;
     pub use super::stage::Entity as StageEntity;
     pub use super::team::Entity as TeamEntity;
     pub use super::tournament::Entity as TournamentEntity;

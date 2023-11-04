@@ -1,7 +1,7 @@
-pub mod tournaments {
-    use model::tournament::{Model, TournamentFormat};
+pub const FILE_DESCRIPTOR_SET: &[u8] = tonic::include_file_descriptor_set!("tstats_descriptor");
 
-    use crate::tournaments::format::FormatType;
+pub mod tournaments {
+    use model::tournament::Model;
 
     tonic::include_proto!("tournaments");
 
@@ -11,38 +11,24 @@ pub mod tournaments {
                 id: Some(value.id),
                 name: value.name,
                 shorthand: value.shorthand,
-                format: Some(value.format.into()),
+                format: value.format as u32,
                 bws: value.bws,
-                rank_restrictions: Vec::<model::tournament::RankRange>::from(value.rank_range)
-                    .into_iter()
-                    .map(|rr| RankRange {
-                        min: rr.min as u32,
-                        max: rr.max as u32,
-                    })
-                    .collect(),
+                rank_restrictions: vec![],
                 country_restrictions: vec![],
                 stages: vec![],
             }
         }
     }
 
-    impl TryFrom<Tournament> for Model {
-        type Error = prost::DecodeError;
-
-        fn try_from(value: Tournament) -> Result<Self, Self::Error> {
-            Ok(Self {
+    impl From<Tournament> for Model {
+        fn from(value: Tournament) -> Self {
+            Self {
                 id: value.id(),
                 name: value.name,
                 shorthand: value.shorthand,
-                format: TournamentFormat::try_from(value.format.unwrap())?,
+                format: value.format as i32,
                 bws: value.bws,
-                rank_range: value
-                    .rank_restrictions
-                    .into_iter()
-                    .map(RankRange::into)
-                    .collect::<Vec<_>>()
-                    .into(),
-            })
+            }
         }
     }
 
@@ -63,32 +49,6 @@ pub mod tournaments {
             }
         }
     }
-
-    impl TryFrom<Format> for TournamentFormat {
-        type Error = prost::DecodeError;
-
-        fn try_from(value: Format) -> Result<Self, Self::Error> {
-            match FormatType::try_from(value.format_type)? {
-                FormatType::Versus => Ok(Self::Versus(value.players as usize)),
-                FormatType::BattleRoyale => Ok(Self::BattleRoyale(value.players as usize)),
-            }
-        }
-    }
-
-    impl From<TournamentFormat> for Format {
-        fn from(value: TournamentFormat) -> Self {
-            match value {
-                TournamentFormat::Versus(players) => Self {
-                    format_type: FormatType::Versus as i32,
-                    players: players as u32,
-                },
-                TournamentFormat::BattleRoyale(players) => Self {
-                    format_type: FormatType::BattleRoyale as i32,
-                    players: players as u32,
-                },
-            }
-        }
-    }
 }
 
 pub mod stages {
@@ -103,7 +63,7 @@ pub mod stages {
                 stage_order: value.stage_order as i32,
                 name: value.name,
                 best_of: value.best_of as i32,
-                pool_brackets: vec![]
+                pool_brackets: vec![],
             }
         }
     }

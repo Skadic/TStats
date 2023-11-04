@@ -24,9 +24,7 @@ pub struct Model {
     #[schema(example = "MGT3")]
     pub shorthand: String,
     /// The tournament format, i.e. how many players are playing at any one time. This should be a [`TournamentFormat`] value.
-    pub format: TournamentFormat,
-    /// The tournament's rank restriction. This should be a [`RankRestriction`] value.
-    pub rank_range: RankRestriction,
+    pub format: i32,
     /// Whether this tournament uses badge-weighting to adjust player's ranks.
     #[sea_orm(default_value = true)]
     #[schema(example = true)]
@@ -37,6 +35,8 @@ pub struct Model {
 pub enum Relation {
     #[sea_orm(has_many = "super::team::Entity")]
     Team,
+    #[sea_orm(has_many = "super::rank_restriction::Entity")]
+    RankRestriction,
     #[sea_orm(has_many = "super::country_restriction::Entity")]
     CountryRestriction,
     #[sea_orm(has_many = "super::stage::Entity")]
@@ -48,9 +48,16 @@ impl Related<super::team::Entity> for Entity {
         Relation::Team.def()
     }
 }
+
 impl Related<super::country_restriction::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::CountryRestriction.def()
+    }
+}
+
+impl Related<super::rank_restriction::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::RankRestriction.def()
     }
 }
 

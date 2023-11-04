@@ -22,7 +22,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use model::{
     create_table, drop_table,
     entities::{
-        CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity,
+        CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity, RankRestrictionEntity
     },
 };
 use proto::debug_data::debug_service_server::DebugServiceServer;
@@ -153,7 +153,14 @@ pub async fn run_server() -> miette::Result<()> {
         .into_diagnostic()
      */
 
+    let reflection_server = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
+        .build()
+        .into_diagnostic()
+        .wrap_err("error creating the gRPC reflection server")?;
+
     tonic::transport::Server::builder()
+        .add_service(reflection_server)
         .add_service(DebugServiceServer::new(routes::debug::DebugServiceImpl(
             state.get_local_instance(),
         )))
@@ -196,6 +203,7 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
 
     drop_table(&db, PoolMapEntity).await;
     drop_table(&db, PoolBracketEntity).await;
+    drop_table(&db, RankRestrictionEntity).await;
     drop_table(&db, StageEntity).await;
     drop_table(&db, CountryRestrictionEntity).await;
     drop_table(&db, TournamentEntity).await;
@@ -203,6 +211,7 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
     create_table(&db, TournamentEntity).await;
     create_table(&db, CountryRestrictionEntity).await;
     create_table(&db, StageEntity).await;
+    create_table(&db, RankRestrictionEntity).await;
     create_table(&db, PoolBracketEntity).await;
     create_table(&db, PoolMapEntity).await;
     info!("connected to database and setup tables");

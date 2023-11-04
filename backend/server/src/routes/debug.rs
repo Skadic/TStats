@@ -33,14 +33,9 @@ const BRACKETS: [&str; 3] = ["NM", "HD", "HR"];
 
 const STAGES: [&str; 6] = ["Q", "RO16", "QF", "SF", "F", "GF"];
 
-static RANK_RANGES: OnceLock<[RankRestriction; 9]> = OnceLock::new();
+static RANK_RANGES: [(i32, i32); 3] = [(100, 2500), (2500, 5000), (5000, 10000)];
 
-const FORMATS: [TournamentFormat; 4] = [
-    TournamentFormat::versus(1),
-    TournamentFormat::versus(2),
-    TournamentFormat::versus(4),
-    TournamentFormat::battle_royale(10),
-];
+const FORMATS: [i32; 4] = [1, 2, 3, 4];
 
 const MAP_IDS: [usize; 9] = [
     3883456, 4192228, 4189337, 3917025, 4141288, 4186607, 3876751, 4130092, 4149939,
@@ -74,19 +69,6 @@ impl DebugService for DebugServiceImpl {
     async fn fill_data(&self, _request: Request<()>) -> Result<Response<()>, Status> {
         use ActiveValue as A;
         let db = &self.0.db;
-        let rank_ranges = RANK_RANGES.get_or_init(|| {
-            [
-                RankRestriction::OpenRank,
-                RankRestriction::OpenRank,
-                RankRestriction::OpenRank,
-                RankRestriction::single(50..1000),
-                RankRestriction::single(1500..5000),
-                RankRestriction::single(10000..100000),
-                RankRestriction::tiered([1000..1500, 1500..5000, 5000..10000]),
-                RankRestriction::tiered([1..750, 750..2000]),
-                RankRestriction::tiered([100..1000, 1000..10000, 10000..100000]),
-            ]
-        });
 
         // The following section generates a tournament with a random name, format, and country
         let mut rng = StdRng::from_entropy();
@@ -115,7 +97,7 @@ impl DebugService for DebugServiceImpl {
             name: A::Set(tournament_name),
             shorthand: A::Set(shorthand),
             format: A::Set(*FORMATS.choose(&mut rng).unwrap()),
-            rank_range: A::Set(rank_ranges.choose(&mut rng).unwrap().clone()),
+            //rank_range: A::Set(rank_ranges.choose(&mut rng).unwrap().clone()),
             bws: A::Set(rng.gen()),
         };
 
@@ -131,6 +113,17 @@ impl DebugService for DebugServiceImpl {
 
                 restriction.insert(db).await.unwrap();
             }
+        }
+
+        for i in 0..rng.gen_range(0..4) {
+            let rank_restriction = rank_restriction::ActiveModel {
+                tournament_id: A::Set(tournament.id),
+                tier: A::Set(i),
+                min: A::Set(RANK_RANGES[i as usize].0),
+                max: A::Set(RANK_RANGES[i as usize].1),
+            };
+
+            rank_restriction.insert(db).await.unwrap();
         }
 
         // For each stage, we create a record and add some maps to its pool
@@ -188,8 +181,7 @@ impl DebugService for DebugServiceImpl {
             id: A::NotSet,
             name: A::Set("Deutsche Meisterschaft 8".to_owned()),
             shorthand: A::Set("DM8".to_owned()),
-            format: A::Set(TournamentFormat::Versus(1)),
-            rank_range: A::Set(RankRestriction::OpenRank),
+            format: A::Set(1),
             bws: A::Set(false),
         }
         .insert(db)
@@ -270,8 +262,6 @@ impl DebugService for DebugServiceImpl {
                 dt => 429797, 3153512
             })
             .await;
-
-            error!("{:?}", res);
         }
 
         Ok(Response::new(()))
