@@ -9,7 +9,8 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --plugin-search-dir . --check . && eslint .",
-		"format": "prettier --plugin-search-dir . --write ."
+		"format": "prettier --plugin-search-dir . --write .",
+    "proto": "mkdir -p ./src/lib/api && protoc --plugin=node_modules/ts-proto/protoc-gen-ts_proto --ts_proto_out=./src/lib/api -I../proto ../proto/*"
 	},
 	"devDependencies": {
 		"@catppuccin/tailwindcss": "^0.1.6",
@@ -34,6 +35,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"flag-icons": "^6.7.0"
+		"flag-icons": "^6.7.0",
+		"ts-proto": "^1.163.0"
 	}
 }
