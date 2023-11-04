@@ -31,15 +31,14 @@ pub enum Relation {
     #[sea_orm(
         belongs_to = "super::tournament::Entity",
         from = "Column::TournamentId",
-        to = "super::tournament::Column::Id"
+        to = "super::tournament::Column::Id",
+        on_delete = "Cascade",
+        on_update = "Cascade",
     )]
     Tournament,
     /// A stage has multiple pool brackets
     #[sea_orm(has_many = "super::pool_bracket::Entity")]
     PoolBrackets,
-    /// A stage has multiple maps in its pool
-    #[sea_orm(has_many = "super::pool_map::Entity")]
-    PoolMap,
 }
 
 impl Related<super::tournament::Entity> for Entity {
@@ -51,12 +50,6 @@ impl Related<super::tournament::Entity> for Entity {
 impl Related<super::pool_bracket::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PoolBrackets.def()
-    }
-}
-
-impl Related<super::pool_map::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::PoolMap.def()
     }
 }
 

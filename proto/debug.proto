@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package debug;
+
+service DebugService {
+  rpc FillData(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc DM8(google.protobuf.Empty) returns (google.protobuf.Empty);
+}

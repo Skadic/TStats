@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use crate::tournament::RankRestriction::{OpenRank, Single, Tiered};
 use sea_orm::entity::prelude::*;
 use sea_orm::FromJsonQueryResult;
 use serde::{Deserialize, Serialize};
@@ -40,12 +41,7 @@ pub enum Relation {
     CountryRestriction,
     #[sea_orm(has_many = "super::stage::Entity")]
     Stage,
-    #[sea_orm(has_many = "super::pool_bracket::Entity")]
-    PoolBracket,
-    #[sea_orm(has_many = "super::pool_map::Entity")]
-    PoolMap,
 }
-
 
 impl Related<super::team::Entity> for Entity {
     fn to() -> RelationDef {
@@ -61,18 +57,6 @@ impl Related<super::country_restriction::Entity> for Entity {
 impl Related<super::stage::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Stage.def()
-    }
-}
-
-impl Related<super::pool_bracket::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::PoolBracket.def()
-    }
-}
-
-impl Related<super::pool_map::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::PoolMap.def()
     }
 }
 
@@ -123,9 +107,9 @@ pub enum RankRestriction {
 #[schema(example = json!({"min": 500, "max": 10000}))]
 pub struct RankRange {
     /// The rank range's lower bound
-    min: usize,
+    pub min: usize,
     /// The rank range's upper bound
-    max: usize,
+    pub max: usize,
 }
 
 impl From<Range<usize>> for RankRange {
@@ -161,5 +145,30 @@ impl RankRestriction {
 impl Default for RankRestriction {
     fn default() -> Self {
         Self::OpenRank
+    }
+}
+
+impl<T> From<T> for RankRestriction
+where
+    T: IntoIterator<Item = RankRange>,
+    <T as IntoIterator>::IntoIter: ExactSizeIterator,
+{
+    fn from(value: T) -> Self {
+        let mut iter = value.into_iter();
+        match iter.len() {
+            0 => OpenRank,
+            1 => Single(iter.next().unwrap()),
+            _ => Tiered(iter.collect()),
+        }
+    }
+}
+
+impl From<RankRestriction> for Vec<RankRange> {
+    fn from(value: RankRestriction) -> Self {
+        match value {
+            OpenRank => vec![],
+            Single(rr) => vec![rr],
+            Tiered(vec) => vec,
+        }
     }
 }

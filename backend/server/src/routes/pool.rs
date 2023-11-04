@@ -9,7 +9,7 @@ use utoipa::ToSchema;
 use model::entities::{PoolBracketEntity, PoolMapEntity, StageEntity};
 use model::models::PoolBracket;
 
-use crate::osu::map::{SlimBeatmap, find_map_info};
+use crate::osu::map::{find_map_info, SlimBeatmap};
 use crate::routes::TournamentIdAndStageOrder;
 use crate::AppState;
 
@@ -32,10 +32,13 @@ pub struct FullPoolBracket {
     )
 )]
 #[axum_macros::debug_handler]
-pub async fn get_pool(State(state): State<AppState>, Query(TournamentIdAndStageOrder {
+pub async fn get_pool(
+    State(state): State<AppState>,
+    Query(TournamentIdAndStageOrder {
         tournament_id,
         stage_order,
-    }): Query<TournamentIdAndStageOrder>,) -> Result<Json<Vec<FullPoolBracket>>, (StatusCode, String)> {
+    }): Query<TournamentIdAndStageOrder>,
+) -> Result<Json<Vec<FullPoolBracket>>, (StatusCode, String)> {
     let db = &state.db;
 
     let stage = StageEntity::find_by_id((tournament_id, stage_order))
@@ -47,7 +50,12 @@ pub async fn get_pool(State(state): State<AppState>, Query(TournamentIdAndStageO
                 format!("failed to get stage: {e}"),
             )
         })?
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "stage or tournament does not exist".to_owned()))?;
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                "stage or tournament does not exist".to_owned(),
+            )
+        })?;
 
     let pool = stage
         .find_related(PoolBracketEntity)

@@ -50,11 +50,11 @@ impl Cacheable for OsuUser {
 
 pub async fn get_user(
     redis: &mut redis::aio::MultiplexedConnection,
-    osu: impl AsRef<Osu>,
+    osu: &Osu,
     user_id: u32,
 ) -> OsuUser {
     get_cached_or::<OsuUser, OsuError, _>(redis, &user_id, Some(60), || async {
-        let usr = osu.as_ref().user(user_id).await?;
+        let usr = osu.user(user_id).await?;
         Ok(usr.into())
     })
     .await

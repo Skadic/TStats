@@ -1,14 +1,18 @@
+use std::sync::Arc;
+use std::{fs::File, io::Write, time::Duration};
+
 use axum::{
     http::Method,
     routing::{get, options, post},
     Router,
 };
+use log::debug;
 use miette::{Context, IntoDiagnostic};
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
-use std::{fs::File, io::Write, sync::Arc, time::Duration};
+use tokio::sync::RwLock;
 use tower_http::{
-    cors::{CorsLayer, AllowOrigin},
+    cors::{AllowOrigin, CorsLayer},
     trace::{self, TraceLayer},
 };
 use tracing::{info, warn, Level};
@@ -21,6 +25,8 @@ use model::{
         CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity,
     },
 };
+use proto::debug_data::debug_service_server::DebugServiceServer;
+use proto::tournaments::tournament_service_server::TournamentServiceServer;
 
 mod cache;
 mod osu;
@@ -33,6 +39,22 @@ pub struct AppState {
     redis: redis::aio::MultiplexedConnection,
 }
 
+impl AppState {
+    fn get_local_instance(&self) -> LocalAppState {
+        LocalAppState {
+            db: self.db.clone(),
+            osu: self.osu.clone(),
+            redis: RwLock::new(self.redis.clone()),
+        }
+    }
+}
+
+pub struct LocalAppState {
+    db: DatabaseConnection,
+    osu: Arc<Osu>,
+    redis: RwLock<redis::aio::MultiplexedConnection>,
+}
+
 async fn cors() -> StatusCode {
     StatusCode::OK
 }
@@ -40,8 +62,6 @@ async fn cors() -> StatusCode {
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        routes::debug::fill_test_data,
-        routes::debug::get_beatmap,
         routes::tournament::get_all_tournaments,
         routes::tournament::get_tournament,
         routes::tournament::create_tournament,
@@ -87,11 +107,12 @@ pub async fn run_server() -> miette::Result<()> {
 
     let state = AppState { db, redis, osu };
 
+    /*
     // build our application
     let app = Router::new()
         .merge(SwaggerUi::new("/api/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/", options(cors))
-        .route("/*path", options(cors))
+        .route("/path", options(cors))
         .route("/api", get(|| async { "Hello, World!" }))
         .route("/api/test_data", post(routes::debug::fill_test_data))
         .route(
@@ -126,10 +147,24 @@ pub async fn run_server() -> miette::Result<()> {
                 .on_failure(trace::DefaultOnFailure::new().level(Level::INFO)),
         );
 
+
     info!("Starting server");
+
     axum::Server::bind(&"172.31.26.242:3000".parse().unwrap())
         .serve(app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
+        .await
+        .into_diagnostic()
+     */
+
+    tonic::transport::Server::builder()
+        .add_service(DebugServiceServer::new(routes::debug::DebugServiceImpl(
+            state.get_local_instance(),
+        )))
+        .add_service(TournamentServiceServer::new(
+            routes::tournament::TournamentServiceImpl(state.get_local_instance()),
+        ))
+        .serve("0.0.0.0:3000".parse().unwrap())
         .await
         .into_diagnostic()
 }

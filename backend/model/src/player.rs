@@ -18,13 +18,12 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-    belongs_to = "super::team::Entity",
-    from = "Column::TeamId",
-    to = "super::team::Column::Id"
+        belongs_to = "super::team::Entity",
+        from = "Column::TeamId",
+        to = "super::team::Column::Id"
     )]
     Team,
 }
-
 
 impl Related<super::team::Entity> for Entity {
     fn to() -> RelationDef {
@@ -41,9 +40,6 @@ impl Model {
         user_id: i32,
         //pool_brackets: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
-        Self {
-            team_id,
-            user_id,
-        }
+        Self { team_id, user_id }
     }
 }

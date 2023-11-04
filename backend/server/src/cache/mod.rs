@@ -1,5 +1,5 @@
-use std::{convert::Infallible, future::Future};
 use std::borrow::BorrowMut;
+use std::{convert::Infallible, future::Future};
 
 use redis::{AsyncCommands, FromRedisValue};
 use serde::{de::DeserializeOwned, Serialize};
@@ -62,9 +62,13 @@ where
     let serialized = serde_json::to_string(v)?;
 
     let resp = if let Some(time) = expiry_time {
-        redis.borrow_mut().set_ex::<String, String, String>(v.full_key(), serialized, time)
+        redis
+            .borrow_mut()
+            .set_ex::<String, String, String>(v.full_key(), serialized, time)
     } else {
-        redis.borrow_mut().set::<String, String, String>(v.full_key(), serialized)
+        redis
+            .borrow_mut()
+            .set::<String, String, String>(v.full_key(), serialized)
     }
     .await?;
 
@@ -92,7 +96,8 @@ where
     V: Cacheable,
 {
     // Try to find the value in the cache
-    let Some(s) = redis.borrow_mut()
+    let Some(s) = redis
+        .borrow_mut()
         .get::<String, redis::Value>(V::full_key_with(key))
         .await
         .and_then(|v| match v {
@@ -137,10 +142,8 @@ where
     V: Cacheable,
     Fut: Future<Output = V>,
 {
-    get_cached_or::<V, Infallible, _>(redis, key, expiry_time, || async {
-        Ok(get_fn().await)
-    })
-    .await
+    get_cached_or::<V, Infallible, _>(redis, key, expiry_time, || async { Ok(get_fn().await) })
+        .await
 }
 
 /// Tries to get a value from the cache and returns it, if it exist.

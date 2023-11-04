@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["model", "server"]
+members = ["model", "server", "proto"]
 
 [package]
 name = "tstats_backend"

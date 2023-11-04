@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+import "stages.proto";
+
+package tournaments;
+
+message Format {
+  enum FormatType {
+    VERSUS = 0;
+    BATTLE_ROYALE = 1;
+  }
+  FormatType format_type = 1;
+  uint32 players = 2;
+}
+
+message RankRange {
+  uint32 min = 1;
+  uint32 max = 2;
+}
+
+message Tournament {
+  optional int32 id = 1;
+  string name = 2;
+  string shorthand = 3;
+  Format format = 4;
+  bool bws = 5;
+  repeated RankRange rank_restrictions = 6;
+  repeated string country_restrictions = 7;
+  repeated stages.Stage stages = 8;
+}
+
+service TournamentService {
+  rpc GetAll(GetAllRequest) returns (GetAllResponse);
+  rpc Get(GetRequest) returns (Tournament);
+  rpc Create(Tournament) returns (CreateTournamentResponse);
+  rpc Update(UpdateTournamentRequest) returns (UpdateTournamentResponse);
+  rpc Delete(DeleteTournamentRequest) returns (DeleteTournamentResponse);
+}
+
+message GetAllRequest {}
+
+message GetAllResponse {
+  repeated Tournament tournaments = 1;
+}
+
+message GetRequest {
+  int32 id = 1;
+}
+
+message CreateTournamentResponse {
+  int32 id = 1;
+}
+
+message UpdateTournamentRequest {
+  message RangeList {
+    repeated RankRange ranges = 1;
+  }
+
+  message StringList {
+    repeated string countries = 1;
+  }
+
+  int32 id = 1;
+  optional string name = 2;
+  optional string shorthand = 3;
+  optional Format format = 4;
+  optional bool bws = 5;
+  optional RangeList rank_restrictions = 6;
+}
+
+message UpdateTournamentResponse {}
+
+message DeleteTournamentRequest {
+  int32 id = 1;
+}
+
+message DeleteTournamentResponse {}
+
+
+
+

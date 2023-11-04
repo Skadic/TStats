@@ -1,13 +1,17 @@
 use std::borrow::BorrowMut;
 use std::error::Error;
 
-use futures::future::{FutureExt, join_all};
+use futures::future::{join_all, FutureExt};
 use rosu_v2::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use model::models::{PoolBracket, PoolMap};
 
-use crate::{AppState, cache::{Cacheable, CacheError, CacheResult, get_cached_or}, routes::pool::FullPoolBracket};
+use crate::{
+    cache::{get_cached_or, CacheError, CacheResult, Cacheable},
+    routes::pool::FullPoolBracket,
+    AppState,
+};
 
 use super::user::OsuUser;
 
@@ -71,7 +75,7 @@ impl SlimBeatmap {
 
 pub async fn get_map(
     mut redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
-    osu: impl AsRef<Osu>,
+    osu: &Osu,
     map_id: u32,
 ) -> CacheResult<SlimBeatmap> {
     let redis = redis.borrow_mut();
@@ -83,7 +87,6 @@ pub async fn get_map(
         || async {
             // If it doesn't exist in the cache, request it from the osu api
             let mapset = osu
-                .as_ref()
                 .beatmapset_from_map_id(map_id)
                 .await
                 .map_err(|e| -> Box<dyn Error> { Box::new(e) })
@@ -95,7 +98,7 @@ pub async fn get_map(
                 redis,
                 &map.creator_id,
                 Some(3600),
-                || async { osu.as_ref().user(map.creator_id).await.map(OsuUser::from) },
+                || async { osu.user(map.creator_id).await.map(OsuUser::from) },
             )
             .await?;
 
@@ -108,7 +111,6 @@ pub async fn get_map(
 
     Ok(map)
 }
-
 
 pub async fn find_map_info(
     state: &AppState,
