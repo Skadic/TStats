@@ -25,7 +25,7 @@ pub enum Relation {
         from = "Column::TournamentId",
         to = "super::tournament::Column::Id",
         on_delete = "Cascade",
-        on_update = "Cascade",
+        on_update = "Cascade"
     )]
     Tournament,
 }

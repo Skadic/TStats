@@ -94,7 +94,7 @@ impl TournamentService for TournamentServiceImpl {
                 }),
                 rank_restrictions: Some(RangeList {
                     ranges: rank_restriction
-                        .into_iter()
+                        .iter()
                         .map(|r| RankRange {
                             min: r.min as u32,
                             max: r.max as u32,
@@ -103,7 +103,7 @@ impl TournamentService for TournamentServiceImpl {
                 }),
                 country_restrictions: Some(CountryList {
                     countries: country_restriction
-                        .into_iter()
+                        .iter()
                         .map(|c| Country {
                             name: c.name.clone(),
                         })
@@ -322,7 +322,7 @@ impl TournamentService for TournamentServiceImpl {
         }
 
         if let Some(bws) = request.get_ref().bws {
-            model.bws = A::Set(bws.clone());
+            model.bws = A::Set(bws);
         }
 
         model

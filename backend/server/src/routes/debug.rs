@@ -1,16 +1,16 @@
-use std::sync::OnceLock;
+
 
 use axum::extract::State;
-use axum::http::StatusCode;
+
 use axum::Json;
 use futures::future::join_all;
 use futures::future::FutureExt;
 use rand::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue};
 use tonic::{Request, Response, Status};
-use tracing::{debug, error};
+use tracing::{debug};
 
-use model::tournament::{RankRestriction, TournamentFormat};
+
 use model::*;
 use proto::debug_data::debug_service_server::DebugService;
 
@@ -255,7 +255,7 @@ impl DebugService for DebugServiceImpl {
             .await
             .unwrap();
 
-            let res = join_all(pool! { qualis,
+            let _res = join_all(pool! { qualis,
                 nm => 2230996, 3263098, 2593243, 3142496, 3129534;
                 hd => 3544219, 2588430;
                 hr => 2314568, 434438;

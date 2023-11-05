@@ -32,7 +32,7 @@ pub enum Relation {
         from = "(Column::TournamentId, Column::StageOrder)",
         to = "(super::stage::Column::TournamentId, super::stage::Column::StageOrder)",
         on_delete = "Cascade",
-        on_update = "Cascade",
+        on_update = "Cascade"
     )]
     Stage,
     #[sea_orm(has_many = "super::pool_map::Entity")]

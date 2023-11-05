@@ -6,26 +6,24 @@ use std::{fs::File, io::Write, time::Duration};
 use axum::http::HeaderValue;
 use axum::{
     http::Method,
-    routing::{get, options, post},
-    Router,
 };
-use log::debug;
+
 use miette::{Context, IntoDiagnostic};
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::RwLock;
 use tonic::transport::NamedService;
 use tonic_health::server::HealthReporter;
-use tonic_reflection::server::ServerReflectionServer;
-use tower::ServiceBuilder;
+
+
 use tower_http::cors::AllowHeaders;
 use tower_http::{
-    cors::{AllowOrigin, CorsLayer},
+    cors::{CorsLayer},
     trace::{self, TraceLayer},
 };
 use tracing::{info, warn, Level};
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+
 
 use model::{
     create_table, drop_table,
