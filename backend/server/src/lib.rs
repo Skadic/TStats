@@ -1,6 +1,9 @@
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::str::FromStr;
 use std::sync::Arc;
 use std::{fs::File, io::Write, time::Duration};
 
+use axum::http::HeaderValue;
 use axum::{
     http::Method,
     routing::{get, options, post},
@@ -11,6 +14,11 @@ use miette::{Context, IntoDiagnostic};
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::RwLock;
+use tonic::transport::NamedService;
+use tonic_health::server::HealthReporter;
+use tonic_reflection::server::ServerReflectionServer;
+use tower::ServiceBuilder;
+use tower_http::cors::AllowHeaders;
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     trace::{self, TraceLayer},
@@ -22,7 +30,8 @@ use utoipa_swagger_ui::SwaggerUi;
 use model::{
     create_table, drop_table,
     entities::{
-        CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity, RankRestrictionEntity
+        CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, RankRestrictionEntity,
+        StageEntity, TournamentEntity,
     },
 };
 use proto::debug_data::debug_service_server::DebugServiceServer;
@@ -146,7 +155,7 @@ pub async fn run_server() -> miette::Result<()> {
 
     info!("Starting server");
 
-    axum::Server::bind(&"172.31.26.242:3000".parse().unwrap())
+    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -159,17 +168,86 @@ pub async fn run_server() -> miette::Result<()> {
         .into_diagnostic()
         .wrap_err("error creating the gRPC reflection server")?;
 
-    tonic::transport::Server::builder()
-        .add_service(reflection_server)
-        .add_service(DebugServiceServer::new(routes::debug::DebugServiceImpl(
-            state.get_local_instance(),
+    let (mut health_reporter, health_server) = tonic_health::server::health_reporter();
+
+    health_reporter
+        .set_serving::<TournamentServiceServer<routes::tournament::TournamentServiceImpl>>()
+        .await;
+    health_reporter
+        .set_serving::<DebugServiceServer<routes::debug::DebugServiceImpl>>()
+        .await;
+
+    // Type fun
+    async fn set_serving<T: NamedService>(rep: &mut HealthReporter, _: &T) {
+        rep.set_serving::<T>().await;
+    }
+    set_serving(&mut health_reporter, &reflection_server).await;
+
+    let frontend_method = parse_env("FRONTEND_METHOD", || "http".to_owned())?;
+    let frontend_host: String = parse_env("FRONTEND_HOST", || "0.0.0.0".to_owned())?;
+    let frontend_port = parse_env("FRONTEND_PORT", || "5173".to_owned())?;
+    let host: IpAddr = parse_env("BACKEND_HOST", || IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))?;
+    let port = parse_env("BACKEND_PORT", || 3000)?;
+
+    let frontend_addr: HeaderValue = format!("{frontend_method}://{frontend_host}:{frontend_port}")
+        .parse()
+        .into_diagnostic()
+        .wrap_err("could not parse frontend url: {e}")?;
+    let addr: SocketAddr = SocketAddr::new(host, port);
+
+    info!("Serving at {addr}");
+    info!("Allowing requests from {frontend_addr:?}");
+
+    let rpc_service = tonic::transport::Server::builder()
+        .accept_http1(true)
+        .add_service(tonic_web::enable(reflection_server))
+        .add_service(tonic_web::enable(DebugServiceServer::new(
+            routes::debug::DebugServiceImpl(state.get_local_instance()),
         )))
-        .add_service(TournamentServiceServer::new(
+        .add_service(tonic_web::enable(TournamentServiceServer::new(
             routes::tournament::TournamentServiceImpl(state.get_local_instance()),
-        ))
-        .serve("0.0.0.0:3000".parse().unwrap())
+        )))
+        .add_service(health_server)
+        .into_router()
+        .layer(
+            CorsLayer::new()
+                .allow_methods([Method::POST, Method::OPTIONS])
+                .allow_origin([frontend_addr])
+                .allow_headers(AllowHeaders::any()),
+        )
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(trace::DefaultOnResponse::new().level(Level::WARN))
+                .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
+                .on_failure(trace::DefaultOnFailure::new().level(Level::INFO)),
+        )
+        .into_make_service();
+
+    info!("Starting server");
+
+    axum::Server::bind(&addr)
+        .serve(rpc_service)
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .into_diagnostic()
+}
+
+fn parse_env<T>(env_var: &str, default_fn: impl FnOnce() -> T) -> miette::Result<T>
+where
+    T::Err: 'static + std::error::Error + Send + Sync,
+    T: FromStr,
+{
+    match std::env::var(env_var) {
+        Ok(value) => value
+            .parse::<T>()
+            .into_diagnostic()
+            .wrap_err(format!("could not parse {env_var} (value is {value})")),
+        Err(e) => {
+            warn!("could not read {env_var} ({e}), using default");
+            Ok(default_fn())
+        }
+    }
 }
 
 fn write_apidoc() -> miette::Result<()> {

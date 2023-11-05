@@ -9,14 +9,13 @@ edition = "2021"
 
 model = { path = "../model" }
 proto = { path = "../proto" }
-
-# Backend Framework
-axum = { version = "0.6" }
+axum = { version = "0.6", features = ["http2"] }
 axum-macros = "0.3"
 
 # Read .env files
 dotenvy = "0.15"
 futures = "0.3.28"
+hyper = { version = "0.14", features = ["http1", "http2", "server"] }
 miette = { version = "5.10.0", features = ["fancy"] }
 prost = { version = "0.12" }
 rand = "0.8"
@@ -28,6 +27,7 @@ serde_json = "1.0"
 thiserror = "1.0"
 tokio = { version = "1.33", features = ["rt-multi-thread", "macros", "signal"] }
 tonic = { version = "0.10", features = ["transport"] }
+tonic-web = "0.10"
 tonic-reflection = "0.10"
 tower-http = { version = "0.4", features = ["cors", "trace"] }
 tracing = "0.1"
@@ -36,3 +36,5 @@ url = "2.4.1"
 utoipa = { version = "3.4.3", features = ["axum_extras", "yaml"] }
 utoipa-swagger-ui = { version = "3.1.4", features = ["axum"] }
 log = "0.4.20"
+tonic-health = "0.10.2"
+tower = "0.4.13"

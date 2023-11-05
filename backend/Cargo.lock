@@ -2260,6 +2260,7 @@ dependencies = [
  "axum-macros",
  "dotenvy",
  "futures",
+ "hyper",
  "log",
  "miette",
  "model",
@@ -2274,7 +2275,10 @@ dependencies = [
  "thiserror",
  "tokio",
  "tonic",
+ "tonic-health",
  "tonic-reflection",
+ "tonic-web",
+ "tower",
  "tower-http",
  "tracing",
  "tracing-log 0.2.0",
@@ -2980,6 +2984,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tonic-health"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f80db390246dfb46553481f6024f0082ba00178ea495dbb99e70ba9a4fafb5e1"
+dependencies = [
+ "async-stream",
+ "prost",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+]
+
+[[package]]
 name = "tonic-reflection"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2990,6 +3007,26 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tonic",
+]
+
+[[package]]
+name = "tonic-web"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fddb2a37b247e6adcb9f239f4e5cefdcc5ed526141a416b943929f13aea2cce"
+dependencies = [
+ "base64",
+ "bytes",
+ "http",
+ "http-body",
+ "hyper",
+ "pin-project",
+ "tokio-stream",
+ "tonic",
+ "tower-http",
+ "tower-layer",
+ "tower-service",
+ "tracing",
 ]
 
 [[package]]

@@ -1,17 +1,24 @@
-import { Tournament } from "$lib/Tournament";
+import { Tournament } from '$lib/Tournament'
+
+import { createChannel, createClient } from 'nice-grpc-web'
+import {
+	TournamentServiceDefinition,
+	type TournamentServiceClient,
+	GetAllTournamentsResponse
+} from '$lib/api/tournaments'
 
 export async function load({ fetch, params }) {
-    const res = await fetch(`http://172.31.26.242:3000/api/tournament/all`, {
-        method: "GET",
-        headers: new Headers({
-            'Content-Type': "application/json",
-        }),
-    });
-    console.log(res.status)
-    const ts: any[] = await res.json();
-    console.log(ts);
+	const channel = createChannel('http://0.0.0.0:3000')
 
-    return { 
-        tournaments: ts.map((t: any) => Tournament.deserialize(t)),
-    };
+	const client: TournamentServiceClient = createClient(TournamentServiceDefinition, channel)
+
+	let tournaments: GetAllTournamentsResponse[] = []
+
+	for await (const tournament of client.getAll({})) {
+		tournaments.push(tournament)
+	}
+
+	return {
+		tournaments
+	}
 }

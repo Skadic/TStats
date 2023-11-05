@@ -1,14 +1,32 @@
 <script lang="ts">
-	import type { Tournament } from '$lib/Tournament';
+	import type { GetAllTournamentsResponse, RangeList, Tournament } from '$lib/api/tournaments';
 
 	export let tournament: Tournament;
-	let rankRange = tournament.formatRankRange();
+	export let rankRestriction: RangeList;
+
+  console.log(rankRestriction)
+
+	let rankRange: String;
+	switch (rankRestriction.ranges.length) {
+		case 0:
+			rankRange = 'Open Rank';
+			break;
+		case 1:
+			rankRange = rankRestriction.ranges[0].min + ' - ' + rankRestriction.ranges[0].max;
+			break;
+		default:
+			rankRange =
+				'Tiered ' +
+				rankRestriction.ranges[0].min +
+				' - ' +
+				rankRestriction.ranges[rankRestriction.ranges.length - 1].max;
+	}
 </script>
 
 <div
 	class="bg-bg-400 shadow-md shadow-bg-100 text-gray-200 rounded-2xl lg:rounded-lg min-w-full min-h-full container"
 >
-	<a href="/tournament/{tournament.id}">
+	<a href="/tournament/{tournament.key?.id}">
 		<img
 			class="object-cover rounded-t-xl lg:rounded-t-lg w-full lg:h-32"
 			alt="banner"
@@ -23,7 +41,7 @@
 						{tournament.bws ? 'with BWS' : 'without BWS'}
 					{/if}
 				</div>
-				<div class="text-right text-lg truncate">{tournament.formatTournamentFormat()}</div>
+				<div class="text-right text-lg truncate">{tournament.format}v{tournament.format}</div>
 			</div>
 		</div>
 	</a>
