@@ -1193,9 +1193,9 @@ dependencies = [
 name = "model"
 version = "0.1.0"
 dependencies = [
- "log",
  "sea-orm",
  "serde",
+ "tracing",
 ]
 
 [[package]]

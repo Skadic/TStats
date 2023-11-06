@@ -1,6 +1,6 @@
 use sea_orm::{sea_query::Table, ConnectionTrait, DatabaseConnection, EntityTrait, Schema};
 
-use log::info;
+use tracing::info;
 
 pub mod country_restriction;
 pub mod player;
