@@ -4,26 +4,23 @@ use std::sync::Arc;
 use std::{fs::File, io::Write, time::Duration};
 
 use axum::http::HeaderValue;
-use axum::{
-    http::Method,
-};
+use axum::http::Method;
 
 use miette::{Context, IntoDiagnostic};
+use proto::stages::stage_service_server::StageServiceServer;
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::RwLock;
 use tonic::transport::NamedService;
 use tonic_health::server::HealthReporter;
 
-
 use tower_http::cors::AllowHeaders;
 use tower_http::{
-    cors::{CorsLayer},
+    cors::CorsLayer,
     trace::{self, TraceLayer},
 };
 use tracing::{info, warn, Level};
 use utoipa::OpenApi;
-
 
 use model::{
     create_table, drop_table,
@@ -35,6 +32,11 @@ use model::{
 use proto::debug_data::debug_service_server::DebugServiceServer;
 use proto::tournaments::tournament_service_server::TournamentServiceServer;
 
+use crate::routes::debug::DebugServiceImpl;
+use crate::routes::stage::StageServiceImpl;
+use crate::routes::tournament::TournamentServiceImpl;
+
+#[allow(unused)]
 mod cache;
 mod osu;
 mod routes;
@@ -56,22 +58,16 @@ impl AppState {
     }
 }
 
+#[allow(unused)]
 pub struct LocalAppState {
     db: DatabaseConnection,
     osu: Arc<Osu>,
     redis: RwLock<redis::aio::MultiplexedConnection>,
 }
 
-async fn cors() -> StatusCode {
-    StatusCode::OK
-}
-
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        routes::stage::get_all_stages,
-        routes::stage::get_stage,
-        routes::stage::create_stage,
         routes::pool::get_pool,
     ),
     components(
@@ -84,11 +80,6 @@ async fn cors() -> StatusCode {
             model::pool_bracket::Model,
             model::pool_map::Model,
             model::country_restriction::Model,
-            routes::Id,
-            routes::TournamentId,
-            routes::TournamentIdAndStageOrder,
-            routes::stage::ExtendedStageResult,
-            routes::stage::ExtendedPoolBracket,
         )
     ),
     tags(
@@ -169,10 +160,10 @@ pub async fn run_server() -> miette::Result<()> {
     let (mut health_reporter, health_server) = tonic_health::server::health_reporter();
 
     health_reporter
-        .set_serving::<TournamentServiceServer<routes::tournament::TournamentServiceImpl>>()
+        .set_serving::<TournamentServiceServer<TournamentServiceImpl>>()
         .await;
     health_reporter
-        .set_serving::<DebugServiceServer<routes::debug::DebugServiceImpl>>()
+        .set_serving::<DebugServiceServer<DebugServiceImpl>>()
         .await;
 
     // Type fun
@@ -200,10 +191,13 @@ pub async fn run_server() -> miette::Result<()> {
         .accept_http1(true)
         .add_service(tonic_web::enable(reflection_server))
         .add_service(tonic_web::enable(DebugServiceServer::new(
-            routes::debug::DebugServiceImpl(state.get_local_instance()),
+            DebugServiceImpl(state.get_local_instance()),
         )))
         .add_service(tonic_web::enable(TournamentServiceServer::new(
-            routes::tournament::TournamentServiceImpl(state.get_local_instance()),
+            TournamentServiceImpl(state.get_local_instance()),
+        )))
+        .add_service(tonic_web::enable(StageServiceServer::new(
+            StageServiceImpl(state.get_local_instance()),
         )))
         .add_service(health_server)
         .into_router()

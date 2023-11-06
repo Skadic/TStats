@@ -10,3 +10,8 @@ message StageKey {
   TournamentKey tournament_key = 1;
   uint32 stage_order = 2;
 }
+
+message PoolBracketKey {
+  StageKey stage_key = 1;
+  uint32 bracket_order = 2;
+}

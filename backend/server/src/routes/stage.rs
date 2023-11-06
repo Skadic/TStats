@@ -1,172 +1,182 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    Json,
+use proto::{
+    pool_brackets::PoolBracket,
+    stages::{
+        stage_service_server::StageService, CreateStageRequest, CreateStageResponse,
+        DeleteStageRequest, DeleteStageResponse, GetAllStagesRequest, GetAllStagesResponse,
+        GetStageRequest, GetStageResponse, UpdateStageRequest, UpdateStageResponse,
+    },
 };
-use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, ModelTrait, QueryOrder};
-use serde::Serialize;
-use utoipa::ToSchema;
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, ModelTrait, QueryFilter, QueryOrder};
+use tonic::{Request, Response, Status};
 
-use model::{
-    entities::{PoolBracketEntity, PoolMapEntity, StageEntity, TournamentEntity},
-    models::Stage,
-    *,
-};
+use crate::LocalAppState;
 
-use crate::routes::{TournamentId, TournamentIdAndStageOrder};
-use crate::AppState;
+pub struct StageServiceImpl(pub LocalAppState);
 
-/// Get all stages for a given tournament
-#[utoipa::path(
-    get,
-    path = "/api/stage/all",
-    params(TournamentId),
-    responses(
-        (status = 200, description = "Return all stages for the given tournament", body = [Stage]),
-        (status = 404, description = "The tournament does not exist", body = String),
-        (status = 500, description = "Error communicating with the database", body = String),
-    )
-)]
-pub async fn get_all_stages(
-    State(ref state): State<AppState>,
-    Query(TournamentId { tournament_id }): Query<TournamentId>,
-) -> Result<Json<Vec<Stage>>, (StatusCode, String)> {
-    // Find the tournament with the given id
-    let Some(tournament) = TournamentEntity::find_by_id(tournament_id)
-        .one(&state.db)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("failed to get tournament: {e}"),
-            )
-        })?
-    else {
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("tournament with id '{tournament_id}' does not exist"),
-        ));
-    };
+#[tonic::async_trait]
+impl StageService for StageServiceImpl {
+    type GetAllStream =
+        futures::stream::Iter<std::vec::IntoIter<Result<GetAllStagesResponse, Status>>>;
 
-    // Get all stages belonging to the tournament
-    let stages = tournament
-        .find_related(StageEntity)
-        .all(&state.db)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("failed to get all stages: {e}"),
-            )
-        })?;
+    async fn get_all(
+        &self,
+        request: Request<GetAllStagesRequest>,
+    ) -> Result<Response<Self::GetAllStream>, Status> {
+        let tournament_key = request
+            .get_ref()
+            .tournament_key
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing tournament key"))?;
 
-    Ok(Json(stages))
-}
+        // find the tournament with its related stages
+        let res = model::tournament::Entity::find_by_id(tournament_key.id)
+            .find_with_related(model::stage::Entity)
+            .all(&self.0.db)
+            .await
+            .map_err(|e| Status::internal(format!("could not load tournament and stage: {e}")))?;
 
-/// A stage with its associated pool brackets and their maps
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ExtendedStageResult {
-    #[serde(flatten)]
-    stage: Stage,
-    /// The pool brackets with their maps
-    brackets: Vec<ExtendedPoolBracket>,
-}
+        let stages = match res.into_iter().next() {
+            Some((_, stages)) => stages,
+            None => {
+                return Err(Status::not_found(format!(
+                    "tournament with id {} does not exist",
+                    tournament_key.id
+                )))
+            }
+        };
 
-/// A pool bracket consisting of a name and its associated maps
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ExtendedPoolBracket {
-    /// The name of the pool bracket
-    #[schema(example = "HR")]
-    name: String,
-    /// The map ids of the maps that make up this pool bracket
-    #[schema(example = json!([ 131891, 126645, 3853099 ]))]
-    maps: Vec<usize>,
-}
+        // Convert the stages into the "on-the-wire" format
+        let stages = stages
+            .into_iter()
+            .map(|stage| GetAllStagesResponse {
+                stage: Some(proto::stages::Stage {
+                    key: Some(proto::keys::StageKey {
+                        tournament_key: Some(tournament_key.clone()),
+                        stage_order: stage.stage_order as u32,
+                    }),
+                    name: stage.name.clone(),
+                    best_of: stage.best_of as u32,
+                }),
+            })
+            .map(Result::Ok)
+            .collect::<Vec<_>>();
 
-/// Get a stage together with its pool brackets and their maps
-#[utoipa::path(
-    get,
-    path = "/api/stage",
-    params(TournamentIdAndStageOrder),
-    responses(
-        (status = 200, description = "Return the given stage with extra data", body = ExtendedStageResult),
-        (status = 404, description = "The tournament or stage does not exist", body = String),
-        (status = 500, description = "Error communicating with the database", body = String),
-    )
-)]
-pub async fn get_stage(
-    State(ref state): State<AppState>,
-    Query(TournamentIdAndStageOrder {
-        tournament_id,
-        stage_order,
-    }): Query<TournamentIdAndStageOrder>,
-) -> Result<(StatusCode, Json<Option<ExtendedStageResult>>), (StatusCode, String)> {
-    // Find the stage with the given id
-    let Some(stage) = StageEntity::find_by_id((tournament_id, stage_order))
-        .one(&state.db)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("failed to get stage: {e}"),
-            )
-        })?
-    else {
-        return Ok((StatusCode::NOT_FOUND, Json(None)));
-    };
+        // Send the reques
+        Ok(Response::new(futures::stream::iter(stages)))
+    }
 
-    // Find the pool brackets associated with the stage and the maps inside the brackets
-    let brackets = stage
-        .find_related(PoolBracketEntity)
-        .order_by_asc(pool_bracket::Column::BracketOrder)
-        .find_with_related(PoolMapEntity)
-        .order_by_asc(pool_map::Column::MapOrder)
-        .all(&state.db)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("failed to get brackets: {e}"),
-            )
-        })?
-        .into_iter()
-        // For the brackets, we only want the name and for the maps we only want the id
-        .map(|(bracket, maps)| ExtendedPoolBracket {
-            name: bracket.name,
-            maps: maps.into_iter().map(|m| m.map_id as usize).collect(),
-        })
-        .collect::<Vec<_>>();
+    async fn get(
+        &self,
+        request: Request<GetStageRequest>,
+    ) -> Result<Response<GetStageResponse>, Status> {
+        let stage_key = request
+            .get_ref()
+            .key
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing stage key"))?;
+        let tournament_key = stage_key
+            .tournament_key
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing tournament key in stage key"))?;
 
-    Ok((
-        StatusCode::OK,
-        Json(Some(ExtendedStageResult { stage, brackets })),
-    ))
-}
+        // Find the tournament and the associated stage
+        let res = model::tournament::Entity::find_by_id(tournament_key.id)
+            .find_also_related(model::stage::Entity)
+            .filter(model::stage::Column::StageOrder.eq(stage_key.stage_order))
+            .one(&self.0.db)
+            .await
+            .map_err(|e| Status::internal(format!("could not load tournament and stage: {e}")))?;
 
-/// Creates a new stage in a tournament
-#[utoipa::path(
-    post,
-    path = "/api/stage",
-    request_body = Stage,
-    responses(
-        (status = 201, description = "Stage Created"),
-        (status = 500, description = "Error communicating with the database", body = String),
-    )
-)]
-pub async fn create_stage(
-    State(ref state): State<AppState>,
-    Json(stage): Json<Stage>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    stage
-        .into_active_model()
-        .insert(&state.db)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("failed to create stage: {e}"),
-            )
-        })?;
+        let (_tournament, stage) = match res {
+            Some((tournament, Some(stage))) => (tournament, stage),
+            Some(_) => {
+                return Err(Status::not_found(format!(
+                    "stage {} in tournament with id {} does not exist",
+                    stage_key.stage_order, tournament_key.id
+                )))
+            }
+            None => {
+                return Err(Status::not_found(format!(
+                    "tournament with id {} does not exist",
+                    tournament_key.id
+                )))
+            }
+        };
 
-    Ok(StatusCode::CREATED)
+        // Find associated pool brackets
+        let brackets = stage
+            .find_related(model::pool_bracket::Entity)
+            .order_by_asc(model::pool_bracket::Column::BracketOrder)
+            .all(&self.0.db)
+            .await
+            .map_err(|e| Status::internal(format!("could not load pool brackets: {e}")))?;
+
+        let response = GetStageResponse {
+            stage: Some(proto::stages::Stage {
+                key: Some(stage_key.clone()),
+                name: stage.name.clone(),
+                best_of: stage.best_of as u32,
+            }),
+            pool_brackets: brackets
+                .into_iter()
+                .map(|bracket| PoolBracket {
+                    key: Some(proto::keys::PoolBracketKey {
+                        stage_key: Some(stage_key.clone()),
+                        bracket_order: bracket.bracket_order as u32,
+                    }),
+                    name: bracket.name.clone(),
+                })
+                .collect(),
+        };
+
+        Ok(Response::new(response))
+    }
+
+    async fn create(
+        &self,
+        request: Request<CreateStageRequest>,
+    ) -> Result<Response<CreateStageResponse>, Status> {
+        use sea_orm::ActiveValue as A;
+        let stage = request
+            .get_ref()
+            .stage
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing stage"))?;
+        let stage_key = stage
+            .key
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing stage key"))?;
+        let tournament_key = stage_key
+            .tournament_key
+            .as_ref()
+            .ok_or_else(|| Status::invalid_argument("missing tournament key in stage key"))?;
+
+        let stage = model::stage::ActiveModel {
+            tournament_id: A::Set(tournament_key.id),
+            name: A::Set(stage.name.clone()),
+            stage_order: A::Set(stage_key.stage_order as i16),
+            best_of: A::Set(stage.best_of as i16),
+        };
+
+        stage
+            .insert(&self.0.db)
+            .await
+            .map_err(|e| Status::internal(format!("failed to create stage: {e}")))?;
+
+        Ok(Response::new(CreateStageResponse {}))
+    }
+
+    async fn update(
+        &self,
+        _request: Request<UpdateStageRequest>,
+    ) -> Result<Response<UpdateStageResponse>, Status> {
+        Err(Status::unimplemented("Update unimplemented"))
+    }
+
+    async fn delete(
+        &self,
+        _request: Request<DeleteStageRequest>,
+    ) -> Result<Response<DeleteStageResponse>, Status> {
+        Err(Status::unimplemented("Delete unimplemented"))
+    }
 }

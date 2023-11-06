@@ -2,4 +2,9 @@ syntax = "proto3";
 
 package pool_brackets;
 
-message PoolBracket {}
+import "keys.proto";
+
+message PoolBracket {
+  keys.PoolBracketKey key = 1;
+  string name = 2;
+}
