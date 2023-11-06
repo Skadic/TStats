@@ -104,42 +104,9 @@ pub async fn run_server() -> miette::Result<()> {
     /*
     // build our application
     let app = Router::new()
-        .merge(SwaggerUi::new("/api/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .route("/", options(cors))
-        .route("/path", options(cors))
-        .route("/api", get(|| async { "Hello, World!" }))
-        .route("/api/test_data", post(routes::debug::fill_test_data))
-        .route(
-            "/api/tournament/all",
-            get(routes::tournament::get_all_tournaments),
-        )
-        .route(
-            "/api/tournament",
-            get(routes::tournament::get_tournament).post(routes::tournament::create_tournament),
-        )
-        .route("/api/stage/all", get(routes::stage::get_all_stages))
-        .route(
-            "/api/stage",
-            get(routes::stage::get_stage).post(routes::stage::create_stage),
-        )
         .route("/beatmap", get(routes::debug::get_beatmap))
         .route("/api/pool", get(routes::pool::get_pool))
         .route("/user", get(routes::debug::get_user))
-        .route("/dm8", post(routes::debug::add_dm8))
-        .with_state(state)
-        .layer(
-            CorsLayer::new()
-                .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-                .allow_origin(AllowOrigin::any())
-                .allow_headers(["content-type".parse().unwrap()]),
-        )
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
-                .on_response(trace::DefaultOnResponse::new().level(Level::INFO))
-                .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
-                .on_failure(trace::DefaultOnFailure::new().level(Level::INFO)),
-        );
 
 
     info!("Starting server");
@@ -187,8 +154,23 @@ pub async fn run_server() -> miette::Result<()> {
     info!("Serving at {addr}");
     info!("Allowing requests from {frontend_addr:?}");
 
-    let rpc_service = tonic::transport::Server::builder()
+    info!("Starting server");
+
+    tonic::transport::Server::builder()
         .accept_http1(true)
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(trace::DefaultOnResponse::new().level(Level::WARN))
+                .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
+                .on_failure(trace::DefaultOnFailure::new().level(Level::INFO)),
+        )
+        .layer(
+            CorsLayer::new()
+                .allow_methods([Method::POST, Method::OPTIONS])
+                .allow_origin([frontend_addr])
+                .allow_headers(AllowHeaders::any()),
+        )
         .add_service(tonic_web::enable(reflection_server))
         .add_service(tonic_web::enable(DebugServiceServer::new(
             DebugServiceImpl(state.get_local_instance()),
@@ -200,27 +182,7 @@ pub async fn run_server() -> miette::Result<()> {
             StageServiceImpl(state.get_local_instance()),
         )))
         .add_service(health_server)
-        .into_router()
-        .layer(
-            CorsLayer::new()
-                .allow_methods([Method::POST, Method::OPTIONS])
-                .allow_origin([frontend_addr])
-                .allow_headers(AllowHeaders::any()),
-        )
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
-                .on_response(trace::DefaultOnResponse::new().level(Level::WARN))
-                .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
-                .on_failure(trace::DefaultOnFailure::new().level(Level::INFO)),
-        )
-        .into_make_service();
-
-    info!("Starting server");
-
-    axum::Server::bind(&addr)
-        .serve(rpc_service)
-        .with_graceful_shutdown(shutdown_signal())
+        .serve(addr)
         .await
         .into_diagnostic()
 }
