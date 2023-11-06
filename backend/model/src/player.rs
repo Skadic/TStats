@@ -1,17 +1,13 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 /// A country which is allowed in a tournament
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel, ToSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel)]
 #[sea_orm(table_name = "team_mate")]
-#[schema(as = Teammate)]
 #[serde(rename_all = "camelCase")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    #[schema(example = 727)]
     team_id: i32,
-    #[schema(example = 124493)]
     user_id: i32,
 }
 

@@ -1,5 +1,3 @@
-
-
 use axum::extract::State;
 
 use axum::Json;
@@ -8,8 +6,7 @@ use futures::future::FutureExt;
 use rand::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue};
 use tonic::{Request, Response, Status};
-use tracing::{debug};
-
+use tracing::debug;
 
 use model::*;
 use proto::debug_data::debug_service_server::DebugService;
@@ -44,13 +41,6 @@ const MAP_IDS: [usize; 9] = [
 /// Fills the database with test data including a tournament, a few stages, maps for its pools.
 
 /// Requests a test beatmap from the osu api.
-#[utoipa::path(
-    get,
-    path = "/api/beatmap",
-    responses(
-        (status = 200, description = "Successfuly requested beatmap")
-    )
-)]
 pub async fn get_beatmap(State(mut state): State<AppState>) -> Json<SlimBeatmap> {
     Json(
         get_map(&mut state.redis, &state.osu, 2088253)

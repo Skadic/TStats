@@ -4,7 +4,6 @@ use axum::Json;
 use futures::future::join_all;
 use sea_orm::{EntityTrait, ModelTrait};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 use model::entities::{PoolBracketEntity, PoolMapEntity, StageEntity};
 use model::models::PoolBracket;
@@ -13,7 +12,7 @@ use crate::osu::map::{find_map_info, SlimBeatmap};
 use crate::routes::TournamentIdAndStageOrder;
 use crate::AppState;
 
-#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FullPoolBracket {
     #[serde(flatten)]
@@ -21,17 +20,6 @@ pub struct FullPoolBracket {
     pub maps: Vec<SlimBeatmap>,
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/pool",
-    params(TournamentIdAndStageOrder),
-    responses(
-        (status = 200, description = "Return the contents of the pool for the given stage in a tournament", body = [FullPoolBracket]),
-        (status = 404, description = "The tournament or stage does not exist", body = String),
-        (status = 500, description = "Error communicating with the database", body = String),
-    )
-)]
-#[axum_macros::debug_handler]
 pub async fn get_pool(
     State(state): State<AppState>,
     Query(TournamentIdAndStageOrder {

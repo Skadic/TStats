@@ -1,7 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::Arc;
-use std::{fs::File, io::Write, time::Duration};
+use std::time::Duration;
 
 use axum::http::HeaderValue;
 use axum::http::Method;
@@ -20,7 +20,6 @@ use tower_http::{
     trace::{self, TraceLayer},
 };
 use tracing::{info, warn, Level};
-use utoipa::OpenApi;
 
 use model::{
     create_table, drop_table,
@@ -65,32 +64,7 @@ pub struct LocalAppState {
     redis: RwLock<redis::aio::MultiplexedConnection>,
 }
 
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        routes::pool::get_pool,
-    ),
-    components(
-        schemas(
-            model::tournament::Model,
-            model::tournament::RankRestriction,
-            model::tournament::TournamentFormat,
-            model::tournament::RankRange,
-            model::stage::Model,
-            model::pool_bracket::Model,
-            model::pool_map::Model,
-            model::country_restriction::Model,
-        )
-    ),
-    tags(
-        (name = "tstats", description = "Backend API for managing tournaments and the associated data")
-    )
-)]
-struct ApiDoc;
-
 pub async fn run_server() -> miette::Result<()> {
-    write_apidoc()?;
-
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
@@ -202,23 +176,6 @@ where
             Ok(default_fn())
         }
     }
-}
-
-fn write_apidoc() -> miette::Result<()> {
-    let api_yaml = ApiDoc::openapi()
-        .to_yaml()
-        .into_diagnostic()
-        .wrap_err("error serializing api docs to yaml")?;
-    let mut api_doc_file = File::create("apidoc.yaml")
-        .into_diagnostic()
-        .wrap_err("could not open apidoc.yaml file")?;
-    api_doc_file
-        .write_all(api_yaml.as_bytes())
-        .into_diagnostic()
-        .wrap_err("could not write to the apidoc.yaml")?;
-    info!("API documentation written to apidoc.yaml");
-
-    Ok(())
 }
 
 async fn setup_database() -> miette::Result<DatabaseConnection> {

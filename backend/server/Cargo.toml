@@ -9,32 +9,42 @@ edition = "2021"
 
 model = { path = "../model" }
 proto = { path = "../proto" }
-axum = { version = "0.6", features = ["http2"] }
-axum-macros = "0.3"
 
+# REST framework (soon-to-be deleted)
+axum = { version = "0.6" }
 # Read .env files
 dotenvy = "0.15"
+# Utilities for working with futures
 futures = "0.3.28"
-hyper = { version = "0.14", features = ["http1", "http2", "server"] }
+# Convenient error handling
 miette = { version = "5.10.0", features = ["fancy"] }
+# Protobuf
 prost = { version = "0.12" }
+# Random
 rand = "0.8"
+# Redis client
 redis = { version = "0.23.3", features = ["tokio-comp", "serde_json", "json"] }
+# Osu API connector
 rosu-v2 = { version = "0.8", features = ["serialize"] }
+# SQL ORM
 sea-orm = { version = "0.12.4", features = ["runtime-tokio-rustls"] }
+# Serialization/Deserialization
 serde = "1.0"
 serde_json = "1.0"
+# Creating error types conveniently
 thiserror = "1.0"
+# Async runtime
 tokio = { version = "1.33", features = ["rt-multi-thread", "macros", "signal"] }
+# gRPC server
 tonic = { version = "0.10", features = ["transport"] }
-tonic-web = "0.10"
+tonic-health = "0.10.2"
 tonic-reflection = "0.10"
+tonic-web = "0.10"
+# HTTP-middleware
+tower = "0.4.13"
 tower-http = { version = "0.4", features = ["cors", "trace"] }
+# Instrumentation and logging
 tracing = "0.1"
 tracing-log = { version = "0.2" }
+# URL-related utilities
 url = "2.4.1"
-utoipa = { version = "3.4.3", features = ["axum_extras", "yaml"] }
-utoipa-swagger-ui = { version = "3.1.4", features = ["axum"] }
-log = "0.4.20"
-tonic-health = "0.10.2"
-tower = "0.4.13"
