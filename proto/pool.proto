@@ -5,14 +5,20 @@ package pool;
 import "keys.proto";
 import "osu.proto";
 
+// A mappool consisting of multiple pool brackets
 message Pool { repeated PoolBracket brackets = 1; }
 
+// Represents a mod bracket inside a mappool, e.g. the NoMod pool.
 message PoolBracket {
+  // The order of the pool bracket inside the mappool
   uint32 bracket_order = 1;
+  // The bracket's name, for example "NM" or "HD"
   string name = 2;
+  // The maps contained in this bracket
   PoolBracketMaps maps = 3;
 }
 
+// The maps in a pool bracket
 message PoolBracketMaps { repeated osu.Beatmap maps = 1; }
 
 // Provides access to a stage's pool and its mod brackets
@@ -38,21 +44,18 @@ service PoolService {
 }
 
 message GetPoolRequest { keys.StageKey stage_key = 1; }
-
 message GetPoolResponse { Pool pool = 1; }
 
 message DeletePoolRequest { keys.StageKey stage_key = 1; }
 message DeletePoolResponse {}
 
 message GetPoolBracketRequest { keys.PoolBracketKey key = 1; }
-
 message GetPoolBracketResponse { PoolBracket bracket = 1; }
 
 message CreatePoolBracketRequest {
   keys.StageKey stage_key = 1;
   string name = 2;
 }
-
 message CreatePoolBracketResponse { keys.PoolBracketKey key = 1; }
 
 // A request to update a pool bracket. Values are only update if they are set.
@@ -62,11 +65,11 @@ message UpdatePoolBracketRequest {
   // The key of the pool bracket to modify
   keys.PoolBracketKey key = 1;
   optional string name = 2;
+  // The bracket's order in the pool
   optional uint32 bracket_order = 3;
   // The new maps that should replace the maps in the pool
   optional MapIds maps = 4;
 }
-
 message UpdatePoolBracketResponse { PoolBracket bracket = 1; }
 
 message DeletePoolBracketRequest { keys.PoolBracketKey key = 1; }

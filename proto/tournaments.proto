@@ -5,11 +5,14 @@ package tournaments;
 import "keys.proto";
 import "stages.proto";
 
-
+// Represents a tournament
 message Tournament {
   keys.TournamentKey key = 1;
+  // The full name of the tournament, e.g. "Osu World Cup 2023"
   string name = 2;
+  // The short name of the tournament, e.g. "OWC23"
   string shorthand = 3;
+  // The tournament format
   uint32 format = 4;
   bool bws = 5;
 }

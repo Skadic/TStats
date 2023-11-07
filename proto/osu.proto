@@ -5,15 +5,23 @@ package osu;
 import "keys.proto";
 
 message Beatmap {
+  // The song's artist's name
   string artist_name = 1;
+  // The song's name
   string name = 2;
+  // The beatmap's difficulty name
   string difficulty_name = 3;
+  // The id of the mapset
   uint32 mapset_id = 4;
+  // The id of the beatmap
   uint64 map_id = 5;
+  // The creator of the beatmap
   User creator = 6;
+  // The difficulty values of this beatmap
   Difficulty difficulty = 7;
 }
 
+// Represents the difficulty values for a beatmap
 message Difficulty {
   float stars = 1;
   uint32 length = 2;
@@ -24,10 +32,14 @@ message Difficulty {
   float hp = 7;
 }
 
+// An osu user
 message User {
+  // The osu user id
   uint32 user_id = 1;
+  // The username with a maximum length of 15 characters
   string username = 2;
   // 2-Character country code
   string country = 3;
+  // The file name of the user's profile banner
   string cover_url = 4;
 }

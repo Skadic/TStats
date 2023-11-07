@@ -6,16 +6,29 @@ import "keys.proto";
 import "pool.proto";
 
 message Stage {
+  // A short form of the stage's name, e.g. "QF", "SF", etc
   string name = 1;
+  // The best-of of matches in this stage. This must be an odd number, or zero.
+  // This being zero means that there is no concept of a best-of for this stage.
+  // This is used for qualifiers for example, which have no matches at all.
   uint32 best_of = 2;
+  // The order of this stage in the tournament
   uint32 stage_order = 3;
 }
 
+// Provides access to a stages in a tournament
 service StageService {
+  // Gets all stages in a tournament
   rpc GetAll(GetAllStagesRequest) returns (stream GetAllStagesResponse);
+  // Gets a single stage in a tournament along with its pool
   rpc Get(GetStageRequest) returns (GetStageResponse);
+  // Creates a new stage in a tournament.
+  // Upon creation, the stage will be the last stage in the tournament.
+  // Returns the stage order after creation.
   rpc Create(CreateStageRequest) returns (CreateStageResponse);
+  // Updates a pre-existing stage in a tournament.
   rpc Update(UpdateStageRequest) returns (UpdateStageResponse);
+  // Deletes a stage from a tournament
   rpc Delete(DeleteStageRequest) returns (DeleteStageResponse);
 }
 
@@ -35,24 +48,36 @@ message GetStageRequest {
 message GetStageResponse {
   keys.StageKey key = 1;
   Stage stage = 2;
+  // This stage's pool
   pool.Pool pool = 3;
 }
 
 message CreateStageRequest {
-  keys.StageKey key = 1;
-  Stage stage = 2;
+  keys.TournamentKey tournament_key = 1;
+  string name = 2;
+  uint32 best_of = 3;
 }
 
-message CreateStageResponse {}
+message CreateStageResponse {
+  // The resulting stage order of the created stage
+  uint32 stage_order = 1;
+}
 
 message UpdateStageRequest {
+  // The key, determining which stage to update
   keys.StageKey key = 1;
+  // The new name of the stage
   optional string name = 2;
+  // The stage's new best-of
   optional int32 best_of = 3;
+  // The new stage order of this stage. This reorders the stage in the tournament.
   optional int32 stage_order = 4;
 }
 
-message UpdateStageResponse {}
+message UpdateStageResponse {
+  // The updated stage
+  Stage stage = 1;
+}
 
 message DeleteStageRequest {
   keys.StageKey key = 1;

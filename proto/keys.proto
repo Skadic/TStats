@@ -2,16 +2,26 @@ syntax = "proto3";
 
 package keys;
 
+// A key to a tournament which is addressed by an integer id 
 message TournamentKey {
+  // The tournament's id
   int32 id = 1;
 }
 
+// A key to a stage which is addressed by a key to a tournament and the stage's order inside the tournament.
+// The first stage would have stage order 0, the second one has 1, etc. 
 message StageKey {
+  // The key to a tournament
   TournamentKey tournament_key = 1;
+  // The stage's order in the tournament
   uint32 stage_order = 2;
 }
 
+// A key to a pool mod bracket key to a stage and the bracket's order inside the tournament.
+// The first bracket would have bracket order 0, the second one has 1, etc. 
 message PoolBracketKey {
+  // The key to a stage
   StageKey stage_key = 1;
+  // The bracket's order in the tournament
   uint32 bracket_order = 2;
 }

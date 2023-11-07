@@ -1,13 +1,15 @@
 use super::tournament::find_stage;
 use crate::{osu::map::get_map, LocalAppState};
-use futures::{stream::FuturesOrdered, TryStreamExt};
+use futures::{stream::FuturesOrdered, TryFutureExt, TryStreamExt};
+use model::stage;
 use proto::stages::{
     stage_service_server::StageService, CreateStageRequest, CreateStageResponse,
     DeleteStageRequest, DeleteStageResponse, GetAllStagesRequest, GetAllStagesResponse,
     GetStageRequest, GetStageResponse, UpdateStageRequest, UpdateStageResponse,
 };
 use sea_orm::{
-    ActiveModelTrait, EntityTrait, IntoActiveModel, LoaderTrait, ModelTrait, QueryOrder,
+    sea_query::Expr, ActiveModelTrait, ColumnTrait, EntityTrait, FromQueryResult, IntoActiveModel,
+    LoaderTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect,
 };
 use tonic::{Request, Response, Status};
 
@@ -143,24 +145,38 @@ impl StageService for StageServiceImpl {
     ) -> Result<Response<CreateStageResponse>, Status> {
         use sea_orm::ActiveValue as A;
         let request = request.into_inner();
-        let stage = request
-            .stage
-            .as_ref()
-            .ok_or_else(|| Status::invalid_argument("missing stage"))?;
-        let stage_key = request
-            .key
-            .as_ref()
-            .ok_or_else(|| Status::invalid_argument("missing stage key"))?;
-        let tournament_key = stage_key
+        let tournament_key = request
             .tournament_key
             .as_ref()
-            .ok_or_else(|| Status::invalid_argument("missing tournament key in stage key"))?;
+            .ok_or_else(|| Status::invalid_argument("missing tournament key"))?;
+
+        #[allow(unused)]
+        #[derive(FromQueryResult, Debug)]
+        struct MaxStage {
+            tournament_id: i32,
+            stage_order: i16,
+        }
+
+        // Find the max bracket_order for this pool so far
+        let max_bracket = stage::Entity::find()
+            .select_only()
+            .column(stage::Column::TournamentId)
+            .column_as(Expr::col(stage::Column::StageOrder).max(), "bracket_order")
+            .filter(stage::Column::TournamentId.eq(tournament_key.id))
+            .group_by(stage::Column::TournamentId)
+            .into_model::<MaxStage>()
+            .one(&self.0.db)
+            .map_err(|e| Status::internal(format!("error fetching stage info: {e}")))
+            .await?;
+        let new_stage_order = max_bracket
+            .map(|max| max.stage_order + 1)
+            .unwrap_or_default();
 
         let stage = model::stage::ActiveModel {
             tournament_id: A::Set(tournament_key.id),
-            name: A::Set(stage.name.clone()),
-            stage_order: A::Set(stage_key.stage_order as i16),
-            best_of: A::Set(stage.best_of as i16),
+            name: A::Set(request.name),
+            stage_order: A::Set(new_stage_order),
+            best_of: A::Set(request.best_of as i16),
         };
 
         stage
@@ -168,7 +184,9 @@ impl StageService for StageServiceImpl {
             .await
             .map_err(|e| Status::internal(format!("failed to create stage: {e}")))?;
 
-        Ok(Response::new(CreateStageResponse {}))
+        Ok(Response::new(CreateStageResponse {
+            stage_order: new_stage_order as u32,
+        }))
     }
 
     async fn update(
@@ -194,12 +212,18 @@ impl StageService for StageServiceImpl {
         }
 
         // Update in database
-        stage
+        let stage = stage
             .update(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("could not update stage: {e}")))?;
 
-        Ok(Response::new(UpdateStageResponse {}))
+        Ok(Response::new(UpdateStageResponse {
+            stage: Some(proto::stages::Stage {
+                name: stage.name,
+                best_of: stage.best_of as u32,
+                stage_order: stage.stage_order as u32,
+            }),
+        }))
     }
 
     async fn delete(

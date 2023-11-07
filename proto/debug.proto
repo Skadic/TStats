@@ -4,7 +4,10 @@ import "google/protobuf/empty.proto";
 
 package debug;
 
+// A service merely used for filling the database with test data
 service DebugService {
+  // Adds a randomly generated sample tournament to the database along with stages and some pool brackets.
   rpc FillData(google.protobuf.Empty) returns (google.protobuf.Empty);
+  // Adds the the German championship 8 to the database (at least a part of it)
   rpc DM8(google.protobuf.Empty) returns (google.protobuf.Empty);
 }
