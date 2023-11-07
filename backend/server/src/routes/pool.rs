@@ -1,14 +1,13 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use futures::future::join_all;
 use sea_orm::{EntityTrait, ModelTrait};
 use serde::{Deserialize, Serialize};
 
 use model::entities::{PoolBracketEntity, PoolMapEntity, StageEntity};
 use model::models::PoolBracket;
 
-use crate::osu::map::{find_map_info, SlimBeatmap};
+use crate::osu::map:: SlimBeatmap;
 use crate::routes::TournamentIdAndStageOrder;
 use crate::AppState;
 
@@ -45,7 +44,7 @@ pub async fn get_pool(
             )
         })?;
 
-    let pool = stage
+    let _pool = stage
         .find_related(PoolBracketEntity)
         .find_with_related(PoolMapEntity)
         .all(db)
@@ -57,10 +56,10 @@ pub async fn get_pool(
             )
         })?;
 
-    let mut full_pool = Vec::with_capacity(pool.len());
-    for (bracket, maps) in pool {
-        full_pool.push(find_map_info(&state, bracket, maps));
-    }
+    //let  full_pool = Vec::with_capacity(pool.len());
+    //for (bracket, maps) in pool {
+        //full_pool.push(find_map_info(&state, bracket, maps));
+    //}
 
-    Ok(Json(join_all(full_pool).await))
+    Ok(Json(vec![]))
 }

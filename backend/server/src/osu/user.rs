@@ -11,10 +11,10 @@ use crate::cache::{get_cached_or, Cacheable};
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OsuUser {
-    user_id: u32,
-    username: Username,
-    country: CountryCode,
-    cover_url: String,
+    pub user_id: u32,
+    pub username: Username,
+    pub country: CountryCode,
+    pub cover_url: String,
 }
 
 impl From<User> for OsuUser {

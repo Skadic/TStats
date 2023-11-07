@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package pool;
+
+import "keys.proto";
+import "osu.proto";
+
+message Pool { repeated PoolBracket brackets = 1; }
+
+message PoolBracket {
+  uint32 bracket_order = 1;
+  string name = 2;
+  PoolBracketMaps maps = 3;
+}
+
+message PoolBracketMaps { repeated osu.Beatmap maps = 1; }
+
+service PoolService {
+  // Get the entire pool for a stage
+  rpc Get(GetPoolRequest) returns (GetPoolResponse);
+  // Delete the entire pool for a stage
+  rpc Delete(DeletePoolRequest) returns (DeletePoolResponse);
+
+  rpc CreateBracket(CreatePoolBracketRequest)
+      returns (CreatePoolBracketResponse);
+  rpc UpdateBracket(UpdatePoolBracketRequest)
+      returns (UpdatePoolBracketResponse);
+  rpc DeleteBracket(DeletePoolBracketRequest) returns (DeletePoolBracketResponse);
+}
+
+message GetPoolRequest { keys.StageKey stage_key = 1; }
+
+message GetPoolResponse { Pool pool = 1; }
+
+message DeletePoolRequest { keys.StageKey stage_key = 1; }
+message DeletePoolResponse {}
+
+message CreatePoolBracketRequest {
+  keys.StageKey stage_key = 1;
+  string name = 2;
+}
+
+message CreatePoolBracketResponse { keys.PoolBracketKey key = 1; }
+
+message UpdatePoolBracketRequest {
+  keys.PoolBracketKey key = 1;
+  optional string name = 2;
+  optional string bracket_order = 3;
+  optional PoolBracketMaps maps = 4;
+}
+
+message UpdatePoolBracketResponse { PoolBracket bracket = 1; }
+
+
+message DeletePoolBracketRequest { keys.PoolBracketKey key = 1; }
+message DeletePoolBracketResponse {}

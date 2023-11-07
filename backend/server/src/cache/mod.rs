@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::sync::Arc;
 use std::{convert::Infallible, future::Future};
 
 use redis::{AsyncCommands, FromRedisValue};
@@ -36,7 +37,7 @@ pub enum CacheError {
     #[error("error interacting with redis")]
     Redis(#[from] redis::RedisError),
     #[error("error in request")]
-    Request(Box<dyn std::error::Error>),
+    Request(Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Stores a value in redis.
@@ -170,7 +171,7 @@ pub async fn get_cached_or<V, E, Fut>(
 ) -> Result<V, CacheError>
 where
     V: Cacheable,
-    E: 'static + std::error::Error,
+    E: 'static + std::error::Error + Send + Sync,
     Fut: Future<Output = Result<V, E>>,
 {
     // Try to find the value in the cache

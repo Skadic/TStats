@@ -12,9 +12,14 @@ pub mod stages {
     tonic::include_proto!("stages");
 }
 
-pub mod pool_brackets {
-    tonic::include_proto!("pool_brackets");
+pub mod osu {
+    tonic::include_proto!("osu");
 }
+
+pub mod pool {
+    tonic::include_proto!("pool");
+}
+
 pub mod debug_data {
     tonic::include_proto!("debug");
 }

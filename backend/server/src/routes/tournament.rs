@@ -8,14 +8,11 @@ use model::{
     entities::{CountryRestrictionEntity, StageEntity, TournamentEntity},
     *,
 };
-use proto::{
-    keys::StageKey,
-    tournaments::{
-        Country, CountryList, CreateTournamentRequest, CreateTournamentResponse,
-        DeleteTournamentRequest, DeleteTournamentResponse, GetAllTournamentsRequest,
-        GetAllTournamentsResponse, GetTournamentRequest, RangeList, UpdateTournamentRequest,
-        UpdateTournamentResponse,
-    },
+use proto::tournaments::{
+    Country, CountryList, CreateTournamentRequest, CreateTournamentResponse,
+    DeleteTournamentRequest, DeleteTournamentResponse, GetAllTournamentsRequest,
+    GetAllTournamentsResponse, GetTournamentRequest, RangeList, UpdateTournamentRequest,
+    UpdateTournamentResponse,
 };
 use proto::{
     keys::TournamentKey,
@@ -146,14 +143,9 @@ impl TournamentService for TournamentServiceImpl {
             .map_err(|e| Status::internal(format!("failed to get stages: {e}")))?
             .into_iter()
             .map(|stage| proto::stages::Stage {
-                key: Some(StageKey {
-                    tournament_key: Some(TournamentKey {
-                        id: stage.tournament_id,
-                    }),
-                    stage_order: stage.stage_order as u32,
-                }),
                 name: stage.name,
                 best_of: stage.best_of as u32,
+                stage_order: stage.stage_order as u32,
             })
             .collect::<Vec<_>>();
 

@@ -11,6 +11,8 @@ fn main() -> std::io::Result<()> {
                 "../../proto/tournaments.proto",
                 "../../proto/stages.proto",
                 "../../proto/debug.proto",
+                "../../proto/osu.proto",
+                "../../proto/pool.proto",
             ],
             &["../../proto/"],
         )?;

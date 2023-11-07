@@ -10,7 +10,7 @@ use model::models::{PoolBracket, PoolMap};
 use crate::{
     cache::{get_cached_or, CacheError, CacheResult, Cacheable},
     routes::pool::FullPoolBracket,
-    AppState,
+    LocalAppState,
 };
 
 use super::user::OsuUser;
@@ -18,25 +18,25 @@ use super::user::OsuUser;
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SlimBeatmap {
-    artist_name: String,
-    name: String,
-    diff_name: String,
-    set_id: u32,
-    map_id: u32,
-    creator: OsuUser,
-    difficulty: Difficulty,
+    pub artist_name: String,
+    pub name: String,
+    pub diff_name: String,
+    pub set_id: u32,
+    pub map_id: u32,
+    pub creator: OsuUser,
+    pub difficulty: Difficulty,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Difficulty {
-    stars: f32,
-    length: u32,
-    bpm: f32,
-    cs: f32,
-    ar: f32,
-    od: f32,
-    hp: f32,
+    pub stars: f32,
+    pub length: u32,
+    pub bpm: f32,
+    pub cs: f32,
+    pub ar: f32,
+    pub od: f32,
+    pub hp: f32,
 }
 
 impl Cacheable for SlimBeatmap {
@@ -74,7 +74,7 @@ impl SlimBeatmap {
 }
 
 pub async fn get_map(
-    mut redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
+    mut redis: redis::aio::MultiplexedConnection,
     osu: &Osu,
     map_id: u32,
 ) -> CacheResult<SlimBeatmap> {
@@ -89,7 +89,7 @@ pub async fn get_map(
             let mapset = osu
                 .beatmapset_from_map_id(map_id)
                 .await
-                .map_err(|e| -> Box<dyn Error> { Box::new(e) })
+                .map_err(|e| -> Box<dyn Error + Send + Sync> { Box::new(e) })
                 .map_err(CacheError::Request)?;
             let maps = mapset.maps.as_ref().unwrap();
             // beatmapset_from_map_id guarantees that maps has entries and we also know that the map with the given id exists
@@ -113,17 +113,18 @@ pub async fn get_map(
 }
 
 pub async fn find_map_info(
-    state: &AppState,
+    state: &LocalAppState,
     bracket: PoolBracket,
     maps: Vec<PoolMap>,
 ) -> FullPoolBracket {
     let mut full_maps = Vec::new();
+    let conn = state.redis.read().await;
 
     for map in maps {
         let map_id = map.map_id as u32;
         // Box here is unfortunate, but we need something that owns the redis connection
         // *and* is impl AsMut<redis::aio::MultiplexedConnection>
-        full_maps.push(get_map(state.redis.clone(), &state.osu, map_id).map(Result::unwrap));
+        full_maps.push(get_map(conn.clone(), &state.osu, map_id).map(Result::unwrap));
     }
 
     FullPoolBracket {
