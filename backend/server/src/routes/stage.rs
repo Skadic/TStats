@@ -1,19 +1,20 @@
-use futures::{stream::FuturesOrdered, StreamExt};
+use futures::{stream::FuturesOrdered, TryStreamExt};
 use proto::stages::{
     stage_service_server::StageService, CreateStageRequest, CreateStageResponse,
     DeleteStageRequest, DeleteStageResponse, GetAllStagesRequest, GetAllStagesResponse,
     GetStageRequest, GetStageResponse, UpdateStageRequest, UpdateStageResponse,
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, LoaderTrait, ModelTrait,
-    QueryFilter, QueryOrder,
+    ActiveModelTrait, EntityTrait, IntoActiveModel, LoaderTrait, ModelTrait, QueryOrder,
 };
 use tonic::{Request, Response, Status};
 
 use crate::{
-    osu::map::{get_map, Difficulty, SlimBeatmap},
+    osu::map::get_map,
     LocalAppState,
 };
+
+use super::tournament::find_stage;
 
 pub struct StageServiceImpl(pub LocalAppState);
 
@@ -74,39 +75,14 @@ impl StageService for StageServiceImpl {
         &self,
         request: Request<GetStageRequest>,
     ) -> Result<Response<GetStageResponse>, Status> {
+        let db = &self.0.db;
         let stage_key = request
             .get_ref()
             .key
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing stage key"))?;
-        let tournament_key = stage_key
-            .tournament_key
-            .as_ref()
-            .ok_or_else(|| Status::invalid_argument("missing tournament key in stage key"))?;
-
         // Find the tournament and the associated stage
-        let res = model::tournament::Entity::find_by_id(tournament_key.id)
-            .find_also_related(model::stage::Entity)
-            .filter(model::stage::Column::StageOrder.eq(stage_key.stage_order))
-            .one(&self.0.db)
-            .await
-            .map_err(|e| Status::internal(format!("could not load tournament and stage: {e}")))?;
-
-        let (_tournament, stage) = match res {
-            Some((tournament, Some(stage))) => (tournament, stage),
-            Some(_) => {
-                return Err(Status::not_found(format!(
-                    "stage {} in tournament with id {} does not exist",
-                    stage_key.stage_order, tournament_key.id
-                )))
-            }
-            None => {
-                return Err(Status::not_found(format!(
-                    "tournament with id {} does not exist",
-                    tournament_key.id
-                )))
-            }
-        };
+        let (_tournament, stage) = find_stage(stage_key, db).await?;
 
         // Find associated pool brackets
         let brackets = stage
@@ -135,60 +111,12 @@ impl StageService for StageServiceImpl {
                 .into_iter()
                 .map(|map| get_map(redis.clone(), self.0.osu.as_ref(), map.map_id as u32))
                 .collect::<FuturesOrdered<_>>()
-                .collect::<Vec<_>>()
-                .await;
+                .map_ok(proto::osu::Beatmap::from)
+                .map_err(|e| Status::internal(format!("error fetching map data: {e}")))
+                .try_collect::<Vec<_>>()
+                .await?;
             // Create a new vec to hold the fetched maps
             fetched_maps.push(Vec::with_capacity(n));
-            // Check for each map whether there was an error and transform them to the on-the-wire format
-            let fetched = fetched_maps.last_mut().unwrap();
-            for map in results {
-                let map =
-                    map.map_err(|e| Status::internal(format!("error fetching map data: {e}")))?;
-
-                let SlimBeatmap {
-                    artist_name,
-                    name,
-                    diff_name,
-                    set_id,
-                    map_id,
-                    creator,
-                    difficulty,
-                } = map;
-
-                let Difficulty {
-                    stars,
-                    length,
-                    bpm,
-                    cs,
-                    ar,
-                    od,
-                    hp,
-                } = difficulty;
-
-                let pool_map = proto::osu::Beatmap {
-                    artist_name,
-                    name,
-                    difficulty_name: diff_name,
-                    mapset_id: set_id,
-                    map_id: map_id as u64,
-                    creator: Some(proto::osu::User {
-                        user_id: creator.user_id,
-                        username: creator.username.into_string(),
-                        country: creator.country.into_string(),
-                        cover_url: creator.cover_url,
-                    }),
-                    difficulty: Some(proto::osu::Difficulty {
-                        stars,
-                        length,
-                        bpm,
-                        cs,
-                        ar,
-                        od,
-                        hp,
-                    }),
-                };
-                fetched.push(pool_map);
-            }
         }
 
         // Compose the response
@@ -197,7 +125,7 @@ impl StageService for StageServiceImpl {
             stage: Some(proto::stages::Stage {
                 name: stage.name.clone(),
                 best_of: stage.best_of as u32,
-                stage_order: stage_key.stage_order as u32,
+                stage_order: stage_key.stage_order,
             }),
             pool: Some(proto::pool::Pool {
                 brackets: brackets
@@ -220,13 +148,12 @@ impl StageService for StageServiceImpl {
         request: Request<CreateStageRequest>,
     ) -> Result<Response<CreateStageResponse>, Status> {
         use sea_orm::ActiveValue as A;
+        let request = request.into_inner();
         let stage = request
-            .get_ref()
             .stage
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing stage"))?;
         let stage_key = request
-            .get_ref()
             .key
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing stage key"))?;
@@ -255,45 +182,18 @@ impl StageService for StageServiceImpl {
         request: Request<UpdateStageRequest>,
     ) -> Result<Response<UpdateStageResponse>, Status> {
         use sea_orm::ActiveValue as A;
-        let req = request.get_ref();
+        let db = &self.0.db;
+        let req = request.into_inner();
         let stage_key = req
             .key
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing stage key"))?;
-        let tournament_key = stage_key
-            .tournament_key
-            .as_ref()
-            .ok_or_else(|| Status::invalid_argument("missing tournament key in stage key"))?;
-
-        // Find the tournament and the associated stage
-        let res = model::tournament::Entity::find_by_id(tournament_key.id)
-            .find_also_related(model::stage::Entity)
-            .filter(model::stage::Column::StageOrder.eq(stage_key.stage_order))
-            .one(&self.0.db)
-            .await
-            .map_err(|e| Status::internal(format!("could not load tournament and stage: {e}")))?;
-
-        // Check if tournament/stage exists
-        let (_tournament, stage) = match res {
-            Some((tournament, Some(stage))) => (tournament, stage),
-            Some(_) => {
-                return Err(Status::not_found(format!(
-                    "stage {} in tournament with id {} does not exist",
-                    stage_key.stage_order, tournament_key.id
-                )))
-            }
-            None => {
-                return Err(Status::not_found(format!(
-                    "tournament with id {} does not exist",
-                    tournament_key.id
-                )))
-            }
-        };
+        let (_tournament, stage) = find_stage(stage_key, db).await?;
 
         // Update values
         let mut stage = stage.into_active_model();
-        if let Some(ref name) = req.name {
-            stage.name = A::Set(name.clone());
+        if let Some(name) = req.name {
+            stage.name = A::Set(name);
         }
         if let Some(best_of) = req.best_of {
             stage.best_of = A::Set(best_of as i16);

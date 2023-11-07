@@ -15,17 +15,26 @@ message PoolBracket {
 
 message PoolBracketMaps { repeated osu.Beatmap maps = 1; }
 
+// Provides access to a stage's pool and its mod brackets
 service PoolService {
   // Get the entire pool for a stage
   rpc Get(GetPoolRequest) returns (GetPoolResponse);
   // Delete the entire pool for a stage
   rpc Delete(DeletePoolRequest) returns (DeletePoolResponse);
 
+  // Gets a single pool bracket from a pool
+  rpc GetBracket(GetPoolBracketRequest) returns (GetPoolBracketResponse);
+  // Creates a pool bracket inside of a pre-existing stage.
+  // The bracket order will be 0 if there was no other bracket before.
+  // Otherwise it will be one higher than the highest existing bracket order.
   rpc CreateBracket(CreatePoolBracketRequest)
       returns (CreatePoolBracketResponse);
+  // Updates a pre-existing pool bracket inside of a stage
   rpc UpdateBracket(UpdatePoolBracketRequest)
       returns (UpdatePoolBracketResponse);
-  rpc DeleteBracket(DeletePoolBracketRequest) returns (DeletePoolBracketResponse);
+  // Deletes a single pool bracket from a stage's pool
+  rpc DeleteBracket(DeletePoolBracketRequest)
+      returns (DeletePoolBracketResponse);
 }
 
 message GetPoolRequest { keys.StageKey stage_key = 1; }
@@ -35,6 +44,10 @@ message GetPoolResponse { Pool pool = 1; }
 message DeletePoolRequest { keys.StageKey stage_key = 1; }
 message DeletePoolResponse {}
 
+message GetPoolBracketRequest { keys.PoolBracketKey key = 1; }
+
+message GetPoolBracketResponse { PoolBracket bracket = 1; }
+
 message CreatePoolBracketRequest {
   keys.StageKey stage_key = 1;
   string name = 2;
@@ -42,15 +55,19 @@ message CreatePoolBracketRequest {
 
 message CreatePoolBracketResponse { keys.PoolBracketKey key = 1; }
 
+// A request to update a pool bracket. Values are only update if they are set.
 message UpdatePoolBracketRequest {
+  // A list of osu beatmap ids used to update the pool's maps
+  message MapIds { repeated uint32 maps = 1; }
+  // The key of the pool bracket to modify
   keys.PoolBracketKey key = 1;
   optional string name = 2;
-  optional string bracket_order = 3;
-  optional PoolBracketMaps maps = 4;
+  optional uint32 bracket_order = 3;
+  // The new maps that should replace the maps in the pool
+  optional MapIds maps = 4;
 }
 
 message UpdatePoolBracketResponse { PoolBracket bracket = 1; }
-
 
 message DeletePoolBracketRequest { keys.PoolBracketKey key = 1; }
 message DeletePoolBracketResponse {}

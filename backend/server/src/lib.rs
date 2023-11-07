@@ -163,9 +163,9 @@ pub async fn run_server() -> miette::Result<()> {
         .add_service(tonic_web::enable(StageServiceServer::new(
             StageServiceImpl(state.get_local_instance()),
         )))
-        .add_service(tonic_web::enable(PoolServiceServer::new(
-            PoolServiceImpl(state.get_local_instance()),
-        )))
+        .add_service(tonic_web::enable(PoolServiceServer::new(PoolServiceImpl(
+            state.get_local_instance(),
+        ))))
         .add_service(health_server)
         .serve(addr)
         .await

@@ -42,11 +42,7 @@ const MAP_IDS: [usize; 9] = [
 
 /// Requests a test beatmap from the osu api.
 pub async fn get_beatmap(State(mut state): State<AppState>) -> Json<SlimBeatmap> {
-    Json(
-        get_map(state.redis, &state.osu, 2088253)
-            .await
-            .unwrap(),
-    )
+    Json(get_map(state.redis, &state.osu, 2088253).await.unwrap())
 }
 
 pub async fn get_user(State(mut state): State<AppState>) -> Json<OsuUser> {

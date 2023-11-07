@@ -1,7 +1,8 @@
 use futures::TryFutureExt;
 use itertools::izip;
 use sea_orm::{
-    query::*, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, IntoActiveModel, ModelTrait,
+    query::*, ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait,
+    IntoActiveModel, ModelTrait,
 };
 use tonic::{Request, Response, Status};
 
@@ -9,11 +10,14 @@ use model::{
     entities::{CountryRestrictionEntity, StageEntity, TournamentEntity},
     *,
 };
-use proto::tournaments::{
-    Country, CountryList, CreateTournamentRequest, CreateTournamentResponse,
-    DeleteTournamentRequest, DeleteTournamentResponse, GetAllTournamentsRequest,
-    GetAllTournamentsResponse, GetTournamentRequest, RangeList, UpdateTournamentRequest,
-    UpdateTournamentResponse,
+use proto::{
+    keys::StageKey,
+    tournaments::{
+        Country, CountryList, CreateTournamentRequest, CreateTournamentResponse,
+        DeleteTournamentRequest, DeleteTournamentResponse, GetAllTournamentsRequest,
+        GetAllTournamentsResponse, GetTournamentRequest, RangeList, UpdateTournamentRequest,
+        UpdateTournamentResponse,
+    },
 };
 use proto::{
     keys::TournamentKey,
@@ -23,6 +27,42 @@ use proto::{
 };
 
 use crate::LocalAppState;
+
+pub async fn find_stage(
+    stage_key: &StageKey,
+    db: &DatabaseConnection,
+) -> tonic::Result<(tournament::Model, stage::Model)> {
+    let tournament_key = stage_key
+        .tournament_key
+        .as_ref()
+        .ok_or_else(|| Status::invalid_argument("missing tournament key in stage key"))?;
+
+    let res = tournament::Entity::find_by_id(tournament_key.id)
+        .find_also_related(stage::Entity)
+        .filter(stage::Column::StageOrder.eq(stage_key.stage_order))
+        .one(db)
+        .await
+        .map_err(|e| Status::internal(format!("error fetching tournament: {e}")))?;
+
+    // Test if the tournament and stage exist
+    let (tournament, stage) = match res {
+        Some((tournament, Some(stage))) => (tournament, stage),
+        Some((_, None)) => {
+            return Err(Status::not_found(format!(
+                "stage {} in tournament {} does not exist",
+                stage_key.stage_order, tournament_key.id
+            )))
+        }
+        None => {
+            return Err(Status::not_found(format!(
+                "tournament with id {} does not exist",
+                tournament_key.id
+            )))
+        }
+    };
+
+    Ok((tournament, stage))
+}
 
 pub struct TournamentServiceImpl(pub LocalAppState);
 
@@ -64,7 +104,9 @@ impl TournamentService for TournamentServiceImpl {
             tokio::join!(rank_restrictions, country_restrictions);
         let (rank_restrictions, country_restrictions) = (rank_restrictions?, country_restrictions?);
 
-        let iter: Box<dyn Iterator<Item = Result<GetAllTournamentsResponse, Status>> + Send + Sync> = Box::new(
+        let iter: Box<
+            dyn Iterator<Item = Result<GetAllTournamentsResponse, Status>> + Send + Sync,
+        > = Box::new(
             izip!(tournaments, rank_restrictions, country_restrictions).map(
                 |(tournament, rank_restriction, country_restriction)| {
                     let rank_restrictions = Some(RangeList {

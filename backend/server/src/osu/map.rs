@@ -103,6 +103,77 @@ impl From<SlimBeatmap> for proto::osu::Beatmap {
     }
 }
 
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TryFromSlimBeatmapError {
+    #[error("missing difficulty")]
+    MissingDifficulty,
+    #[error("missing creator")]
+    MissingCreator,
+    #[error("username too long \"{0}\"")]
+    UsernameTooLong(String),
+    #[error("country code too long \"{0}\"")]
+    CountryTooLong(String),
+}
+
+impl TryFrom<proto::osu::Beatmap> for SlimBeatmap {
+    type Error = TryFromSlimBeatmapError;
+
+    fn try_from(value: proto::osu::Beatmap) -> Result<Self, Self::Error> {
+        let Some(proto::osu::Difficulty {
+            stars,
+            length,
+            bpm,
+            cs,
+            ar,
+            od,
+            hp,
+        }) = value.difficulty
+        else {
+            return Err(TryFromSlimBeatmapError::MissingDifficulty);
+        };
+        let Some(proto::osu::User {
+            user_id,
+            username,
+            country,
+            cover_url,
+        }) = value.creator
+        else {
+            return Err(TryFromSlimBeatmapError::MissingCreator);
+        };
+
+        if username.len() > 15 {
+            return Err(TryFromSlimBeatmapError::UsernameTooLong(username));
+        }
+
+        if country.len() > 2 {
+            return Err(TryFromSlimBeatmapError::CountryTooLong(username));
+        }
+
+        Ok(SlimBeatmap {
+            artist_name: value.artist_name,
+            name: value.name,
+            diff_name: value.difficulty_name,
+            set_id: value.mapset_id,
+            map_id: value.map_id as u32,
+            creator: OsuUser {
+                user_id,
+                username: SmallString::from_str(username.as_str()),
+                country: SmallString::from_str(country.as_str()),
+                cover_url,
+            },
+            difficulty: Difficulty {
+                stars,
+                length,
+                bpm,
+                cs,
+                ar,
+                od,
+                hp,
+            },
+        })
+    }
+}
+
 pub async fn get_map(
     mut redis: redis::aio::MultiplexedConnection,
     osu: &Osu,
