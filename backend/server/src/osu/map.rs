@@ -8,6 +8,7 @@ use crate::cache::{get_cached_or, CacheError, CacheResult, Cacheable};
 
 use super::user::OsuUser;
 
+/// A slimmer Beatmap struct
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SlimBeatmap {
@@ -20,6 +21,7 @@ pub struct SlimBeatmap {
     pub difficulty: Difficulty,
 }
 
+/// Contains information about a beatmap's difficulty values
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Difficulty {
@@ -174,6 +176,15 @@ impl TryFrom<proto::osu::Beatmap> for SlimBeatmap {
     }
 }
 
+/// Gets information about a map from the osu API.
+///
+/// # Panics
+///
+/// Panics if the map has no beatmapset.
+///
+/// # Errors
+///
+/// This function will return an error if something goes wrong during cacheing or communicating with the osu api.
 pub async fn get_map(
     mut redis: redis::aio::MultiplexedConnection,
     osu: &Osu,

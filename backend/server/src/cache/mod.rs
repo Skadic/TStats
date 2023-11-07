@@ -1,3 +1,5 @@
+//! This module contains utilities for cacheing values using Redis.
+
 use std::borrow::BorrowMut;
 use std::sync::Arc;
 use std::{convert::Infallible, future::Future};
@@ -30,6 +32,7 @@ pub trait Cacheable: Serialize + DeserializeOwned {
 
 pub type CacheResult<T> = Result<T, CacheError>;
 
+/// An error that can occur during caching
 #[derive(Debug, Error)]
 pub enum CacheError {
     #[error("error during (de)serialization")]

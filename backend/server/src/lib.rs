@@ -3,9 +3,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::http::HeaderValue;
-use axum::http::Method;
-
+use http::{HeaderValue, Method};
 use miette::{Context, IntoDiagnostic};
 use proto::pool::pool_service_server::PoolServiceServer;
 use proto::stages::stage_service_server::StageServiceServer;
@@ -50,6 +48,7 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Returns a cloned instance of the app state for use in gRPC services.
     fn get_local_instance(&self) -> LocalAppState {
         LocalAppState {
             db: self.db.clone(),
@@ -76,23 +75,6 @@ pub async fn run_server() -> miette::Result<()> {
     let (db, redis, osu) = (db?, redis?, osu?);
 
     let state = AppState { db, redis, osu };
-
-    /*
-    // build our application
-    let app = Router::new()
-        .route("/beatmap", get(routes::debug::get_beatmap))
-        .route("/api/pool", get(routes::pool::get_pool))
-        .route("/user", get(routes::debug::get_user))
-
-
-    info!("Starting server");
-
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-        .serve(app.into_make_service())
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .into_diagnostic()
-     */
 
     let reflection_server = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
@@ -138,8 +120,11 @@ pub async fn run_server() -> miette::Result<()> {
 
     info!("Starting server");
 
+    // Build the gRPC server
     tonic::transport::Server::builder()
+        // We want to support gRPC-web which does not support HTTP/2
         .accept_http1(true)
+        // Layers to apply to the gRPC services
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
@@ -153,6 +138,7 @@ pub async fn run_server() -> miette::Result<()> {
                 .allow_origin([frontend_addr])
                 .allow_headers(AllowHeaders::any()),
         )
+        // The gRPC services
         .add_service(tonic_web::enable(reflection_server))
         .add_service(tonic_web::enable(DebugServiceServer::new(
             DebugServiceImpl(state.get_local_instance()),
@@ -172,6 +158,12 @@ pub async fn run_server() -> miette::Result<()> {
         .into_diagnostic()
 }
 
+/// Reads an environment variable and tries to parse it into the specified type.
+/// If the variable is not set, this generates a default value from the given closure.
+///
+/// # Errors
+///
+/// If parsing fails, this will return an error.
 fn parse_env<T>(env_var: &str, default_fn: impl FnOnce() -> T) -> miette::Result<T>
 where
     T::Err: 'static + std::error::Error + Send + Sync,
@@ -258,33 +250,4 @@ async fn setup_osu() -> miette::Result<Arc<Osu>> {
     );
     info!("connection to osu api successful");
     Ok(osu)
-}
-
-// source: https://github.com/tokio-rs/axum/blob/main/examples/graceful-shutdown/src/main.rs
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-        info!("Shutdown request from Ctrl+C");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-        info!("Shutdown request from SIGTERM");
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
-
-    info!("signal received, starting graceful shutdown");
 }

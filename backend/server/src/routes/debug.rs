@@ -1,6 +1,3 @@
-use axum::extract::State;
-
-use axum::Json;
 use futures::future::join_all;
 use futures::future::FutureExt;
 use rand::prelude::*;
@@ -38,16 +35,6 @@ const MAP_IDS: [usize; 9] = [
     3883456, 4192228, 4189337, 3917025, 4141288, 4186607, 3876751, 4130092, 4149939,
 ];
 
-/// Fills the database with test data including a tournament, a few stages, maps for its pools.
-
-/// Requests a test beatmap from the osu api.
-pub async fn get_beatmap(State(mut state): State<AppState>) -> Json<SlimBeatmap> {
-    Json(get_map(state.redis, &state.osu, 2088253).await.unwrap())
-}
-
-pub async fn get_user(State(mut state): State<AppState>) -> Json<OsuUser> {
-    Json(crate::osu::user::get_user(&mut state.redis, &state.osu, 1235015).await)
-}
 pub struct DebugServiceImpl(pub LocalAppState);
 
 #[tonic::async_trait]

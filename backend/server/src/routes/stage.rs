@@ -1,3 +1,5 @@
+use super::tournament::find_stage;
+use crate::{osu::map::get_map, LocalAppState};
 use futures::{stream::FuturesOrdered, TryStreamExt};
 use proto::stages::{
     stage_service_server::StageService, CreateStageRequest, CreateStageResponse,
@@ -8,13 +10,6 @@ use sea_orm::{
     ActiveModelTrait, EntityTrait, IntoActiveModel, LoaderTrait, ModelTrait, QueryOrder,
 };
 use tonic::{Request, Response, Status};
-
-use crate::{
-    osu::map::get_map,
-    LocalAppState,
-};
-
-use super::tournament::find_stage;
 
 pub struct StageServiceImpl(pub LocalAppState);
 
@@ -100,24 +95,23 @@ impl StageService for StageServiceImpl {
             .await
             .map_err(|e| Status::internal(format!("could not load pool maps: {e}")))?;
 
-        let mut fetched_maps = Vec::with_capacity(maps.len());
         let redis = self.0.redis.read().await;
 
         // Fetch map info from the osu api and transform them to the on-the-wire format
-        for bracket in maps {
-            // Fetch info for all maps
-            let n = bracket.len();
-            let results = bracket
-                .into_iter()
-                .map(|map| get_map(redis.clone(), self.0.osu.as_ref(), map.map_id as u32))
-                .collect::<FuturesOrdered<_>>()
-                .map_ok(proto::osu::Beatmap::from)
-                .map_err(|e| Status::internal(format!("error fetching map data: {e}")))
-                .try_collect::<Vec<_>>()
-                .await?;
-            // Create a new vec to hold the fetched maps
-            fetched_maps.push(Vec::with_capacity(n));
-        }
+        let fetched_maps = maps
+            .into_iter()
+            .map(|bracket| {
+                bracket
+                    .into_iter()
+                    .map(|map| get_map(redis.clone(), self.0.osu.as_ref(), map.map_id as u32))
+                    .collect::<FuturesOrdered<_>>()
+                    .map_ok(proto::osu::Beatmap::from)
+                    .map_err(|e| Status::internal(format!("error fetching map data: {e}")))
+                    .try_collect::<Vec<_>>()
+            })
+            .collect::<FuturesOrdered<_>>()
+            .try_collect::<Vec<_>>()
+            .await?;
 
         // Compose the response
         let response = GetStageResponse {

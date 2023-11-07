@@ -10,12 +10,12 @@ edition = "2021"
 model = { path = "../model" }
 proto = { path = "../proto" }
 
-# REST framework (soon-to-be deleted)
-axum = { version = "0.6" }
 # Read .env files
 dotenvy = "0.15"
 # Utilities for working with futures
 futures = "0.3.28"
+# HTTP utilities
+http = "0.2"
 # Iterator utilities
 itertools = "0.11"
 # Convenient error handling
