@@ -1,17 +1,10 @@
 use std::borrow::BorrowMut;
 use std::error::Error;
 
-use futures::future::{join_all, FutureExt};
 use rosu_v2::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use model::models::{PoolBracket, PoolMap};
-
-use crate::{
-    cache::{get_cached_or, CacheError, CacheResult, Cacheable},
-    routes::pool::FullPoolBracket,
-    LocalAppState,
-};
+use crate::cache::{get_cached_or, CacheError, CacheResult, Cacheable};
 
 use super::user::OsuUser;
 
@@ -73,6 +66,43 @@ impl SlimBeatmap {
     }
 }
 
+impl From<SlimBeatmap> for proto::osu::Beatmap {
+    fn from(value: SlimBeatmap) -> Self {
+        let Difficulty {
+            stars,
+            length,
+            bpm,
+            cs,
+            ar,
+            od,
+            hp,
+        } = value.difficulty;
+
+        proto::osu::Beatmap {
+            artist_name: value.artist_name,
+            name: value.name,
+            difficulty_name: value.diff_name,
+            mapset_id: value.set_id,
+            map_id: value.map_id as u64,
+            creator: Some(proto::osu::User {
+                user_id: value.creator.user_id,
+                username: value.creator.username.into_string(),
+                country: value.creator.country.into_string(),
+                cover_url: value.creator.cover_url,
+            }),
+            difficulty: Some(proto::osu::Difficulty {
+                stars,
+                length,
+                bpm,
+                cs,
+                ar,
+                od,
+                hp,
+            }),
+        }
+    }
+}
+
 pub async fn get_map(
     mut redis: redis::aio::MultiplexedConnection,
     osu: &Osu,
@@ -110,25 +140,4 @@ pub async fn get_map(
     .await?;
 
     Ok(map)
-}
-
-pub async fn find_map_info(
-    state: &LocalAppState,
-    bracket: PoolBracket,
-    maps: Vec<PoolMap>,
-) -> FullPoolBracket {
-    let mut full_maps = Vec::new();
-    let conn = state.redis.read().await;
-
-    for map in maps {
-        let map_id = map.map_id as u32;
-        // Box here is unfortunate, but we need something that owns the redis connection
-        // *and* is impl AsMut<redis::aio::MultiplexedConnection>
-        full_maps.push(get_map(conn.clone(), &state.osu, map_id).map(Result::unwrap));
-    }
-
-    FullPoolBracket {
-        bracket,
-        maps: join_all(full_maps).await,
-    }
 }

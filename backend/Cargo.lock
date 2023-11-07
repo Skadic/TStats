@@ -2117,6 +2117,7 @@ dependencies = [
  "axum",
  "dotenvy",
  "futures",
+ "itertools",
  "miette",
  "model",
  "prost",

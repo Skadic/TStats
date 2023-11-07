@@ -1,4 +1,5 @@
-use futures::{stream::FuturesOrdered, StreamExt};
+use futures::TryFutureExt;
+use itertools::izip;
 use sea_orm::{
     query::*, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, IntoActiveModel, ModelTrait,
 };
@@ -27,91 +28,78 @@ pub struct TournamentServiceImpl(pub LocalAppState);
 
 #[tonic::async_trait]
 impl TournamentService for TournamentServiceImpl {
-    type GetAllStream =
-        futures::stream::Iter<std::vec::IntoIter<Result<GetAllTournamentsResponse, Status>>>;
+    type GetAllStream = futures::stream::Iter<
+        Box<dyn Iterator<Item = Result<GetAllTournamentsResponse, Status>> + Send + Sync>,
+    >;
+    //futures::stream::Iter<std::vec::IntoIter<Result<GetAllTournamentsResponse, Status>>>;
 
     async fn get_all(
         &self,
         _request: Request<GetAllTournamentsRequest>,
     ) -> Result<Response<Self::GetAllStream>, Status> {
+        let db = &self.0.db;
         let tournaments = TournamentEntity::find()
-            .all(&self.0.db)
-            .await
-            .map_err(|e| Status::internal(format!("failed to get all tournaments: {e}")))?;
+            .all(db)
+            .map_err(|e| Status::internal(format!("failed to get all tournaments: {e}")))
+            .await?;
 
         // Get rank restrictions
-        let mut futures = tournaments
-            .iter()
-            .map(|tournament| {
-                rank_restriction::Entity::find()
-                    .filter(rank_restriction::Column::TournamentId.eq(tournament.id))
-                    .all(&self.0.db)
-            })
-            .collect::<FuturesOrdered<_>>();
-        let mut rank_restrictions = Vec::with_capacity(tournaments.len());
-        while let Some(restriction) = futures.next().await {
-            rank_restrictions.push(
-                restriction.map_err(|e| {
-                    Status::internal(format!("failed to get rank restriction: {e}"))
-                })?,
-            );
-        }
+        let rank_restrictions = tournaments
+            .load_many(
+                rank_restriction::Entity::find().order_by_asc(rank_restriction::Column::Tier),
+                db,
+            )
+            .map_err(|e| Status::internal(format!("failed to get rank restrictions: {e}")));
 
         // Get country restrictions
-        let mut futures = tournaments
-            .iter()
-            .map(|tournament| {
-                country_restriction::Entity::find()
-                    .filter(country_restriction::Column::TournamentId.eq(tournament.id))
-                    .all(&self.0.db)
-            })
-            .collect::<FuturesOrdered<_>>();
-        let mut country_restrictions = Vec::with_capacity(tournaments.len());
-        while let Some(countries) = futures.next().await {
-            country_restrictions.push(
-                countries.map_err(|e| {
-                    Status::internal(format!("failed to get rank restriction: {e}"))
-                })?,
-            );
-        }
+        let country_restrictions = tournaments
+            .load_many(
+                country_restriction::Entity::find().order_by_asc(country_restriction::Column::Name),
+                db,
+            )
+            .map_err(|e| Status::internal(format!("failed to get country restrictions: {e}")));
 
-        let mut response = Vec::with_capacity(tournaments.len());
+        // Wait for the queries and unpack them
+        let (rank_restrictions, country_restrictions) =
+            tokio::join!(rank_restrictions, country_restrictions);
+        let (rank_restrictions, country_restrictions) = (rank_restrictions?, country_restrictions?);
 
-        for i in 0..tournaments.len() {
-            let tournament = &tournaments[i];
-            let rank_restriction = &rank_restrictions[i];
-            let country_restriction = &country_restrictions[i];
-            let res = GetAllTournamentsResponse {
-                tournament: Some(Tournament {
-                    key: Some(TournamentKey { id: tournament.id }),
-                    name: tournament.name.clone(),
-                    shorthand: tournament.shorthand.clone(),
-                    format: tournament.format as u32,
-                    bws: tournament.bws,
-                }),
-                rank_restrictions: Some(RangeList {
-                    ranges: rank_restriction
-                        .iter()
-                        .map(|r| RankRange {
-                            min: r.min as u32,
-                            max: r.max as u32,
-                        })
-                        .collect(),
-                }),
-                country_restrictions: Some(CountryList {
-                    countries: country_restriction
-                        .iter()
-                        .map(|c| Country {
-                            name: c.name.clone(),
-                        })
-                        .collect(),
-                }),
-            };
+        let iter: Box<dyn Iterator<Item = Result<GetAllTournamentsResponse, Status>> + Send + Sync> = Box::new(
+            izip!(tournaments, rank_restrictions, country_restrictions).map(
+                |(tournament, rank_restriction, country_restriction)| {
+                    let rank_restrictions = Some(RangeList {
+                        ranges: rank_restriction
+                            .iter()
+                            .map(|r| RankRange {
+                                min: r.min as u32,
+                                max: r.max as u32,
+                            })
+                            .collect(),
+                    });
+                    let country_restrictions = Some(CountryList {
+                        countries: country_restriction
+                            .iter()
+                            .map(|c| Country {
+                                name: c.name.clone(),
+                            })
+                            .collect(),
+                    });
+                    Ok(GetAllTournamentsResponse {
+                        tournament: Some(Tournament {
+                            key: Some(TournamentKey { id: tournament.id }),
+                            name: tournament.name,
+                            shorthand: tournament.shorthand,
+                            format: tournament.format as u32,
+                            bws: tournament.bws,
+                        }),
+                        rank_restrictions,
+                        country_restrictions,
+                    })
+                },
+            ),
+        );
 
-            response.push(Ok(res));
-        }
-
-        Ok(Response::new(futures::stream::iter(response)))
+        Ok(Response::new(futures::stream::iter(iter)))
     }
 
     async fn get(

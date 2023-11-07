@@ -7,6 +7,7 @@ use axum::http::HeaderValue;
 use axum::http::Method;
 
 use miette::{Context, IntoDiagnostic};
+use proto::pool::pool_service_server::PoolServiceServer;
 use proto::stages::stage_service_server::StageServiceServer;
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
@@ -32,6 +33,7 @@ use proto::debug_data::debug_service_server::DebugServiceServer;
 use proto::tournaments::tournament_service_server::TournamentServiceServer;
 
 use crate::routes::debug::DebugServiceImpl;
+use crate::routes::pool::PoolServiceImpl;
 use crate::routes::stage::StageServiceImpl;
 use crate::routes::tournament::TournamentServiceImpl;
 
@@ -106,6 +108,12 @@ pub async fn run_server() -> miette::Result<()> {
     health_reporter
         .set_serving::<DebugServiceServer<DebugServiceImpl>>()
         .await;
+    health_reporter
+        .set_serving::<StageServiceServer<StageServiceImpl>>()
+        .await;
+    health_reporter
+        .set_serving::<PoolServiceServer<PoolServiceImpl>>()
+        .await;
 
     // Type fun
     async fn set_serving<T: NamedService>(rep: &mut HealthReporter, _: &T) {
@@ -154,6 +162,9 @@ pub async fn run_server() -> miette::Result<()> {
         )))
         .add_service(tonic_web::enable(StageServiceServer::new(
             StageServiceImpl(state.get_local_instance()),
+        )))
+        .add_service(tonic_web::enable(PoolServiceServer::new(
+            PoolServiceImpl(state.get_local_instance()),
         )))
         .add_service(health_server)
         .serve(addr)
