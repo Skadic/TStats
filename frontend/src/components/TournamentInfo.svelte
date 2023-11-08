@@ -1,11 +1,12 @@
 <script lang="ts">
-	import type { ExtendedTournament, RankRange, Tournament } from '$lib/Tournament';
+	import type { Country, CountryList, GetTournamentResponse, RankRange, Tournament } from '$lib/api/tournaments';
 	import Flag from './Flag.svelte';
 
-	export let data: ExtendedTournament;
-	let extTournament: ExtendedTournament = data;
-	let tournament: Tournament = data.tournament;
-	let rankRanges: RankRange[] = extTournament.tournament.rankRange;
+	export let tournament: Tournament;
+	export let rankRanges: RankRange[];
+	export let countryRestrictions: CountryList;
+
+	let countries: Country[] = countryRestrictions.countries!;
 </script>
 
 <div class="tournamentInfo flex flex-wrap w-3/4">
@@ -41,14 +42,18 @@
 
 	<!-- Format -->
 	<div class="infoHeading">Match Format</div>
-	<div class="infoContent">{tournament.formatTournamentFormat()}</div>
+	<div class="infoContent">
+		{#if tournament.format > 0}
+			 {tournament.format}v{tournament.format}
+		{/if}
+	</div>
 
 	<!-- Country Restrictions -->
-	{#if extTournament.countryRestrictions !== null && extTournament.countryRestrictions.length > 0}
+	{#if countries.length > 0 }
 		<div class="infoHeading">Country Restrictions</div>
 		<div class="infoContent">
-			{#each extTournament.countryRestrictions as country}
-				<Flag country={country.toLowerCase()} />
+			{#each countries as country}
+				<Flag country={country.name.toLowerCase()} />
 			{/each}
 		</div>
 	{/if}

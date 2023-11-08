@@ -10,7 +10,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "prettier --plugin-search-dir . --check . && eslint .",
     "format": "prettier --plugin-search-dir . --write .",
-    "proto": "mkdir -p ./src/lib/api && ./node_modules/.bin/grpc_tools_node_protoc --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./src/lib/api --ts_proto_opt=env=browser,outputServices=nice-grpc,outputServices=generic-definitions,outputJsonMethods=false,useExactTypes=false --proto_path=../proto ../proto/*"
+    "proto": "mkdir -p ./src/lib/api && ./node_modules/.bin/grpc_tools_node_protoc --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./src/lib/api --ts_proto_opt=esModuleInterop=true,env=browser,outputServices=nice-grpc,outputServices=generic-definitions,outputJsonMethods=false,useExactTypes=false --proto_path=../proto ../proto/*"
   },
   "devDependencies": {
     "@catppuccin/tailwindcss": "^0.1.6",

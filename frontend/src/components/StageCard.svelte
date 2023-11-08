@@ -1,7 +1,8 @@
 <script lang="ts">
-	import type { PoolBracket } from '$lib/Pool';
-	import type { Stage } from '$lib/Stage';
+	import type { PoolBracket } from '$lib/api/pool';
+	import type { Stage } from '$lib/api/stages';
 	import PoolList from './PoolList.svelte';
+
 	export let stage: Stage;
 	export let poolBrackets: PoolBracket[];
 	export let hasBestOf: boolean;

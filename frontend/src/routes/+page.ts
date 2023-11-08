@@ -1,5 +1,3 @@
-import { Tournament } from '$lib/Tournament'
-
 import { createChannel, createClient } from 'nice-grpc-web'
 import {
 	TournamentServiceDefinition,
@@ -19,6 +17,7 @@ export async function load({ fetch, params }) {
 	}
 
 	return {
+		channel,
 		tournaments
 	}
 }

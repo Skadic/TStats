@@ -1,13 +1,28 @@
 <script lang="ts">
-	import type { Beatmap } from '$lib/Pool';
+	import type { Beatmap, Difficulty, User } from "$lib/api/osu";
 
 	export let map: Beatmap;
 	export let bracketName: string;
 	export let bracketOrder: number;
 	console.log(map);
+	let creator: User = map.creator!;
+	let difficulty: Difficulty = map.difficulty!;
+	function formatLength(seconds: number): string {
+		let min = Math.floor(seconds / 60);
+		let sec = seconds % 60;
+
+		return (min < 10 ? '0' : '') + min + ':' + (sec < 10 ? '0' : '') + sec;
+	}
+
+	function round1(num: number): number {
+		return Math.round(num * 10) / 10 
+	}
+	function round2(num: number): number {
+		return Math.round(num * 100) / 100 
+	}
 
 	function cover() {
-		return `url('https://assets.ppy.sh/beatmaps/${map.setId}/covers/cover.jpg')`;
+		return `url('https://assets.ppy.sh/beatmaps/${map.mapsetId}/covers/cover.jpg')`;
 	}
 
 	function bracketColor(): string {
@@ -51,23 +66,23 @@
 		<div>
 			<a
 				class="lg:flex lg:flex-col"
-				href="https://osu.ppy.sh/beatmapsets/{map.setId}#osu/{map.mapId}"
+				href="https://osu.ppy.sh/beatmapsets/{map.mapsetId}#osu/{map.mapId}"
 			>
 				<h1 class="text-xl font-bold">{map.name}</h1>
 				<div class="text-lg font-semibold">
-					{map.artistName} / {map.creator.username}
+					{map.artistName} / {creator.username}
 				</div>
 			</a>
 			<div class="flex flex-col lg:flex-row items-start justify-between">
-				<h2 class="font-bold bg-accent-400 text-bg p-1 rounded-md mt-5 lg:my-2">{map.diffName}</h2>
+				<h2 class="font-bold bg-accent-400 text-bg p-1 rounded-md mt-5 lg:my-2">{map.difficultyName}</h2>
 				<div class="flex items-center justify-between lg:gap-3 pt-5 lg:pt-0">
-					<span><b>★</b> {map.difficulty.stars}</span>
-					<span><b>Length</b> {map.formatLength()}</span>
+					<span><b>★</b> {round2(difficulty.stars)}</span>
+					<span><b>Length</b> {formatLength(difficulty.length)}</span>
 					<div class="flex items-center gap-2">
-						<span><b>CS</b> {map.difficulty.cs}</span>
-						<span><b>AR</b> {map.difficulty.ar}</span>
-						<span><b>HP</b> {map.difficulty.hp}</span>
-						<span><b>OD</b> {map.difficulty.od}</span>
+						<span><b>CS</b> {round1(difficulty.cs)}</span>
+						<span><b>AR</b> {round1(difficulty.ar)}</span>
+						<span><b>HP</b> {round1(difficulty.hp)}</span>
+						<span><b>OD</b> {round1(difficulty.od)}</span>
 					</div>
 				</div>
 			</div>

@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package osu;
 
-import "keys.proto";
-
 message Beatmap {
   // The song's artist's name
   string artist_name = 1;
