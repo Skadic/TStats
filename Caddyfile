@@ -1,10 +1,6 @@
 {
-  debug
-  skip_install_trust
   http_port 9900
   https_port 9901
-  auto_https disable_redirects
-  auto_https off
   servers {
     protocols h1 h2c
   }

@@ -10,7 +10,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile-Backend
+      dockerfile: backend/Dockerfile
     container_name: tstats-backend
     ports:
       - '3000:3000'
