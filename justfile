@@ -13,10 +13,13 @@ postgres:
 backend:
   cargo run --manifest-path backend/Cargo.toml
 
-# Builds the backend as a container and runs it
-container-backend:
-  podman build --tag tstats-backend-manual:pre-alpha -f Dockerfile
-  podman run --rm -p 3000:3000 --net tstats --name tstats-backend-manual tstats-backend-manual:pre-alpha
+# Runs caddy
+caddy:
+  podman run --rm -v caddy_data:/data:z -v $PWD/Caddyfile:/etc/caddy/Caddyfile:z --name tstats-caddy -p 9900:9900 -p 9901:9901 caddy:latest
+
+# Builds all the web-app containers and runs them
+compose:
+  podman-compose up --build -t 0 --force-recreate
 
 # Run the frontend as a dev server
 frontend:

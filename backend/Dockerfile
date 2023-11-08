@@ -1,23 +1,25 @@
-FROM rust:slim-buster AS rs
+FROM lukemathwalker/cargo-chef:latest-rust-alpine AS chef
+WORKDIR /app
 
-# Dummy build to cache dependencies
-COPY Cargo.toml .
-COPY Cargo.lock .
-RUN mkdir src && echo "fn main() {}" > src/dummy.rs
-RUN sed -i 's/main.rs/dummy.rs/' Cargo.toml
-RUN cargo build --release
-RUN sed -i 's/dummy.rs/main.rs/' Cargo.toml
+FROM chef AS planner
+COPY backend/ .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Proper project build
-COPY src/ ./src/
-RUN cargo build --release
-RUN strip target/release/tstats_backend
-# Update ca certificates
-RUN apt-get install -y --no-install-recommends ca-certificates
-RUN update-ca-certificates
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY backend/ .
+COPY ./proto ../proto
+RUN ls -l ../proto
+RUN apk add protoc protobuf-dev
+RUN PROTOC=$(which protoc) cargo build --release --bin tstats_backend
 
-# Image for running
-FROM debian:buster-slim
-COPY --from=rs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=rs target/release/tstats_backend .
-CMD [ "./tstats_backend" ]
+# We do not need the Rust toolchain to run the binary!
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y ca-certificates
+WORKDIR /app
+COPY --from=builder /app/target/release/tstats_backend /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/tstats_backend"]
+
