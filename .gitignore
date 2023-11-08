@@ -1,4 +1,6 @@
 */.env
-*/.idea
+**/.idea
+.vscode
 .env
+.prod_env
 apidoc.yaml
