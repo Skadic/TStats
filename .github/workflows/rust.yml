@@ -1,0 +1,28 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "master", "ci", "dev" ]
+  pull_request:
+    branches: [ "master", "ci", "dev" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Cache Dependencies
+      id: cache-deps
+      uses: actions/cache@v3
+      with:
+        path: backend/target
+        key: ${{ runner.os }}-rust-deps    
+    - name: Build
+      run: cargo build --verbose --manifest-path backend/Cargo.toml
+    - name: Run tests
+      run: cargo test --verbose --manifest-path backend/Cargo.toml
