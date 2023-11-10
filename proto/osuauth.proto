@@ -1,0 +1,24 @@
+
+syntax = "proto3";
+
+package osu.auth;
+
+service OsuAuthService {
+  // Request an authorization code for an osu user from the osu API.
+  rpc RequestAuthCode(RequestAuthCodeRequest) returns (RequestAuthCodeResponse);
+  // Delivers an auth code to the backend so that it can get an access token.
+  rpc DeliverAuthCode(DeliverAuthCodeRequest) returns (DeliverAuthCodeResponse);
+}
+
+// A request for requesting an authorization code from the osu API, containing
+// an osu user's user id.
+message RequestAuthCodeRequest { uint32 user_id = 1; }
+// A response containing a redirect url to the osu authorization server.
+message RequestAuthCodeResponse { string auth_url = 1; }
+
+// Delivers an auth code along with a CSRF token from the osu api to the backend
+message DeliverAuthCodeRequest {
+  string auth_code = 1;
+  string state = 2;
+}
+message DeliverAuthCodeResponse {}

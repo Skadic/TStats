@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use http::{HeaderValue, Method};
 use miette::{Context, IntoDiagnostic};
+use proto::osu_auth::osu_auth_service_server::OsuAuthServiceServer;
 use proto::pool::pool_service_server::PoolServiceServer;
 use proto::stages::stage_service_server::StageServiceServer;
 use rosu_v2::prelude::*;
@@ -31,9 +32,20 @@ use proto::debug_data::debug_service_server::DebugServiceServer;
 use proto::tournaments::tournament_service_server::TournamentServiceServer;
 
 use crate::routes::debug::DebugServiceImpl;
+use crate::routes::osu_auth::OsuAuthServiceImpl;
 use crate::routes::pool::PoolServiceImpl;
 use crate::routes::stage::StageServiceImpl;
 use crate::routes::tournament::TournamentServiceImpl;
+
+const OSU_CLIENT_ID: &str = "OSU_CLIENT_ID";
+const OSU_CLIENT_SECRET: &str = "OSU_CLIENT_SECRET";
+const DATABASE_URL: &str = "DATABASE_URL";
+const REDIS_URL: &str = "REDIS_URL";
+const FRONTEND_METHOD: &str = "FRONTEND_METHOD";
+const FRONTEND_HOST: &str = "FRONTEND_HOST";
+const FRONTEND_PORT: &str = "FRONTEND_PORT";
+const BACKEND_HOST: &str = "BACKEND_HOST";
+const BACKEND_PORT: &str = "BACKEND_PORT";
 
 #[allow(unused)]
 mod cache;
@@ -103,11 +115,11 @@ pub async fn run_server() -> miette::Result<()> {
     }
     set_serving(&mut health_reporter, &reflection_server).await;
 
-    let frontend_method = parse_env("FRONTEND_METHOD", || "http".to_owned())?;
-    let frontend_host: String = parse_env("FRONTEND_HOST", || "0.0.0.0".to_owned())?;
-    let frontend_port = parse_env("FRONTEND_PORT", || "5173".to_owned())?;
-    let host: IpAddr = parse_env("BACKEND_HOST", || IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))?;
-    let port = parse_env("BACKEND_PORT", || 3000)?;
+    let frontend_method = parse_env(FRONTEND_METHOD, || "http".to_owned())?;
+    let frontend_host: String = parse_env(FRONTEND_HOST, || "0.0.0.0".to_owned())?;
+    let frontend_port = parse_env(FRONTEND_PORT, || "5173".to_owned())?;
+    let host: IpAddr = parse_env(BACKEND_HOST, || IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))?;
+    let port = parse_env(BACKEND_PORT, || 3000)?;
 
     let frontend_addr: HeaderValue = format!("{frontend_method}://{frontend_host}:{frontend_port}")
         .parse()
@@ -152,6 +164,9 @@ pub async fn run_server() -> miette::Result<()> {
         .add_service(tonic_web::enable(PoolServiceServer::new(PoolServiceImpl(
             state.get_local_instance(),
         ))))
+        .add_service(tonic_web::enable(OsuAuthServiceServer::new(
+            OsuAuthServiceImpl(state.get_local_instance(), osu::auth::get_auth_client()),
+        )))
         .add_service(health_server)
         .serve(addr)
         .await
@@ -182,7 +197,7 @@ where
 }
 
 async fn setup_database() -> miette::Result<DatabaseConnection> {
-    let database_url = std::env::var("DATABASE_URL")
+    let database_url = std::env::var(DATABASE_URL)
         .into_diagnostic()
         .wrap_err("DATABASE_URL not set")?;
     info!("connecting to database...");
@@ -212,7 +227,7 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
 }
 
 async fn setup_redis() -> miette::Result<redis::aio::MultiplexedConnection> {
-    let redis_url = std::env::var("REDIS_URL")
+    let redis_url = std::env::var(REDIS_URL)
         .into_diagnostic()
         .wrap_err("REDIS_URL not set")?;
     info!("connecting to redis");
@@ -231,14 +246,14 @@ async fn setup_redis() -> miette::Result<redis::aio::MultiplexedConnection> {
 }
 
 async fn setup_osu() -> miette::Result<Arc<Osu>> {
-    let osu_client_id = std::env::var("OSU_CLIENT_ID")
+    let osu_client_id = std::env::var(OSU_CLIENT_ID)
         .into_diagnostic()
         .wrap_err("OSU_CLIENT_ID not set")?
         .parse::<u64>()
         .into_diagnostic()
         .wrap_err("OSU_CLIENT_ID must be a non-negative integer")?;
 
-    let osu_client_secret = std::env::var("OSU_CLIENT_SECRET")
+    let osu_client_secret = std::env::var(OSU_CLIENT_SECRET)
         .into_diagnostic()
         .wrap_err("OSU_CLIENT_SECRET not set")?;
     info!("connecting to osu api...");

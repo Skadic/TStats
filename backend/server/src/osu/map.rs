@@ -192,7 +192,7 @@ pub async fn get_map(
 ) -> CacheResult<SlimBeatmap> {
     let redis = redis.borrow_mut();
     // Find the map's data
-    let map = get_cached_or::<SlimBeatmap, CacheError, _>(
+    let map = get_cached_or::<SlimBeatmap, CacheError, _,  _>(
         &mut redis.clone(),
         &map_id,
         Some(3600),
@@ -206,7 +206,7 @@ pub async fn get_map(
             let maps = mapset.maps.as_ref().unwrap();
             // beatmapset_from_map_id guarantees that maps has entries and we also know that the map with the given id exists
             let map = maps.iter().find(|map| map.map_id == map_id).unwrap();
-            let creator = get_cached_or::<OsuUser, OsuError, _>(
+            let creator = get_cached_or::<OsuUser, OsuError, _, _>(
                 redis,
                 &map.creator_id,
                 Some(3600),

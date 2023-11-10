@@ -245,7 +245,7 @@ impl PoolService for PoolServiceImpl {
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing stage key in pool bracket key"))?;
         // Test if the tournament and stage exist
-        let (tournament, stage) = find_stage(&stage_key, db).await?;
+        let (tournament, stage) = find_stage(stage_key, db).await?;
 
         let mut bracket = pool_bracket::Entity::find_by_id((
             tournament.id,
@@ -332,7 +332,7 @@ impl PoolService for PoolServiceImpl {
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing stage key in pool bracket key"))?;
         // Test if the tournament and stage exist
-        let (tournament, stage) = find_stage(&stage_key, db).await?;
+        let (tournament, stage) = find_stage(stage_key, db).await?;
 
         let delete_res = pool_bracket::Entity::delete_by_id((
             tournament.id,

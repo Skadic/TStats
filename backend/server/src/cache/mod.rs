@@ -55,8 +55,8 @@ pub enum CacheError {
 ///
 /// An error can occur when serialization fails, or the set command in the redis store fails.
 ///
-pub async fn cache<V>(
-    mut redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
+pub async fn cache<V, Conn: AsyncCommands + Send + Sync>(
+    redis: &mut Conn,
     v: &V,
     expiry_time: Option<usize>,
 ) -> Result<(), CacheError>
@@ -92,8 +92,8 @@ where
 ///
 /// An error can occur when deserialization fails, or the get command in the redis store fails.
 ///
-pub async fn get_cached<V>(
-    mut redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
+pub async fn get_cached<V, Conn: AsyncCommands + Send + Sync>(
+    redis: &mut Conn,
     key: &V::KeyType,
 ) -> Result<Option<V>, CacheError>
 where
@@ -136,8 +136,8 @@ where
 ///
 /// An error can occur during (de-)seriaization or if the redis set command fails.
 ///
-pub async fn get_cached_or_infallible<V, Fut>(
-    redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
+pub async fn get_cached_or_infallible<V, Conn: AsyncCommands + Send + Sync, Fut>(
+    redis: &mut Conn,
     key: &V::KeyType,
     expiry_time: Option<usize>,
     get_fn: impl FnOnce() -> Fut,
@@ -146,8 +146,10 @@ where
     V: Cacheable,
     Fut: Future<Output = V>,
 {
-    get_cached_or::<V, Infallible, _>(redis, key, expiry_time, || async { Ok(get_fn().await) })
-        .await
+    get_cached_or::<V, Infallible, Conn, _>(redis, key, expiry_time, || async {
+        Ok(get_fn().await)
+    })
+    .await
 }
 
 /// Tries to get a value from the cache and returns it, if it exist.
@@ -166,8 +168,8 @@ where
 /// An error can occur during (de-)seriaization, if the redis set command fails or if the `get_fn`
 /// fails.
 ///
-pub async fn get_cached_or<V, E, Fut>(
-    mut redis: impl BorrowMut<redis::aio::MultiplexedConnection>,
+pub async fn get_cached_or<V, E, Conn: AsyncCommands + Send + Sync, Fut>(
+    redis: &mut Conn,
     key: &V::KeyType,
     expiry_time: Option<usize>,
     get_fn: impl FnOnce() -> Fut,
@@ -178,7 +180,7 @@ where
     Fut: Future<Output = Result<V, E>>,
 {
     // Try to find the value in the cache
-    if let Ok(Some(v)) = get_cached::<V>(redis.borrow_mut(), key).await {
+    if let Ok(Some(v)) = get_cached::<V, Conn>(redis, key).await {
         // If found, just return it
         return Ok(v);
     }
@@ -189,6 +191,6 @@ where
         .map_err(|e| CacheError::Request(Box::new(e)))?;
 
     // Cache the value and return it
-    cache::<V>(redis, &v, expiry_time).await?;
+    cache::<V, Conn>(redis, &v, expiry_time).await?;
     Ok(v)
 }
