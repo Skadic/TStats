@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
 };
@@ -7,7 +5,6 @@ use redis::AsyncCommands;
 use url::Url;
 
 use crate::cache::{cache, CacheResult, Cacheable};
-
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct OsuRefreshToken {
@@ -22,8 +19,8 @@ impl Cacheable for OsuRefreshToken {
         "osurefreshtoken"
     }
 
-    fn key(&self) -> Self::KeyType {
-        self.user_id
+    fn key(&self) -> &Self::KeyType {
+        &self.user_id
     }
 }
 
@@ -40,8 +37,8 @@ impl Cacheable for OsuAccessToken {
         "osuaccesstoken"
     }
 
-    fn key(&self) -> Self::KeyType {
-        self.user_id
+    fn key(&self) -> &Self::KeyType {
+        &self.user_id
     }
 }
 
@@ -53,28 +50,18 @@ pub struct OsuAuthCode {
 
 impl OsuAuthCode {
     pub async fn request<Conn: AsyncCommands + Send + Sync>(
-        user_id: u32,
         client: &BasicClient,
         redis: &mut Conn,
     ) -> CacheResult<Url> {
         let (auth_url, csrf_token) = client
             .authorize_url(CsrfToken::new_random)
-            .set_redirect_uri(Cow::Owned(
-                // TODO update hard-coded frontend IP
-                RedirectUrl::new("http://localhost:5173".into()).unwrap(),
-            ))
             .add_scope(Scope::new("public".into()))
             .add_scope(Scope::new("identify".into()))
             .url();
 
-        let state = OsuAuthState {
-            user_id,
-            state: csrf_token,
-        };
+        cache(redis, &csrf_token, Some(300)).await?;
 
-        cache(redis, &state, Some(300)).await?;
-
-        println!("Browse to: {}", &auth_url);
+        tracing::debug!("Browse to: {}", &auth_url);
         Ok(auth_url)
     }
 }
@@ -86,27 +73,20 @@ impl Cacheable for OsuAuthCode {
         "osuauthcode"
     }
 
-    fn key(&self) -> Self::KeyType {
-        self.user_id
+    fn key(&self) -> &Self::KeyType {
+        &self.user_id
     }
 }
 
-/// A state string associated with an osu user, used in an authorization grant
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct OsuAuthState {
-    pub user_id: u32,
-    pub state: oauth2::CsrfToken,
-}
-
-impl Cacheable for OsuAuthState {
-    type KeyType = u32;
+impl Cacheable for oauth2::CsrfToken {
+    type KeyType = str;
 
     fn type_key() -> &'static str {
-        "osuauthstate"
+        "oauthcsrftoken"
     }
 
-    fn key(&self) -> Self::KeyType {
-        self.user_id
+    fn key(&self) -> &Self::KeyType {
+        self.secret().as_str()
     }
 }
 
@@ -121,5 +101,6 @@ pub fn get_auth_client() -> BasicClient {
         AuthUrl::new("https://osu.ppy.sh/oauth/authorize".to_string()).unwrap(),
         Some(TokenUrl::new("https://osu.ppy.sh/oauth/token".to_string()).unwrap()),
     )
-    .set_redirect_uri(RedirectUrl::new("http://localhost:5173".to_string()).unwrap())
+    .set_redirect_uri(RedirectUrl::new("http://0.0.0.0:5173/auth".to_string()).unwrap())
+    .set_auth_type(oauth2::AuthType::RequestBody)
 }

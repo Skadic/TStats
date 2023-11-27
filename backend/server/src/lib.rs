@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use http::{HeaderValue, Method};
+use http::{HeaderName, HeaderValue, Method};
 use miette::{Context, IntoDiagnostic};
 use proto::osu_auth::osu_auth_service_server::OsuAuthServiceServer;
 use proto::pool::pool_service_server::PoolServiceServer;
@@ -12,9 +12,11 @@ use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::RwLock;
 use tonic::transport::NamedService;
+use tonic::{GrpcMethod, Status};
 use tonic_health::server::HealthReporter;
 
-use tower_http::cors::AllowHeaders;
+use tonic_web::GrpcWebLayer;
+use tower_http::cors::{AllowHeaders, ExposeHeaders};
 use tower_http::{
     cors::CorsLayer,
     trace::{self, TraceLayer},
@@ -133,44 +135,63 @@ pub async fn run_server() -> miette::Result<()> {
     info!("Starting server");
 
     // Build the gRPC server
-    tonic::transport::Server::builder()
-        // We want to support gRPC-web which does not support HTTP/2
+    tonic::transport::server::Server::builder()
         .accept_http1(true)
         // Layers to apply to the gRPC services
         .layer(
-            TraceLayer::new_for_http()
+            TraceLayer::new_for_grpc()
                 .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(trace::DefaultOnResponse::new().level(Level::DEBUG))
                 .on_request(trace::DefaultOnRequest::new().level(Level::DEBUG))
                 .on_failure(trace::DefaultOnFailure::new().level(Level::ERROR)),
         )
+        .layer(GrpcWebLayer::new())
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::POST, Method::OPTIONS])
                 .allow_origin([frontend_addr])
-                .allow_headers(AllowHeaders::any()),
+                .allow_headers(AllowHeaders::any())
+                .expose_headers(ExposeHeaders::list([
+                    HeaderName::from_static("grpc-status"),
+                    HeaderName::from_static("grpc-message"),
+                ])),
         )
+        .layer(tonic::service::interceptor(cors_interceptor))
         // The gRPC services
-        .add_service(tonic_web::enable(reflection_server))
-        .add_service(tonic_web::enable(DebugServiceServer::new(
-            DebugServiceImpl(state.get_local_instance()),
-        )))
-        .add_service(tonic_web::enable(TournamentServiceServer::new(
-            TournamentServiceImpl(state.get_local_instance()),
-        )))
-        .add_service(tonic_web::enable(StageServiceServer::new(
-            StageServiceImpl(state.get_local_instance()),
-        )))
-        .add_service(tonic_web::enable(PoolServiceServer::new(PoolServiceImpl(
+        .add_service(reflection_server)
+        .add_service(DebugServiceServer::new(DebugServiceImpl(
             state.get_local_instance(),
-        ))))
-        .add_service(tonic_web::enable(OsuAuthServiceServer::new(
-            OsuAuthServiceImpl(state.get_local_instance(), osu::auth::get_auth_client()),
+        )))
+        .add_service(TournamentServiceServer::new(TournamentServiceImpl(
+            state.get_local_instance(),
+        )))
+        .add_service(StageServiceServer::new(StageServiceImpl(
+            state.get_local_instance(),
+        )))
+        .add_service(PoolServiceServer::new(PoolServiceImpl(
+            state.get_local_instance(),
+        )))
+        .add_service(OsuAuthServiceServer::new(OsuAuthServiceImpl(
+            state.get_local_instance(),
+            osu::auth::get_auth_client(),
         )))
         .add_service(health_server)
         .serve(addr)
         .await
         .into_diagnostic()
+}
+
+/// Intercepts cors requests so they are not forwarded to the actual handler
+fn cors_interceptor(req: tonic::Request<()>) -> tonic::Result<tonic::Request<()>> {
+    let is_cors = match req.metadata().get("sec-fetch-mode") {
+        Some(fetch_mode) if fetch_mode == "cors" => true,
+        Some(_) | None => false,
+    };
+    if is_cors {
+        Err(Status::ok("cors request".to_string()))
+    } else {
+        Ok(req)
+    }
 }
 
 /// Reads an environment variable and tries to parse it into the specified type.

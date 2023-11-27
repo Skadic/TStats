@@ -43,8 +43,8 @@ impl Cacheable for OsuUser {
         "osuuser"
     }
 
-    fn key(&self) -> Self::KeyType {
-        self.user_id
+    fn key(&self) -> &Self::KeyType {
+        &self.user_id
     }
 }
 

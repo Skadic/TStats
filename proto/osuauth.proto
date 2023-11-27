@@ -10,9 +10,7 @@ service OsuAuthService {
   rpc DeliverAuthCode(DeliverAuthCodeRequest) returns (DeliverAuthCodeResponse);
 }
 
-// A request for requesting an authorization code from the osu API, containing
-// an osu user's user id.
-message RequestAuthCodeRequest { uint32 user_id = 1; }
+message RequestAuthCodeRequest { }
 // A response containing a redirect url to the osu authorization server.
 message RequestAuthCodeResponse { string auth_url = 1; }
 

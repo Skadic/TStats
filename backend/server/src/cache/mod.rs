@@ -1,6 +1,7 @@
 //! This module contains utilities for cacheing values using Redis.
 
 use std::borrow::BorrowMut;
+use std::fmt::Display;
 use std::sync::Arc;
 use std::{convert::Infallible, future::Future};
 
@@ -11,22 +12,22 @@ use tracing::info;
 
 /// A trait for structs cached in the redis store
 pub trait Cacheable: Serialize + DeserializeOwned {
-    type KeyType: ToString;
+    type KeyType: ?Sized + Display;
 
     /// Returns a unique string for this type with which all entries in the redis store are prefixed.
     fn type_key() -> &'static str;
 
     /// Returns a key that identifies the specific object among the entries in the redis store.
-    fn key(&self) -> Self::KeyType;
+    fn key(&self) -> &Self::KeyType;
 
     /// Returns the key that the current object would have in the redis store
     fn full_key(&self) -> String {
-        format!("{}:{}", Self::type_key(), self.key().to_string())
+        format!("{}:{}", Self::type_key(), self.key())
     }
 
     /// Returns the full redis store key for an object with the given key type
     fn full_key_with(key: &Self::KeyType) -> String {
-        format!("{}:{}", Self::type_key(), key.to_string())
+        format!("{}:{}", Self::type_key(), key)
     }
 }
 

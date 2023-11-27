@@ -41,8 +41,8 @@ impl Cacheable for SlimBeatmap {
         "map"
     }
 
-    fn key(&self) -> Self::KeyType {
-        self.map_id
+    fn key(&self) -> &Self::KeyType {
+        &self.map_id
     }
 }
 
