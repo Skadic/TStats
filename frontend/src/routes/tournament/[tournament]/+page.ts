@@ -8,7 +8,7 @@ import { TournamentServiceDefinition, type TournamentServiceClient, GetTournamen
 import { createChannel, createClient } from 'nice-grpc-web';
 
 export async function load({ fetch, params }) {
-	const channel = createChannel('http://0.0.0.0:3000');
+	const channel = createChannel('http://0.0.0.0:9900');
 
 	const tournamentClient: TournamentServiceClient = createClient(
 		TournamentServiceDefinition,
@@ -38,6 +38,7 @@ export async function load({ fetch, params }) {
 			}
 		}
 	});
+  console.log(poolResponse.pool)
 
 	return {
 		tournament,
