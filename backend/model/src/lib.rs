@@ -1,6 +1,6 @@
 use sea_orm::{sea_query::Table, ConnectionTrait, DatabaseConnection, EntityTrait, Schema};
 
-use tracing::info;
+use tracing::{info, warn};
 
 pub mod country_restriction;
 pub mod player;
@@ -34,17 +34,19 @@ pub mod entities {
     pub use super::tournament::Entity as TournamentEntity;
 }
 
+#[tracing::instrument(skip(db, table), fields(table_name = table.table_name()))]
 pub async fn drop_table<E: EntityTrait>(db: &DatabaseConnection, table: E) {
     let builder = db.get_database_backend();
     match db
         .execute(builder.build(Table::drop().table(table.table_ref())))
         .await
     {
-        Ok(_) => info!("Dropped table '{}'", table.table_name()),
-        Err(e) => info!("Failed to drop table '{}': {e}", table.table_name()),
+        Ok(_) => info!("dropped table"),
+        Err(error) => warn!(%error, "failed to drop table"),
     };
 }
 
+#[tracing::instrument(skip(db, entity), fields(table_name = entity.table_name()))]
 pub async fn create_table<E: EntityTrait>(db: &DatabaseConnection, entity: E) {
     let builder = db.get_database_backend();
     let schema = Schema::new(builder);
@@ -52,7 +54,7 @@ pub async fn create_table<E: EntityTrait>(db: &DatabaseConnection, entity: E) {
         .execute(builder.build(&schema.create_table_from_entity(entity)))
         .await
     {
-        Ok(_) => info!("Created table '{}'", entity.table_name()),
-        Err(e) => info!("Failed to create table '{}': {e}", entity.table_name()),
+        Ok(_) => info!("created table"),
+        Err(error) => warn!(%error, "failed to create table"),
     };
 }

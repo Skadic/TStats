@@ -5,23 +5,21 @@ use std::time::Duration;
 
 use http::{HeaderName, HeaderValue, Method};
 use miette::{Context, IntoDiagnostic};
-use proto::osu_auth::osu_auth_service_server::OsuAuthServiceServer;
-use proto::pool::pool_service_server::PoolServiceServer;
-use proto::stages::stage_service_server::StageServiceServer;
+use proto::{
+    osu_auth::osu_auth_service_server::OsuAuthServiceServer,
+    pool::pool_service_server::PoolServiceServer, stages::stage_service_server::StageServiceServer,
+};
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::RwLock;
-use tonic::transport::NamedService;
-use tonic::{GrpcMethod, Status};
+use tonic::{transport::NamedService, Status};
 use tonic_health::server::HealthReporter;
-
 use tonic_web::GrpcWebLayer;
-use tower_http::cors::{AllowHeaders, ExposeHeaders};
 use tower_http::{
-    cors::CorsLayer,
+    cors::{AllowHeaders, CorsLayer, ExposeHeaders},
     trace::{self, TraceLayer},
 };
-use tracing::{info, warn, Level};
+use tracing::{info, info_span, warn, Level};
 
 use model::{
     create_table, drop_table,
@@ -80,6 +78,7 @@ pub struct LocalAppState {
 }
 
 pub async fn run_server() -> miette::Result<()> {
+    let server_setup_span = info_span!("server_setup").entered();
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
@@ -134,6 +133,8 @@ pub async fn run_server() -> miette::Result<()> {
 
     info!("Starting server");
 
+    drop(server_setup_span);
+
     // Build the gRPC server
     tonic::transport::server::Server::builder()
         .accept_http1(true)
@@ -145,7 +146,6 @@ pub async fn run_server() -> miette::Result<()> {
                 .on_request(trace::DefaultOnRequest::new().level(Level::DEBUG))
                 .on_failure(trace::DefaultOnFailure::new().level(Level::ERROR)),
         )
-        .layer(GrpcWebLayer::new())
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::POST, Method::OPTIONS])
@@ -156,6 +156,7 @@ pub async fn run_server() -> miette::Result<()> {
                     HeaderName::from_static("grpc-message"),
                 ])),
         )
+        .layer(GrpcWebLayer::new())
         .layer(tonic::service::interceptor(cors_interceptor))
         // The gRPC services
         .add_service(reflection_server)
@@ -200,6 +201,7 @@ fn cors_interceptor(req: tonic::Request<()>) -> tonic::Result<tonic::Request<()>
 /// # Errors
 ///
 /// If parsing fails, this will return an error.
+#[tracing::instrument(skip(default_fn))]
 fn parse_env<T>(env_var: &str, default_fn: impl FnOnce() -> T) -> miette::Result<T>
 where
     T::Err: 'static + std::error::Error + Send + Sync,
@@ -217,6 +219,7 @@ where
     }
 }
 
+#[tracing::instrument]
 async fn setup_database() -> miette::Result<DatabaseConnection> {
     let database_url = std::env::var(DATABASE_URL)
         .into_diagnostic()
@@ -247,6 +250,7 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
     Ok(db)
 }
 
+#[tracing::instrument]
 async fn setup_redis() -> miette::Result<redis::aio::MultiplexedConnection> {
     let redis_url = std::env::var(REDIS_URL)
         .into_diagnostic()
@@ -266,6 +270,7 @@ async fn setup_redis() -> miette::Result<redis::aio::MultiplexedConnection> {
     Ok(conn)
 }
 
+#[tracing::instrument]
 async fn setup_osu() -> miette::Result<Arc<Osu>> {
     let osu_client_id = std::env::var(OSU_CLIENT_ID)
         .into_diagnostic()

@@ -18,12 +18,15 @@ async fn main() -> miette::Result<()> {
     {
         if pretty_logging_enabled {
             registry
-                .with(tracing_subscriber::fmt::layer().pretty())
+                .with(tracing_subscriber::fmt::layer().without_time().pretty())
                 .init();
         }
     } else {
-        registry.with(tracing_subscriber::fmt::layer()).init();
+        registry
+            .with(tracing_subscriber::fmt::layer().without_time().compact())
+            .init();
     };
+
     // Setup logger
 
     server::run_server().await

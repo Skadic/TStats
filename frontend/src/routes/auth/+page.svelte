@@ -3,7 +3,9 @@
 	import {
 		OsuAuthServiceDefinition,
 		type OsuAuthServiceClient,
-		DeliverAuthCodeRequest
+		DeliverAuthCodeRequest,
+		DeliverAuthCodeResponse
+
 	} from '$lib/api/osuauth';
 	import { createChannel, createClient } from 'nice-grpc-web';
 
@@ -11,7 +13,7 @@
 	let authCode: string | null = $page.url.searchParams.get('code');
 
 	async function deliver() {
-		const channel = createChannel('http://0.0.0.0:9900');
+		const channel = createChannel('http://0.0.0.0:3000');
 		const client: OsuAuthServiceClient = createClient(OsuAuthServiceDefinition, channel);
 		const request: DeliverAuthCodeRequest = {
 			authCode: authCode!,

@@ -7,7 +7,7 @@
 	import { createChannel, createClient } from 'nice-grpc-web';
 
 	async function requestAccess() {
-		const channel = createChannel('http://0.0.0.0:9900');
+		const channel = createChannel('http://0.0.0.0:3000');
 		const client: OsuAuthServiceClient = createClient(OsuAuthServiceDefinition, channel);
 		console.log("created client")
 		const authCode: RequestAuthCodeResponse = await client.requestAuthCode({});

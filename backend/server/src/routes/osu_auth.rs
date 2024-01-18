@@ -1,8 +1,6 @@
 use futures::TryFutureExt;
 use oauth2::{
-    basic::BasicClient,
-    reqwest::async_http_client,
-    AuthorizationCode, CsrfToken, TokenResponse,
+    basic::BasicClient, reqwest::async_http_client, AuthorizationCode, CsrfToken, TokenResponse,
 };
 use proto::osu_auth::{
     osu_auth_service_server::OsuAuthService, DeliverAuthCodeRequest, DeliverAuthCodeResponse,
@@ -21,6 +19,7 @@ pub struct OsuAuthServiceImpl(pub LocalAppState, pub BasicClient);
 
 #[tonic::async_trait]
 impl OsuAuthService for OsuAuthServiceImpl {
+    #[tracing::instrument(skip(self, _request))]
     async fn request_auth_code(
         &self,
         _request: Request<RequestAuthCodeRequest>,
@@ -28,9 +27,9 @@ impl OsuAuthService for OsuAuthServiceImpl {
         let mut redis = self.0.redis.write().await;
 
         let url = OsuAuthCode::request(&self.1, &mut *redis)
-            .map_err(|e| {
-                tracing::error!("error requesting auth code: {e}");
-                Status::internal(format!("error requesting auth code: {e}"))
+            .map_err(|error| {
+                tracing::error!(%error, "error requesting auth code");
+                Status::internal(format!("error requesting auth code: {error}"))
             })
             .await?;
 
@@ -39,6 +38,7 @@ impl OsuAuthService for OsuAuthServiceImpl {
         }))
     }
 
+    #[tracing::instrument(skip(self, request))]
     async fn deliver_auth_code(
         &self,
         request: Request<DeliverAuthCodeRequest>,
@@ -53,9 +53,9 @@ impl OsuAuthService for OsuAuthServiceImpl {
 
         // Check whether the CSRF token received from the server matches the one from the cache
         let cached_csrf_token: CsrfToken = get_cached(&mut *redis, csrf_token.as_str())
-            .map_err(|e| {
-                tracing::error!("error fetching CSRF token: {e}");
-                Status::internal(format!("error fetching CSRF token: {e}"))
+            .map_err(|error| {
+                tracing::error!("error fetching CSRF token");
+                Status::internal(format!("error fetching CSRF token: {error}"))
             })
             .await?
             .ok_or_else(|| {
@@ -69,22 +69,22 @@ impl OsuAuthService for OsuAuthServiceImpl {
         }
 
         // Request Auth Token from osu API
-        let token = client.exchange_code(auth_code)
+        let token = client
+            .exchange_code(auth_code)
             .request_async(async_http_client)
-            .map_err(|e| {
-                tracing::warn!("could not get token from osu API: {e:?}");
-                Status::internal(format!("could not get token from osu API: {e:?}"))
+            .map_err(|error| {
+                tracing::warn!("could not get token from osu API");
+                Status::internal(format!("could not get token from osu API: {error}"))
             })
             .await?;
 
-
         let access_token = token.access_token();
         let refresh_token = token.refresh_token().ok_or_else(|| {
-            tracing::error!("osu API did not send refresh token");
+            tracing::error!(error = "osu API did not send refresh token");
             Status::internal("osu API did not send refresh token")
         })?;
         let expiry = token.expires_in().ok_or_else(|| {
-            tracing::error!("osu API did not send token expiry");
+            tracing::error!(error = "osu API did not send token expiry");
             Status::internal("osu API did not send token expiry")
         })?;
 
@@ -92,14 +92,14 @@ impl OsuAuthService for OsuAuthServiceImpl {
         // We should have now received the user data. If not, we're probably not authenticated yet
         let body_content = String::from_utf8_lossy(response_bytes.as_slice());
         let user = serde_json::from_str::<rosu_v2::model::user::User>(body_content.as_ref())
-            .map_err(|e| {
-                tracing::error!("could not get user data from osu API: {e}");
-                Status::unauthenticated(format!("could not get user data from osu API: {e}"))
+            .map_err(|error| {
+                tracing::error!(%error, "could not get user data from osu API");
+                Status::unauthenticated(format!("could not get user data from osu API: {error}"))
             })?;
 
         let user_id = user.user_id;
 
-        tracing::info!(user_id, "Successfully authenticated user");
+        tracing::info!(user_id, "successfully authenticated user");
 
         // All is well, so we save the accesss token and refresh token
         cache(
@@ -110,7 +110,7 @@ impl OsuAuthService for OsuAuthServiceImpl {
             },
             Some(expiry.as_secs() as usize - 30),
         )
-        .map_err(|e| Status::internal(format!("error caching access token: {e}")))
+        .map_err(|error| Status::internal(format!("error caching access token: {error}")))
         .await?;
 
         cache(
@@ -124,7 +124,8 @@ impl OsuAuthService for OsuAuthServiceImpl {
         .map_err(|e| Status::internal(format!("error caching access token: {e}")))
         .await?;
 
-        Ok(Response::new(DeliverAuthCodeResponse {}))
+        let resp = Response::new(DeliverAuthCodeResponse {});
+        Ok(resp)
     }
 }
 
