@@ -237,6 +237,74 @@ impl DebugService for DebugServiceImpl {
             .await;
         }
 
+        // RO64
+        {
+            let ro64 = stage::ActiveModel {
+                tournament_id: A::Set(dm8.id),
+                name: A::Set("RO64".to_owned()),
+                best_of: A::Set(9),
+                stage_order: A::Set(1),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            let nm = pool_bracket::ActiveModel {
+                bracket_order: A::Set(0),
+                name: A::Set("NM".to_owned()),
+                tournament_id: A::Set(dm8.id),
+                stage_order: A::Set(ro64.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let hd = pool_bracket::ActiveModel {
+                bracket_order: A::Set(1),
+                name: A::Set("HD".to_owned()),
+                tournament_id: A::Set(dm8.id),
+                stage_order: A::Set(ro64.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let hr = pool_bracket::ActiveModel {
+                bracket_order: A::Set(2),
+                name: A::Set("HR".to_owned()),
+                tournament_id: A::Set(dm8.id),
+                stage_order: A::Set(ro64.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let dt = pool_bracket::ActiveModel {
+                bracket_order: A::Set(3),
+                name: A::Set("DT".to_owned()),
+                tournament_id: A::Set(dm8.id),
+                stage_order: A::Set(ro64.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let tb = pool_bracket::ActiveModel {
+                bracket_order: A::Set(4),
+                name: A::Set("TB".to_owned()),
+                tournament_id: A::Set(dm8.id),
+                stage_order: A::Set(ro64.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            let _res = join_all(pool! { ro64,
+                nm => 3160790,3650832,2465287, 637391;
+                hd => 3830079, 1957037, 2134428;
+                hr => 1982100, 886269, 3167107;
+                dt => 2188430, 3457575, 3541087;
+                tb => 1233051, 1721284, 1295837
+            })
+            .await;
+        }
+
         Ok(Response::new(()))
     }
 }

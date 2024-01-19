@@ -51,6 +51,7 @@ const BACKEND_PORT: &str = "BACKEND_PORT";
 mod cache;
 mod osu;
 mod routes;
+mod utils;
 
 #[derive(Clone)]
 pub struct AppState {

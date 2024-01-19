@@ -1,5 +1,5 @@
 use super::tournament::find_stage;
-use crate::{osu::map::get_map, LocalAppState};
+use crate::{osu::map::get_map, utils::LogStatus, LocalAppState};
 use futures::{stream::FuturesOrdered, TryFutureExt, TryStreamExt};
 use model::{pool_bracket, pool_map};
 use proto::{
@@ -43,7 +43,8 @@ impl PoolService for PoolServiceImpl {
             .order_by_asc(pool_map::Column::MapOrder)
             .all(db)
             .await
-            .map_err(|e| Status::internal(format!("error fetching pool: {e}")))?;
+            .map_err(|e| Status::internal(format!("error fetching pool: {e}")))
+            .error_status()?;
 
         let brackets = pool
             .into_iter()
@@ -67,7 +68,8 @@ impl PoolService for PoolServiceImpl {
             .collect::<FuturesOrdered<_>>()
             .try_collect::<Vec<_>>()
             .map_err(|e| Status::internal(format!("error fetching map info: {e}")))
-            .await?;
+            .await
+            .error_status()?;
 
         Ok(Response::new(GetPoolResponse {
             pool: Some(Pool { brackets }),
@@ -92,7 +94,8 @@ impl PoolService for PoolServiceImpl {
             .filter(pool_bracket::Column::StageOrder.eq(stage.stage_order))
             .exec(db)
             .map_err(|e| Status::internal(format!("error deleting pool: {e}")))
-            .await?;
+            .await
+            .error_status()?;
 
         Ok(Response::new(DeletePoolResponse {}))
     }
@@ -114,7 +117,7 @@ impl PoolService for PoolServiceImpl {
         }
 
         // Test if the tournament and stage exist
-        let (tournament, stage) = find_stage(&stage_key, db).await?;
+        let (tournament, stage) = find_stage(&stage_key, db).await.error_status()?;
 
         #[allow(unused)]
         #[derive(FromQueryResult, Debug)]
@@ -140,7 +143,8 @@ impl PoolService for PoolServiceImpl {
             .into_model::<MaxBracket>()
             .one(db)
             .map_err(|e| Status::internal(format!("error fetching bracket info: {e}")))
-            .await?;
+            .await
+            .error_status()?;
 
         // Insert the bracket into the database
         let bracket = pool_bracket::ActiveModel {
@@ -159,7 +163,8 @@ impl PoolService for PoolServiceImpl {
         let bracket = bracket
             .insert(db)
             .map_err(|e| Status::internal(format!("error inserting bracket: {e}")))
-            .await?;
+            .await
+            .error_status()?;
 
         Ok(Response::new(CreatePoolBracketResponse {
             key: Some(proto::keys::PoolBracketKey {
@@ -203,14 +208,16 @@ impl PoolService for PoolServiceImpl {
                     "bracket {} in stage {} of tournament {} not found",
                     bracket_key.bracket_order, stage.stage_order, tournament.id
                 ))
-            })?;
+            })
+            .error_status()?;
 
         let maps = bracket
             .find_related(pool_map::Entity)
             .order_by_asc(pool_map::Column::MapOrder)
             .all(db)
             .map_err(|e| Status::internal(format!("error fetching pool maps: {e}")))
-            .await?;
+            .await
+            .error_status()?;
 
         let maps = maps
             .into_iter()
@@ -219,7 +226,8 @@ impl PoolService for PoolServiceImpl {
             .map_ok(proto::osu::Beatmap::from)
             .map_err(|e| Status::internal(format!("error fetching map info: {e}")))
             .try_collect::<Vec<_>>()
-            .await?;
+            .await
+            .error_status()?;
 
         Ok(Response::new(GetPoolBracketResponse {
             bracket: Some(proto::pool::PoolBracket {
@@ -290,7 +298,8 @@ impl PoolService for PoolServiceImpl {
                 .filter(pool_map::Column::BracketOrder.eq(bracket_order))
                 .exec(db)
                 .map_err(|e| Status::internal(format!("error deleting old pool maps: {e}")))
-                .await?;
+                .await
+                .error_status()?;
 
             // Insert the new maps
             pool_map::Entity::insert_many(maps.into_iter().enumerate().map(
@@ -304,7 +313,8 @@ impl PoolService for PoolServiceImpl {
             ))
             .exec(db)
             .map_err(|e| Status::internal(format!("error inserting pool maps: {e}")))
-            .await?;
+            .await
+            .error_status()?;
         }
 
         // We want to get the update bracket back
@@ -312,7 +322,8 @@ impl PoolService for PoolServiceImpl {
             .get_bracket(Request::new(GetPoolBracketRequest {
                 key: Some(pool_bracket_key),
             }))
-            .await?
+            .await
+            .error_status()?
             .into_inner();
 
         Ok(Response::new(UpdatePoolBracketResponse { bracket }))
@@ -332,7 +343,7 @@ impl PoolService for PoolServiceImpl {
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing stage key in pool bracket key"))?;
         // Test if the tournament and stage exist
-        let (tournament, stage) = find_stage(stage_key, db).await?;
+        let (tournament, stage) = find_stage(stage_key, db).await.error_status()?;
 
         let delete_res = pool_bracket::Entity::delete_by_id((
             tournament.id,
@@ -341,7 +352,8 @@ impl PoolService for PoolServiceImpl {
         ))
         .exec(db)
         .map_err(|e| Status::not_found(format!("error fetching pool bracket: {e}")))
-        .await?;
+        .await
+        .error_status()?;
 
         if delete_res.rows_affected == 0 {
             return Err(Status::not_found(format!(

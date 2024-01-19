@@ -7,7 +7,7 @@ import {
 import { TournamentServiceDefinition, type TournamentServiceClient, GetTournamentResponse } from '$lib/api/tournaments';
 import { createChannel, createClient } from 'nice-grpc-web';
 
-export async function load({ fetch, params }) {
+export async function load({ params }: any) {
 	const channel = createChannel('http://0.0.0.0:3000');
 
 	const tournamentClient: TournamentServiceClient = createClient(
@@ -15,7 +15,6 @@ export async function load({ fetch, params }) {
 		channel
 	);
 	const stageClient: StageServiceClient = createClient(StageServiceDefinition, channel);
-	const poolClient: PoolServiceClient = createClient(PoolServiceDefinition, channel);
 
 	let tournament: GetTournamentResponse = await tournamentClient.get({
 		key: { id: parseInt(params.tournament) }
@@ -30,21 +29,10 @@ export async function load({ fetch, params }) {
 		stages.push(stage);
 	}
 
-	let poolResponse: GetPoolResponse = await poolClient.get({
-		stageKey: {
-			stageOrder: 0,
-			tournamentKey: {
-				id: 1
-			}
-		}
-	});
-  console.log(poolResponse.pool)
-
 	return {
 		tournament,
 		channel,
 		stages,
-		pool: poolResponse.pool?.brackets
 	};
 }
 
