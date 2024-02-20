@@ -12,7 +12,8 @@ use proto::{
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::RwLock;
-use tonic::{transport::NamedService, Status};
+use tonic::server::NamedService;
+use tonic::Status;
 use tonic_health::server::HealthReporter;
 use tonic_web::GrpcWebLayer;
 use tower_http::{

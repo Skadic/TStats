@@ -69,7 +69,7 @@ where
     let resp = if let Some(time) = expiry_time {
         redis
             .borrow_mut()
-            .set_ex::<String, String, String>(v.full_key(), serialized, time)
+            .set_ex::<String, String, String>(v.full_key(), serialized, time as u64)
     } else {
         redis
             .borrow_mut()
