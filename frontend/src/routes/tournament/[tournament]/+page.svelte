@@ -9,7 +9,7 @@
 	import { createAccordion, createSync, melt, type CreateAccordionProps } from '@melt-ui/svelte';
 	import StageCard from '../../../components/StageCard.svelte';
 	import TournamentInfo from '../../../components/TournamentInfo.svelte';
-	import { slide } from 'svelte/transition';
+	import { fade, slide } from 'svelte/transition';
 
 	export let data;
 	let tournamentData: GetTournamentResponse = data.tournament;
@@ -18,7 +18,7 @@
 	let countryRestrictions: CountryList = tournamentData.countryRestrictions!;
 	let stages: GetAllStagesResponse[] = data.stages;
 
-	const handleChange: CreateAccordionProps['onValueChange'] = ({ curr, next }) => {
+	const handleChange: CreateAccordionProps<false>['onValueChange'] = ({ curr, next }) => {
 		console.log(next);
 		return next;
 	};
@@ -27,9 +27,8 @@
 		elements: { root, content, item, heading, trigger },
 		states: { value }
 	} = createAccordion({
-		multiple: false,
 		onValueChange: handleChange,
-		forceVisible: true
+		forceVisible: true,
 	});
 </script>
 
@@ -61,7 +60,7 @@
 				</button>
 
 				{#if $value === stage.stage?.name ?? 'unnamed stage'}
-					<div use:melt={$content(stage.stage?.name ?? 'unnamed stage')} transition:slide|global={{duration: 1000}}>
+					<div use:melt={$content(stage.stage?.name ?? 'unnamed stage')} transition:slide={{duration: 200}}>
 						<StageCard
 							tournamentId={tournament.key?.id ?? -1}
 							stage={{

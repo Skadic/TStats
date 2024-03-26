@@ -1,21 +1,23 @@
+use std::str::FromStr;
+
 use futures::TryFutureExt;
 use oauth2::{
-    basic::BasicClient, reqwest::async_http_client, AuthorizationCode, CsrfToken, TokenResponse,
+    basic::BasicClient, reqwest::async_http_client, AuthorizationCode, TokenResponse,
 };
 use proto::osu_auth::{
     osu_auth_service_server::OsuAuthService, DeliverAuthCodeRequest, DeliverAuthCodeResponse,
     RequestAuthCodeRequest, RequestAuthCodeResponse,
 };
-use tonic::{Request, Response, Status};
+use tonic::{metadata::MetadataValue, Request, Response, Status};
 use url::Url;
+use utils::Cacheable;
 
 use crate::{
-    cache::{cache, get_cached},
-    osu::auth::{OsuAccessToken, OsuAuthCode, OsuRefreshToken},
-    LocalAppState,
+    osu::auth::{OsuAccessToken, OsuAuthCode, OsuCsrfToken, OsuRefreshToken},
+    AppState,
 };
 
-pub struct OsuAuthServiceImpl(pub LocalAppState, pub BasicClient);
+pub struct OsuAuthServiceImpl(pub AppState, pub BasicClient);
 
 #[tonic::async_trait]
 impl OsuAuthService for OsuAuthServiceImpl {
@@ -24,9 +26,7 @@ impl OsuAuthService for OsuAuthServiceImpl {
         &self,
         _request: Request<RequestAuthCodeRequest>,
     ) -> Result<Response<RequestAuthCodeResponse>, Status> {
-        let mut redis = self.0.redis.write().await;
-
-        let url = OsuAuthCode::request(&self.1, &mut *redis)
+        let url = OsuAuthCode::request(&self.1, &self.0.redis)
             .map_err(|error| {
                 tracing::error!(%error, "error requesting auth code");
                 Status::internal(format!("error requesting auth code: {error}"))
@@ -47,12 +47,12 @@ impl OsuAuthService for OsuAuthServiceImpl {
 
         let auth_code = AuthorizationCode::new(request.auth_code.to_string());
         let csrf_token = request.state;
-        let mut redis = self.0.redis.write().await;
+        let redis = &self.0.redis;
 
         let client = &self.1;
 
         // Check whether the CSRF token received from the server matches the one from the cache
-        let cached_csrf_token: CsrfToken = get_cached(&mut *redis, csrf_token.as_str())
+        let cached_csrf_token = OsuCsrfToken::get_cached(csrf_token.as_str(), &redis)
             .map_err(|error| {
                 tracing::error!("error fetching CSRF token");
                 Status::internal(format!("error fetching CSRF token: {error}"))
@@ -102,29 +102,35 @@ impl OsuAuthService for OsuAuthServiceImpl {
         tracing::info!(user_id, "successfully authenticated user");
 
         // All is well, so we save the accesss token and refresh token
-        cache(
-            &mut *redis,
-            &OsuAccessToken {
-                user_id,
-                token: access_token.clone(),
-            },
-            Some(expiry.as_secs() as usize - 30),
-        )
+        OsuAccessToken {
+            user_id,
+            token: access_token.clone(),
+        }
+        .cache(redis, Some(expiry.as_secs() as usize - 30))
         .map_err(|error| Status::internal(format!("error caching access token: {error}")))
         .await?;
 
-        cache(
-            &mut *redis,
-            &OsuRefreshToken {
-                user_id,
-                token: refresh_token.clone(),
-            },
-            None,
-        )
+        OsuRefreshToken {
+            user_id,
+            token: refresh_token.clone(),
+        }
+        .cache(redis, None)
         .map_err(|e| Status::internal(format!("error caching access token: {e}")))
         .await?;
 
-        let resp = Response::new(DeliverAuthCodeResponse {});
+        //OsuAccessToken::get_cached(&1235015, &mut *redis)
+        //    .await
+        //    .map_err(|e| {})?;
+
+        let mut resp = Response::new(DeliverAuthCodeResponse {
+            access_token: "DUMMY".to_owned(),
+        });
+        let cookie = format!("mycookie={}", access_token.secret());
+        resp.metadata_mut().append(
+            "set-cookie",
+            MetadataValue::from_str(&cookie)
+                .map_err(|_| Status::internal("could not set cookie"))?,
+        );
         Ok(resp)
     }
 }

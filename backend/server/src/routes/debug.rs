@@ -10,7 +10,7 @@ use proto::debug_data::debug_service_server::DebugService;
 
 use crate::osu::map::{get_map, SlimBeatmap};
 use crate::osu::user::OsuUser;
-use crate::{AppState, LocalAppState};
+use crate::AppState;
 
 // These three tables are for generating a random tournament name.
 const MODIFIER_1: [&str; 5] = ["Amazing", "Mysterious", "Incredible", "Osu", "Great"];
@@ -35,7 +35,7 @@ const MAP_IDS: [usize; 9] = [
     3883456, 4192228, 4189337, 3917025, 4141288, 4186607, 3876751, 4130092, 4149939,
 ];
 
-pub struct DebugServiceImpl(pub LocalAppState);
+pub struct DebugServiceImpl(pub AppState);
 
 #[tonic::async_trait]
 impl DebugService for DebugServiceImpl {

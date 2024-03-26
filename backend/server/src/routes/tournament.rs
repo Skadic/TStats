@@ -26,7 +26,7 @@ use proto::{
     },
 };
 
-use crate::LocalAppState;
+use crate::AppState;
 
 pub async fn find_stage(
     stage_key: &StageKey,
@@ -64,7 +64,7 @@ pub async fn find_stage(
     Ok((tournament, stage))
 }
 
-pub struct TournamentServiceImpl(pub LocalAppState);
+pub struct TournamentServiceImpl(pub AppState);
 
 #[tonic::async_trait]
 impl TournamentService for TournamentServiceImpl {

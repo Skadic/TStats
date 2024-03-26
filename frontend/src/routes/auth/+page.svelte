@@ -7,19 +7,19 @@
 		DeliverAuthCodeResponse
 
 	} from '$lib/api/osuauth';
-	import { createChannel, createClient } from 'nice-grpc-web';
+	import { tstatsAuthToken, tstatsClient } from '$lib/rpc';
 
 	let csrfToken: string | null = $page.url.searchParams.get('state');
 	let authCode: string | null = $page.url.searchParams.get('code');
 
 	async function deliver() {
-		const channel = createChannel('http://0.0.0.0:3000');
-		const client: OsuAuthServiceClient = createClient(OsuAuthServiceDefinition, channel);
+		const client: OsuAuthServiceClient = tstatsClient(OsuAuthServiceDefinition);
 		const request: DeliverAuthCodeRequest = {
 			authCode: authCode!,
 			state: csrfToken!
 		};
-		await client.deliverAuthCode(request);
+		let resp: DeliverAuthCodeResponse = await client.deliverAuthCode(request);
+    tstatsAuthToken.set(resp.accessToken)
 	}
 </script>
 

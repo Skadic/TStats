@@ -1,9 +1,16 @@
+set dotenv-load
+set dotenv-filename := ".env.local"
+
 default: # List the available recipes
   @just --list --justfile {{justfile()}}
 
 # Run the redis container
 redis:
   podman run --rm --name tstats-redis -p 6379:6379 -d redis
+
+# Run the dragonfly container
+dragonfly:
+  podman run --network=host --rm --name tstats-cache  -p 6379:6379 --ulimit memlock=-1 -d docker.dragonflydb.io/dragonflydb/dragonfly
 
 # Run the postgres container
 postgres:

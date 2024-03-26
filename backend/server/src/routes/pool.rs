@@ -1,5 +1,6 @@
 use super::tournament::find_stage;
-use crate::{osu::map::get_map, utils::LogStatus, LocalAppState};
+use crate::{osu::map::get_map, AppState};
+use utils::LogStatus;
 use futures::{stream::FuturesOrdered, TryFutureExt, TryStreamExt};
 use model::{pool_bracket, pool_map};
 use proto::{
@@ -18,7 +19,7 @@ use sea_orm::{
 };
 use tonic::{Request, Response, Status};
 
-pub struct PoolServiceImpl(pub LocalAppState);
+pub struct PoolServiceImpl(pub AppState);
 
 #[tonic::async_trait]
 impl PoolService for PoolServiceImpl {
@@ -27,7 +28,6 @@ impl PoolService for PoolServiceImpl {
         request: Request<GetPoolRequest>,
     ) -> Result<Response<GetPoolResponse>, Status> {
         let db = &self.0.db;
-        let redis = self.0.redis.read().await;
         let request = request.into_inner();
         let stage_key = request
             .stage_key
@@ -51,7 +51,7 @@ impl PoolService for PoolServiceImpl {
             .map(|(bracket, maps)| {
                 // Get the map data from the osu api for each map
                 maps.into_iter()
-                    .map(|map| get_map(redis.clone(), self.0.osu.as_ref(), map.map_id as u32))
+                    .map(|map| get_map(&self.0.redis, self.0.osu.as_ref(), map.map_id as u32))
                     .collect::<FuturesOrdered<_>>()
                     // Transform the beatmaps into the on-the-wire format
                     .map_ok(proto::osu::Beatmap::from)
@@ -184,7 +184,6 @@ impl PoolService for PoolServiceImpl {
         request: Request<GetPoolBracketRequest>,
     ) -> Result<Response<GetPoolBracketResponse>, Status> {
         let db = &self.0.db;
-        let redis = self.0.redis.read().await;
         let request = request.into_inner();
         let bracket_key = request
             .key
@@ -221,7 +220,7 @@ impl PoolService for PoolServiceImpl {
 
         let maps = maps
             .into_iter()
-            .map(|map| get_map(redis.clone(), self.0.osu.as_ref(), map.map_id as u32))
+            .map(|map| get_map(&self.0.redis, self.0.osu.as_ref(), map.map_id as u32))
             .collect::<FuturesOrdered<_>>()
             .map_ok(proto::osu::Beatmap::from)
             .map_err(|e| Status::internal(format!("error fetching map info: {e}")))

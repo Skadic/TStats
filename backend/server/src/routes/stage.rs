@@ -1,5 +1,5 @@
 use super::tournament::find_stage;
-use crate::{osu::map::get_map, LocalAppState};
+use crate::{osu::map::get_map, AppState};
 use futures::{stream::FuturesOrdered, TryFutureExt, TryStreamExt};
 use model::stage;
 use proto::stages::{
@@ -13,7 +13,7 @@ use sea_orm::{
 };
 use tonic::{Request, Response, Status};
 
-pub struct StageServiceImpl(pub LocalAppState);
+pub struct StageServiceImpl(pub AppState);
 
 #[tonic::async_trait]
 impl StageService for StageServiceImpl {
@@ -97,15 +97,13 @@ impl StageService for StageServiceImpl {
             .await
             .map_err(|e| Status::internal(format!("could not load pool maps: {e}")))?;
 
-        let redis = self.0.redis.read().await;
-
         // Fetch map info from the osu api and transform them to the on-the-wire format
         let fetched_maps = maps
             .into_iter()
             .map(|bracket| {
                 bracket
                     .into_iter()
-                    .map(|map| get_map(redis.clone(), self.0.osu.as_ref(), map.map_id as u32))
+                    .map(|map| get_map(&self.0.redis, self.0.osu.as_ref(), map.map_id as u32))
                     .collect::<FuturesOrdered<_>>()
                     .map_ok(proto::osu::Beatmap::from)
                     .map_err(|e| Status::internal(format!("error fetching map data: {e}")))

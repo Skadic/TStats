@@ -19,4 +19,6 @@ message DeliverAuthCodeRequest {
   string auth_code = 1;
   string state = 2;
 }
-message DeliverAuthCodeResponse {}
+message DeliverAuthCodeResponse {
+  string access_token = 1;
+}

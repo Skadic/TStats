@@ -10,6 +10,7 @@ pub mod rank_restriction;
 pub mod stage;
 pub mod team;
 pub mod tournament;
+pub mod osu_api_tokens;
 
 #[allow(unused)]
 pub mod models {
@@ -21,6 +22,7 @@ pub mod models {
     pub use super::stage::Model as Stage;
     pub use super::team::Model as Team;
     pub use super::tournament::Model as Tournament;
+    //pub use super::osu_api_tokens::Model as OsuApiTokens;
 }
 #[allow(unused)]
 pub mod entities {

@@ -1,6 +1,6 @@
-*/.env
+*/*.local
 **/.idea
 .vscode
-.env
+*.local
 .prod_env
-apidoc.yaml
+apidoc.yaml^

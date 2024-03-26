@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Beatmap, Difficulty, User } from "$lib/api/osu";
+	import type { Beatmap, Difficulty, User } from '$lib/api/osu';
 
 	export let map: Beatmap;
 	export let bracketName: string;
@@ -15,10 +15,10 @@
 	}
 
 	function round1(num: number): number {
-		return Math.round(num * 10) / 10 
+		return Math.round(num * 10) / 10;
 	}
 	function round2(num: number): number {
-		return Math.round(num * 100) / 100 
+		return Math.round(num * 100) / 100;
 	}
 
 	function cover() {
@@ -74,7 +74,9 @@
 				</div>
 			</a>
 			<div class="flex flex-col lg:flex-row items-start justify-between">
-				<h2 class="font-bold bg-accent-400 text-bg p-1 rounded-md mt-5 lg:my-2">{map.difficultyName}</h2>
+				<h2 class="font-bold bg-accent-400 text-bg p-1 rounded-md mt-5 lg:my-2">
+					{map.difficultyName}
+				</h2>
 				<div class="flex items-center justify-between lg:gap-3 pt-5 lg:pt-0">
 					<span><b>★</b> {round2(difficulty.stars)}</span>
 					<span><b>Length</b> {formatLength(difficulty.length)}</span>

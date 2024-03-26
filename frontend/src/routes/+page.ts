@@ -1,23 +1,20 @@
-import { WebsocketTransport, createChannel, createClient } from 'nice-grpc-web'
 import {
 	TournamentServiceDefinition,
 	type TournamentServiceClient,
 	GetAllTournamentsResponse
-} from '$lib/api/tournaments'
+} from '$lib/api/tournaments';
+import { tstatsClient } from '$lib/rpc';
 
 export async function load({ fetch, params }) {
-	const channel = createChannel('http://0.0.0.0:3000')
+	const client: TournamentServiceClient = tstatsClient(TournamentServiceDefinition);
 
-	const client: TournamentServiceClient = createClient(TournamentServiceDefinition, channel)
-
-	let tournaments: GetAllTournamentsResponse[] = []
+	let tournaments: GetAllTournamentsResponse[] = [];
 
 	for await (const tournament of client.getAll({})) {
-		tournaments.push(tournament)
+		tournaments.push(tournament);
 	}
 
 	return {
-		channel,
 		tournaments
-	}
+	};
 }

@@ -3,6 +3,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use deadpool_redis::Config;
 use http::{HeaderName, HeaderValue, Method};
 use miette::{Context, IntoDiagnostic};
 use proto::{
@@ -11,7 +12,6 @@ use proto::{
 };
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
-use tokio::sync::RwLock;
 use tonic::server::NamedService;
 use tonic::Status;
 use tonic_health::server::HealthReporter;
@@ -20,7 +20,7 @@ use tower_http::{
     cors::{AllowHeaders, CorsLayer, ExposeHeaders},
     trace::{self, TraceLayer},
 };
-use tracing::{info, info_span, warn, Level};
+use tracing::{debug, error, info, info_span, warn, Level};
 
 use model::{
     create_table, drop_table,
@@ -38,45 +38,28 @@ use crate::routes::pool::PoolServiceImpl;
 use crate::routes::stage::StageServiceImpl;
 use crate::routes::tournament::TournamentServiceImpl;
 
-const OSU_CLIENT_ID: &str = "OSU_CLIENT_ID";
-const OSU_CLIENT_SECRET: &str = "OSU_CLIENT_SECRET";
-const DATABASE_URL: &str = "DATABASE_URL";
-const REDIS_URL: &str = "REDIS_URL";
-const FRONTEND_METHOD: &str = "FRONTEND_METHOD";
-const FRONTEND_HOST: &str = "FRONTEND_HOST";
-const FRONTEND_PORT: &str = "FRONTEND_PORT";
-const BACKEND_HOST: &str = "BACKEND_HOST";
-const BACKEND_PORT: &str = "BACKEND_PORT";
+use utils::consts::*;
 
-#[allow(unused)]
-mod cache;
+type RedisConnection = deadpool_redis::Connection;
+type RedisConnectionPool = deadpool_redis::Pool;
+
 mod osu;
 mod routes;
-mod utils;
 
 #[derive(Clone)]
 pub struct AppState {
     db: DatabaseConnection,
     osu: Arc<Osu>,
-    redis: redis::aio::MultiplexedConnection,
+    redis: RedisConnectionPool,
 }
 
 impl AppState {
-    /// Returns a cloned instance of the app state for use in gRPC services.
-    fn get_local_instance(&self) -> LocalAppState {
-        LocalAppState {
-            db: self.db.clone(),
-            osu: self.osu.clone(),
-            redis: RwLock::new(self.redis.clone()),
-        }
+    pub async fn redis_connection(&self) -> Result<RedisConnection, tonic::Status> {
+        self.redis.get().await.map_err(|e| {
+            error!(source = %e, "could not get redis connection");
+            Status::internal("could not connect to redis")
+        })
     }
-}
-
-#[allow(unused)]
-pub struct LocalAppState {
-    db: DatabaseConnection,
-    osu: Arc<Osu>,
-    redis: RwLock<redis::aio::MultiplexedConnection>,
 }
 
 pub async fn run_server() -> miette::Result<()> {
@@ -85,6 +68,8 @@ pub async fn run_server() -> miette::Result<()> {
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
     }
+
+    //session::crypt::verify_aes_key().into_diagnostic()?;
 
     let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
     let (db, redis, osu) = (db?, redis?, osu?);
@@ -119,7 +104,7 @@ pub async fn run_server() -> miette::Result<()> {
     set_serving(&mut health_reporter, &reflection_server).await;
 
     let frontend_method = parse_env(FRONTEND_METHOD, || "http".to_owned())?;
-    let frontend_host: String = parse_env(FRONTEND_HOST, || "0.0.0.0".to_owned())?;
+    let frontend_host: String = parse_env(FRONTEND_HOST, || "localhost".to_owned())?;
     let frontend_port = parse_env(FRONTEND_PORT, || "5173".to_owned())?;
     let host: IpAddr = parse_env(BACKEND_HOST, || IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))?;
     let port = parse_env(BACKEND_PORT, || 3000)?;
@@ -136,6 +121,23 @@ pub async fn run_server() -> miette::Result<()> {
     info!("Starting server");
 
     drop(server_setup_span);
+
+    let auth_interceptor_state = state.clone();
+    let auth_interceptor = move |req: tonic::Request<()>| {
+        /*
+                let auth_header_token =
+                if let Some(c) = req.metadata().get("authorization") {
+                    warn!("auth cookie is set!: {:?}", c);
+                    c.to_str().map_err(|e|{ error!("non-unicode bearer token"); Status::unauthenticated("non-unicode bearer token")})?
+                } else {
+                    error!("auth cookie is not set!");
+                    return Err(Status::unauthenticated("no bearer token"))
+                };
+        */
+        //OsuAccessToken::get_cached(&0, auth_interceptor_state.redis.get().await.map_err(|err| {error!(src = %err, "could not get redis connection"); Status::internal("could not check authorization")})?);
+
+        Ok(req)
+    };
 
     // Build the gRPC server
     tonic::transport::server::Server::builder()
@@ -160,22 +162,17 @@ pub async fn run_server() -> miette::Result<()> {
         )
         .layer(GrpcWebLayer::new())
         .layer(tonic::service::interceptor(cors_interceptor))
+        .layer(tonic::service::interceptor(auth_interceptor))
         // The gRPC services
         .add_service(reflection_server)
-        .add_service(DebugServiceServer::new(DebugServiceImpl(
-            state.get_local_instance(),
-        )))
+        .add_service(DebugServiceServer::new(DebugServiceImpl(state.clone())))
         .add_service(TournamentServiceServer::new(TournamentServiceImpl(
-            state.get_local_instance(),
+            state.clone(),
         )))
-        .add_service(StageServiceServer::new(StageServiceImpl(
-            state.get_local_instance(),
-        )))
-        .add_service(PoolServiceServer::new(PoolServiceImpl(
-            state.get_local_instance(),
-        )))
+        .add_service(StageServiceServer::new(StageServiceImpl(state.clone())))
+        .add_service(PoolServiceServer::new(PoolServiceImpl(state.clone())))
         .add_service(OsuAuthServiceServer::new(OsuAuthServiceImpl(
-            state.get_local_instance(),
+            state.clone(),
             osu::auth::get_auth_client(),
         )))
         .add_service(health_server)
@@ -186,6 +183,7 @@ pub async fn run_server() -> miette::Result<()> {
 
 /// Intercepts cors requests so they are not forwarded to the actual handler
 fn cors_interceptor(req: tonic::Request<()>) -> tonic::Result<tonic::Request<()>> {
+    debug!(?req);
     let is_cors = match req.metadata().get("sec-fetch-mode") {
         Some(fetch_mode) if fetch_mode == "cors" => true,
         Some(_) | None => false,
@@ -253,11 +251,19 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
 }
 
 #[tracing::instrument]
-async fn setup_redis() -> miette::Result<redis::aio::MultiplexedConnection> {
+async fn setup_redis() -> miette::Result<deadpool_redis::Pool> {
     let redis_url = std::env::var(REDIS_URL)
         .into_diagnostic()
         .wrap_err("REDIS_URL not set")?;
     info!("connecting to redis");
+
+    let cfg = Config::from_url(&redis_url);
+    let pool = cfg
+        .create_pool(Some(deadpool_redis::Runtime::Tokio1))
+        .into_diagnostic()
+        .wrap_err("could not create redis connection pool")?;
+
+    /*
     let client = redis::Client::open(redis_url)
         .into_diagnostic()
         .wrap_err("error connecting to redis")?;
@@ -267,9 +273,10 @@ async fn setup_redis() -> miette::Result<redis::aio::MultiplexedConnection> {
         .await
         .into_diagnostic()
         .wrap_err("error connecting to redis")?;
+    */
     info!("connection to redis successful");
 
-    Ok(conn)
+    Ok(pool)
 }
 
 #[tracing::instrument]

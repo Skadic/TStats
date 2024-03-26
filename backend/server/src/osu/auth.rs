@@ -1,10 +1,13 @@
+use std::ops::Deref;
+
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
 };
-use redis::AsyncCommands;
 use url::Url;
 
-use crate::cache::{cache, CacheResult, Cacheable};
+use utils::{cache::CacheResult, Cacheable};
+
+use crate::RedisConnectionPool;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct OsuRefreshToken {
@@ -48,18 +51,26 @@ pub struct OsuAuthCode {
     pub code: oauth2::AuthorizationCode,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct OsuCsrfToken(pub oauth2::CsrfToken);
+
+impl Deref for OsuCsrfToken {
+    type Target = oauth2::CsrfToken;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl OsuAuthCode {
-    pub async fn request<Conn: AsyncCommands + Send + Sync>(
-        client: &BasicClient,
-        redis: &mut Conn,
-    ) -> CacheResult<Url> {
+    pub async fn request(client: &BasicClient, redis: &RedisConnectionPool) -> CacheResult<Url> {
         let (auth_url, csrf_token) = client
             .authorize_url(CsrfToken::new_random)
             .add_scope(Scope::new("public".into()))
             .add_scope(Scope::new("identify".into()))
             .url();
 
-        cache(redis, &csrf_token, Some(300)).await?;
+        OsuCsrfToken(csrf_token).cache(redis, Some(300)).await?;
 
         tracing::debug!("Browse to: {}", &auth_url);
         Ok(auth_url)
@@ -78,7 +89,7 @@ impl Cacheable for OsuAuthCode {
     }
 }
 
-impl Cacheable for oauth2::CsrfToken {
+impl Cacheable for OsuCsrfToken {
     type KeyType = str;
 
     fn type_key() -> &'static str {
@@ -86,7 +97,7 @@ impl Cacheable for oauth2::CsrfToken {
     }
 
     fn key(&self) -> &Self::KeyType {
-        self.secret().as_str()
+        self.0.secret().as_str()
     }
 }
 
@@ -101,6 +112,6 @@ pub fn get_auth_client() -> BasicClient {
         AuthUrl::new("https://osu.ppy.sh/oauth/authorize".to_string()).unwrap(),
         Some(TokenUrl::new("https://osu.ppy.sh/oauth/token".to_string()).unwrap()),
     )
-    .set_redirect_uri(RedirectUrl::new("http://0.0.0.0:5173/auth".to_string()).unwrap())
+    .set_redirect_uri(RedirectUrl::new("http://localdev.skadic.moe:5173/auth".to_string()).unwrap())
     .set_auth_type(oauth2::AuthType::RequestBody)
 }

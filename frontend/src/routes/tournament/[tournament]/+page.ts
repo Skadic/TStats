@@ -1,30 +1,33 @@
-import { PoolServiceDefinition, type PoolServiceClient, GetPoolResponse } from '$lib/api/pool.js';
 import {
 	StageServiceDefinition,
 	type StageServiceClient,
 	GetAllStagesResponse
 } from '$lib/api/stages.js';
-import { TournamentServiceDefinition, type TournamentServiceClient, GetTournamentResponse } from '$lib/api/tournaments';
-import { createChannel, createClient } from 'nice-grpc-web';
+import {
+	TournamentServiceDefinition,
+	type TournamentServiceClient,
+	GetTournamentResponse
+} from '$lib/api/tournaments';
+import { tstatsChannel, tstatsClient } from '$lib/rpc';
 
 export async function load({ params }: any) {
-	const channel = createChannel('http://0.0.0.0:3000');
+	const channel = tstatsChannel();
 
-	const tournamentClient: TournamentServiceClient = createClient(
+	const tournamentClient: TournamentServiceClient = tstatsClient(
 		TournamentServiceDefinition,
 		channel
 	);
-	const stageClient: StageServiceClient = createClient(StageServiceDefinition, channel);
+	const stageClient: StageServiceClient = tstatsClient(StageServiceDefinition, channel);
 
-	let tournament: GetTournamentResponse = await tournamentClient.get({
+	const tournament: GetTournamentResponse = await tournamentClient.get({
 		key: { id: parseInt(params.tournament) }
 	});
 
-	let request = stageClient.getAll({
+	const request = stageClient.getAll({
 		tournamentKey: { id: parseInt(params.tournament) }
 	});
 
-	let stages: GetAllStagesResponse[] = [];
+	const stages: GetAllStagesResponse[] = [];
 	for await (const stage of request) {
 		stages.push(stage);
 	}
@@ -32,7 +35,7 @@ export async function load({ params }: any) {
 	return {
 		tournament,
 		channel,
-		stages,
+		stages
 	};
 }
 

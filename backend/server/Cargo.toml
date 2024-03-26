@@ -9,7 +9,9 @@ edition = "2021"
 
 model = { path = "../model" }
 proto = { path = "../proto" }
+utils = { path = "../utils"}
 
+deadpool-redis = { version = "0.14.0", features = ["rt_tokio_1"] }
 # Read .env files
 dotenvy = "0.15"
 # Utilities for working with futures
@@ -24,7 +26,6 @@ miette = { version = "7.1", features = ["fancy"] }
 oauth2 = "4.4"
 # Protobuf
 prost = { version = "0.12" }
-# Random
 rand = "0.8"
 # Redis client
 redis = { version = "0.24", features = ["tokio-comp", "serde_json", "json"] }
@@ -54,3 +55,10 @@ tracing-log = { version = "0.2" }
 url = "2.5"
 urlencoding = "2.1"
 reqwest = "0.11"
+scrypt = "0.11.0"
+rand_chacha = "0.3.1"
+base64 = "0.22.0"
+aes-gcm = { version = "0.10.3", features = ["std"] }
+
+[dev-dependencies]
+ctor = "0.2.7"

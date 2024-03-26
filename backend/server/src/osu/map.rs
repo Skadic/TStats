@@ -1,10 +1,12 @@
-use std::borrow::BorrowMut;
-use std::error::Error;
-
+use miette::IntoDiagnostic;
 use rosu_v2::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::cache::{get_cached_or, CacheError, CacheResult, Cacheable};
+use crate::RedisConnectionPool;
+use utils::{
+    cache::{CacheError, CacheResult},
+    Cacheable,
+};
 
 use super::user::OsuUser;
 
@@ -186,39 +188,31 @@ impl TryFrom<proto::osu::Beatmap> for SlimBeatmap {
 ///
 /// This function will return an error if something goes wrong during cacheing or communicating with the osu api.
 pub async fn get_map(
-    mut redis: redis::aio::MultiplexedConnection,
+    redis: &RedisConnectionPool,
     osu: &Osu,
     map_id: u32,
 ) -> CacheResult<SlimBeatmap> {
-    let redis = redis.borrow_mut();
     // Find the map's data
-    let map = get_cached_or::<SlimBeatmap, CacheError, _,  _>(
-        &mut redis.clone(),
-        &map_id,
-        Some(3600),
-        || async {
-            // If it doesn't exist in the cache, request it from the osu api
-            let mapset = osu
-                .beatmapset_from_map_id(map_id)
-                .await
-                .map_err(|e| -> Box<dyn Error + Send + Sync> { Box::new(e) })
-                .map_err(CacheError::Request)?;
-            let maps = mapset.maps.as_ref().unwrap();
-            // beatmapset_from_map_id guarantees that maps has entries and we also know that the map with the given id exists
-            let map = maps.iter().find(|map| map.map_id == map_id).unwrap();
-            let creator = get_cached_or::<OsuUser, OsuError, _, _>(
-                redis,
-                &map.creator_id,
-                Some(3600),
-                || async { osu.user(map.creator_id).await.map(OsuUser::from) },
-            )
+    let map = SlimBeatmap::get_cached_or::<CacheError, _>(redis, &map_id, Some(3600), || async {
+        // If it doesn't exist in the cache, request it from the osu api
+        let mapset = osu
+            .beatmapset_from_map_id(map_id)
+            .await
+            .into_diagnostic()
+            .map_err(CacheError::Request)?;
+        let maps = mapset.maps.as_ref().unwrap();
+        // beatmapset_from_map_id guarantees that maps has entries and we also know that the map with the given id exists
+        let map = maps.iter().find(|map| map.map_id == map_id).unwrap();
+        let creator =
+            OsuUser::get_cached_or::<OsuError, _>(redis, &map.creator_id, Some(3600), || async {
+                osu.user(map.creator_id).await.map(OsuUser::from)
+            })
             .await?;
 
-            Ok(SlimBeatmap::from_map_set_and_creator(
-                map, &mapset, &creator,
-            ))
-        },
-    )
+        Ok(SlimBeatmap::from_map_set_and_creator(
+            map, &mapset, &creator,
+        ))
+    })
     .await?;
 
     Ok(map)

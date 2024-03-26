@@ -4,11 +4,10 @@
 		type OsuAuthServiceClient,
 		RequestAuthCodeResponse
 	} from '$lib/api/osuauth';
-	import { createChannel, createClient } from 'nice-grpc-web';
+	import { tstatsClient } from '$lib/rpc';
 
 	async function requestAccess() {
-		const channel = createChannel('http://0.0.0.0:3000');
-		const client: OsuAuthServiceClient = createClient(OsuAuthServiceDefinition, channel);
+		const client: OsuAuthServiceClient = tstatsClient(OsuAuthServiceDefinition);
 		console.log("created client")
 		const authCode: RequestAuthCodeResponse = await client.requestAuthCode({});
 		console.log(authCode);
