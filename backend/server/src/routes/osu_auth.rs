@@ -1,9 +1,7 @@
 use std::str::FromStr;
 
 use futures::TryFutureExt;
-use oauth2::{
-    basic::BasicClient, reqwest::async_http_client, AuthorizationCode, TokenResponse,
-};
+use oauth2::{basic::BasicClient, reqwest::async_http_client, AuthorizationCode, TokenResponse};
 use proto::osu_auth::{
     osu_auth_service_server::OsuAuthService, DeliverAuthCodeRequest, DeliverAuthCodeResponse,
     RequestAuthCodeRequest, RequestAuthCodeResponse,
@@ -13,7 +11,7 @@ use url::Url;
 use utils::Cacheable;
 
 use crate::{
-    osu::auth::{OsuAccessToken, OsuAuthCode, OsuCsrfToken, OsuRefreshToken},
+    osu::auth::{OsuAccessToken, OsuAuthCode, OsuCsrfToken, OsuRefreshToken, Session},
     AppState,
 };
 
@@ -115,15 +113,22 @@ impl OsuAuthService for OsuAuthServiceImpl {
             token: refresh_token.clone(),
         }
         .cache(redis, None)
-        .map_err(|e| Status::internal(format!("error caching access token: {e}")))
+        .map_err(|e| Status::internal(format!("error caching refresh token: {e}")))
         .await?;
 
         //OsuAccessToken::get_cached(&1235015, &mut *redis)
         //    .await
         //    .map_err(|e| {})?;
+        //
+        let session = Session::new(user_id);
+
+        session
+            .cache(redis, Some(600))
+            .await
+            .map_err(|e| Status::internal(format!("error caching session token: {e}")))?;
 
         let mut resp = Response::new(DeliverAuthCodeResponse {
-            access_token: "DUMMY".to_owned(),
+            access_token: session.session_id
         });
         let cookie = format!("mycookie={}", access_token.secret());
         resp.metadata_mut().append(

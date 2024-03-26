@@ -13,8 +13,10 @@ use proto::{
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tonic::server::NamedService;
+use tonic::transport::Body;
 use tonic::Status;
 use tonic_health::server::HealthReporter;
+use tonic_middleware::{InterceptorFor, RequestInterceptor, RequestInterceptorLayer};
 use tonic_web::GrpcWebLayer;
 use tower_http::{
     cors::{AllowHeaders, CorsLayer, ExposeHeaders},
@@ -32,13 +34,14 @@ use model::{
 use proto::debug_data::debug_service_server::DebugServiceServer;
 use proto::tournaments::tournament_service_server::TournamentServiceServer;
 
+use crate::osu::auth::Session;
 use crate::routes::debug::DebugServiceImpl;
 use crate::routes::osu_auth::OsuAuthServiceImpl;
 use crate::routes::pool::PoolServiceImpl;
 use crate::routes::stage::StageServiceImpl;
 use crate::routes::tournament::TournamentServiceImpl;
 
-use utils::consts::*;
+use utils::{consts::*, Cacheable, LogStatus};
 
 type RedisConnection = deadpool_redis::Connection;
 type RedisConnectionPool = deadpool_redis::Pool;
@@ -62,6 +65,7 @@ impl AppState {
     }
 }
 
+#[tracing::instrument]
 pub async fn run_server() -> miette::Result<()> {
     let server_setup_span = info_span!("server_setup").entered();
     // Load environment variables from .env file
@@ -122,23 +126,6 @@ pub async fn run_server() -> miette::Result<()> {
 
     drop(server_setup_span);
 
-    let auth_interceptor_state = state.clone();
-    let auth_interceptor = move |req: tonic::Request<()>| {
-        /*
-                let auth_header_token =
-                if let Some(c) = req.metadata().get("authorization") {
-                    warn!("auth cookie is set!: {:?}", c);
-                    c.to_str().map_err(|e|{ error!("non-unicode bearer token"); Status::unauthenticated("non-unicode bearer token")})?
-                } else {
-                    error!("auth cookie is not set!");
-                    return Err(Status::unauthenticated("no bearer token"))
-                };
-        */
-        //OsuAccessToken::get_cached(&0, auth_interceptor_state.redis.get().await.map_err(|err| {error!(src = %err, "could not get redis connection"); Status::internal("could not check authorization")})?);
-
-        Ok(req)
-    };
-
     // Build the gRPC server
     tonic::transport::server::Server::builder()
         .accept_http1(true)
@@ -154,28 +141,36 @@ pub async fn run_server() -> miette::Result<()> {
             CorsLayer::new()
                 .allow_methods([Method::POST, Method::OPTIONS])
                 .allow_origin([frontend_addr])
-                .allow_headers(AllowHeaders::any())
+                .allow_headers(AllowHeaders::list([
+                    HeaderName::from_static("grpc-status"),
+                    HeaderName::from_static("content-type"),
+                    HeaderName::from_static("x-grpc-web"),
+                    HeaderName::from_static("grpc-message"),
+                    HeaderName::from_static("authorization"),
+                ]))
                 .expose_headers(ExposeHeaders::list([
                     HeaderName::from_static("grpc-status"),
+                    HeaderName::from_static("content-type"),
+                    HeaderName::from_static("x-grpc-web"),
                     HeaderName::from_static("grpc-message"),
+                    HeaderName::from_static("authorization"),
                 ])),
         )
         .layer(GrpcWebLayer::new())
         .layer(tonic::service::interceptor(cors_interceptor))
-        .layer(tonic::service::interceptor(auth_interceptor))
         // The gRPC services
         .add_service(reflection_server)
+        .add_service(health_server)
+        .add_service(OsuAuthServiceServer::new(OsuAuthServiceImpl(
+            state.clone(),
+            osu::auth::get_auth_client(),
+        )))
         .add_service(DebugServiceServer::new(DebugServiceImpl(state.clone())))
         .add_service(TournamentServiceServer::new(TournamentServiceImpl(
             state.clone(),
         )))
         .add_service(StageServiceServer::new(StageServiceImpl(state.clone())))
         .add_service(PoolServiceServer::new(PoolServiceImpl(state.clone())))
-        .add_service(OsuAuthServiceServer::new(OsuAuthServiceImpl(
-            state.clone(),
-            osu::auth::get_auth_client(),
-        )))
-        .add_service(health_server)
         .serve(addr)
         .await
         .into_diagnostic()
@@ -183,14 +178,49 @@ pub async fn run_server() -> miette::Result<()> {
 
 /// Intercepts cors requests so they are not forwarded to the actual handler
 fn cors_interceptor(req: tonic::Request<()>) -> tonic::Result<tonic::Request<()>> {
-    debug!(?req);
+    //debug!(?req);
     let is_cors = match req.metadata().get("sec-fetch-mode") {
         Some(fetch_mode) if fetch_mode == "cors" => true,
         Some(_) | None => false,
     };
     if is_cors {
+        debug!("cors request!");
         Err(Status::ok("cors request".to_string()))
     } else {
+        Ok(req)
+    }
+}
+
+#[derive(Clone)]
+struct AuthInterceptor {
+    state: AppState,
+}
+
+#[tonic::async_trait]
+impl RequestInterceptor for AuthInterceptor {
+    #[tracing::instrument(skip(self), rename = "authorize")]
+    async fn intercept(&self, req: http::Request<Body>) -> Result<http::Request<Body>, Status> {
+        let auth_header_token = match req.headers().get("authorization") {
+            Some(c) => c
+                .to_str()
+                .map_err(|_| Status::unauthenticated("non-unicode session token"))?,
+            _ => {
+                return Err(Status::unauthenticated("authorization cookie not set"));
+            }
+        };
+
+        if !auth_header_token.starts_with("Bearer ") {
+            return Err(Status::unauthenticated("invalid session token")).warn_status();
+        }
+        let auth_header_token = &auth_header_token[7..];
+
+        let Some(_) = Session::get_cached(auth_header_token, &self.state.redis)
+            .await
+            .map_err(|_| Status::internal(format!("error reading session token")))?
+        else {
+            return Err(Status::unauthenticated("expired or unknown session token"));
+        };
+
         Ok(req)
     }
 }
@@ -257,23 +287,12 @@ async fn setup_redis() -> miette::Result<deadpool_redis::Pool> {
         .wrap_err("REDIS_URL not set")?;
     info!("connecting to redis");
 
-    let cfg = Config::from_url(&redis_url);
+    let cfg = Config::from_url(redis_url);
     let pool = cfg
         .create_pool(Some(deadpool_redis::Runtime::Tokio1))
         .into_diagnostic()
         .wrap_err("could not create redis connection pool")?;
 
-    /*
-    let client = redis::Client::open(redis_url)
-        .into_diagnostic()
-        .wrap_err("error connecting to redis")?;
-
-    let conn = client
-        .get_multiplexed_tokio_connection()
-        .await
-        .into_diagnostic()
-        .wrap_err("error connecting to redis")?;
-    */
     info!("connection to redis successful");
 
     Ok(pool)

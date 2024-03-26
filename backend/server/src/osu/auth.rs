@@ -1,11 +1,14 @@
 use std::ops::Deref;
 
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
 };
+use rand::{RngCore, SeedableRng};
+use serde::{Deserialize, Serialize};
 use url::Url;
 
-use utils::{cache::CacheResult, Cacheable};
+use utils::{cache::CacheResult, crypt::EncryptedToken, Cacheable};
 
 use crate::RedisConnectionPool;
 
@@ -114,4 +117,45 @@ pub fn get_auth_client() -> BasicClient {
     )
     .set_redirect_uri(RedirectUrl::new("http://localdev.skadic.moe:5173/auth".to_string()).unwrap())
     .set_auth_type(oauth2::AuthType::RequestBody)
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Session {
+    pub session_id: String,
+    pub osu_user_id: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OsuApiTokens {
+    user_id: u32,
+    access_token: EncryptedToken,
+    refresh_token: EncryptedToken,
+}
+
+impl Cacheable for Session {
+    type KeyType = str;
+
+    fn type_key() -> &'static str {
+        "session"
+    }
+
+    fn key(&self) -> &Self::KeyType {
+        self.session_id.as_str()
+    }
+}
+
+impl Session {
+    pub fn new(osu_user_id: u32) -> Self {
+        Self {
+            session_id: Self::generate_session_id(),
+            osu_user_id,
+        }
+    }
+
+    fn generate_session_id() -> String {
+        let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
+        let mut buf = [0u8; 16];
+        rng.fill_bytes(&mut buf);
+        BASE64_STANDARD.encode(buf)
+    }
 }
