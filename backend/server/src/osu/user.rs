@@ -5,7 +5,7 @@ use rosu_v2::{
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use utils::Cacheable;
+use utils::{cache::CacheResult, Cacheable};
 
 use crate::RedisConnectionPool;
 
@@ -50,11 +50,14 @@ impl Cacheable for OsuUser {
     }
 }
 
-pub async fn get_user(redis: &RedisConnectionPool, osu: &Osu, user_id: u32) -> OsuUser {
+pub async fn get_user(
+    redis: &RedisConnectionPool,
+    osu: &Osu,
+    user_id: u32,
+) -> CacheResult<OsuUser> {
     OsuUser::get_cached_or::<OsuError, _>(redis, &user_id, Some(60), || async {
         let usr = osu.user(user_id).await?;
         Ok(usr.into())
     })
     .await
-    .unwrap()
 }

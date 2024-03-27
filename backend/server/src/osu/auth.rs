@@ -75,7 +75,6 @@ impl OsuAuthCode {
 
         OsuCsrfToken(csrf_token).cache(redis, Some(300)).await?;
 
-        tracing::debug!("Browse to: {}", &auth_url);
         Ok(auth_url)
     }
 }
@@ -125,13 +124,6 @@ pub struct Session {
     pub osu_user_id: u32,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct OsuApiTokens {
-    user_id: u32,
-    access_token: EncryptedToken,
-    refresh_token: EncryptedToken,
-}
-
 impl Cacheable for Session {
     type KeyType = str;
 
@@ -157,5 +149,24 @@ impl Session {
         let mut buf = [0u8; 16];
         rng.fill_bytes(&mut buf);
         BASE64_STANDARD.encode(buf)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OsuApiTokens {
+    pub user_id: u32,
+    pub access_token: EncryptedToken,
+    pub refresh_token: EncryptedToken,
+}
+
+impl Cacheable for OsuApiTokens {
+    type KeyType = u32;
+
+    fn type_key() -> &'static str {
+        "osuapitokens"
+    }
+
+    fn key(&self) -> &Self::KeyType {
+        &self.user_id
     }
 }

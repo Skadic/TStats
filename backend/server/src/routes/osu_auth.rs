@@ -7,11 +7,12 @@ use proto::osu_auth::{
     RequestAuthCodeRequest, RequestAuthCodeResponse,
 };
 use tonic::{metadata::MetadataValue, Request, Response, Status};
+use tracing::error;
 use url::Url;
-use utils::Cacheable;
+use utils::{crypt::EncryptedToken, Cacheable};
 
 use crate::{
-    osu::auth::{OsuAccessToken, OsuAuthCode, OsuCsrfToken, OsuRefreshToken, Session},
+    osu::auth::{OsuApiTokens, OsuAuthCode, OsuCsrfToken, Session},
     AppState,
 };
 
@@ -50,9 +51,9 @@ impl OsuAuthService for OsuAuthServiceImpl {
         let client = &self.1;
 
         // Check whether the CSRF token received from the server matches the one from the cache
-        let cached_csrf_token = OsuCsrfToken::get_cached(csrf_token.as_str(), &redis)
+        let cached_csrf_token = OsuCsrfToken::uncache(&redis, csrf_token.as_str())
             .map_err(|error| {
-                tracing::error!("error fetching CSRF token");
+                tracing::error!(%error, "error fetching CSRF token");
                 Status::internal(format!("error fetching CSRF token: {error}"))
             })
             .await?
@@ -86,40 +87,26 @@ impl OsuAuthService for OsuAuthServiceImpl {
             Status::internal("osu API did not send token expiry")
         })?;
 
-        let response_bytes = request_user_data(access_token.secret().as_str()).await?;
-        // We should have now received the user data. If not, we're probably not authenticated yet
-        let body_content = String::from_utf8_lossy(response_bytes.as_slice());
-        let user = serde_json::from_str::<rosu_v2::model::user::User>(body_content.as_ref())
-            .map_err(|error| {
-                tracing::error!(%error, "could not get user data from osu API");
-                Status::unauthenticated(format!("could not get user data from osu API: {error}"))
-            })?;
-
+        let user = request_user_data(access_token.secret().as_str()).await?;
         let user_id = user.user_id;
 
         tracing::info!(user_id, "successfully authenticated user");
 
         // All is well, so we save the accesss token and refresh token
-        OsuAccessToken {
+        OsuApiTokens {
             user_id,
-            token: access_token.clone(),
+            access_token: EncryptedToken::new(access_token.secret()).map_err(|error| {
+                error!("error caching access token: {error}");
+                Status::internal(format!("error caching access token"))
+            })?,
+            refresh_token: EncryptedToken::new(refresh_token.secret()).map_err(|error| {
+                error!("error caching refresh token: {error}");
+                Status::internal(format!("error caching refresh token"))
+            })?,
         }
         .cache(redis, Some(expiry.as_secs() as usize - 30))
-        .map_err(|error| Status::internal(format!("error caching access token: {error}")))
+        .map_err(|error| Status::internal(format!("error caching access tokens: {error}")))
         .await?;
-
-        OsuRefreshToken {
-            user_id,
-            token: refresh_token.clone(),
-        }
-        .cache(redis, None)
-        .map_err(|e| Status::internal(format!("error caching refresh token: {e}")))
-        .await?;
-
-        //OsuAccessToken::get_cached(&1235015, &mut *redis)
-        //    .await
-        //    .map_err(|e| {})?;
-        //
         let session = Session::new(user_id);
 
         session
@@ -128,7 +115,7 @@ impl OsuAuthService for OsuAuthServiceImpl {
             .map_err(|e| Status::internal(format!("error caching session token: {e}")))?;
 
         let mut resp = Response::new(DeliverAuthCodeResponse {
-            access_token: session.session_id
+            access_token: session.session_id,
         });
         let cookie = format!("mycookie={}", access_token.secret());
         resp.metadata_mut().append(
@@ -140,7 +127,8 @@ impl OsuAuthService for OsuAuthServiceImpl {
     }
 }
 
-async fn request_user_data(access_token: &str) -> tonic::Result<Vec<u8>> {
+#[tracing::instrument(skip_all)]
+async fn request_user_data(access_token: &str) -> tonic::Result<rosu_v2::model::user::User> {
     use oauth2::http::{HeaderMap, HeaderName, HeaderValue};
     // Try to request the current user's data
     let mut headers = HeaderMap::new();
@@ -165,5 +153,14 @@ async fn request_user_data(access_token: &str) -> tonic::Result<Vec<u8>> {
     .await
     .map_err(|e| Status::internal(format!("could not request user data using token: {e}")))?;
 
-    Ok(resp.body)
+    // We should have now received the user data. If not, we're probably not authenticated yet
+    let body_content = String::from_utf8_lossy(resp.body.as_slice());
+    let user = serde_json::from_str::<rosu_v2::model::user::User>(body_content.as_ref()).map_err(
+        |error| {
+            tracing::error!(%error, "could not parse data from osu API");
+            Status::unauthenticated(format!("could not parse user data from osu API: {error}"))
+        },
+    )?;
+
+    Ok(user)
 }

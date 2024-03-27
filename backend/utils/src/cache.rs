@@ -50,6 +50,24 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
         cache(redis, self, expiry_time).await
     }
 
+    /// Removes a value from redis.
+    ///
+    /// # Arguments
+    ///
+    /// * `redis` - A connection to the redis instance
+    /// * `key` - The key to remove.
+    ///
+    /// # Errors
+    ///
+    /// An error can occur when deserialization fails, or the del command in the redis store fails.
+    ///
+    async fn uncache(
+        redis: &deadpool_redis::Pool,
+        key: &Self::KeyType,
+    ) -> Result<Option<Self>, CacheError> {
+        uncache(redis, key).await
+    }
+
     /// Gets a value from redis. Or `Ok(None)` if it doesn't exist
     ///
     /// # Arguments
@@ -130,13 +148,13 @@ pub type CacheResult<T> = Result<T, CacheError>;
 /// An error that can occur during caching
 #[derive(Debug, Error)]
 pub enum CacheError {
-    #[error("error during (de)serialization")]
+    #[error("error during (de)serialization: {0}")]
     Serde(#[from] serde_json::Error),
-    #[error("error interacting with redis")]
+    #[error("error interacting with redis: {0}")]
     Redis(#[from] deadpool_redis::redis::RedisError),
-    #[error("error in redis connection pool")]
+    #[error("error in redis connection pool: {0}")]
     Pool(#[from] deadpool_redis::PoolError),
-    #[error("error in request")]
+    #[error("error in request: {0}")]
     Request(miette::Error),
 }
 
@@ -160,16 +178,50 @@ pub async fn cache<V: Cacheable>(
     let serialized = serde_json::to_string(v)?;
     let mut conn = redis.get().await?;
 
-    let resp = if let Some(time) = expiry_time {
+    if let Some(time) = expiry_time {
         conn.set_ex::<String, String, String>(v.full_key(), serialized, time as u64)
     } else {
         conn.set::<String, String, String>(v.full_key(), serialized)
     }
     .await?;
 
-    info!("stored value in cache: {resp}");
-
     Ok(())
+}
+
+/// Removes a value from redis.
+///
+/// # Arguments
+///
+/// * `redis` - A connection to the redis instance
+/// * `key` - The key to remove.
+///
+/// # Errors
+///
+/// An error can occur when deserialization fails, or the del command in the redis store fails.
+///
+pub async fn uncache<V: Cacheable>(
+    redis: &deadpool_redis::Pool,
+    key: &V::KeyType,
+) -> CacheResult<Option<V>> {
+    let mut conn = redis.get().await?;
+
+    let Some(s) = conn
+        .get_del::<_, deadpool_redis::redis::Value>(V::full_key_with(key))
+        .await
+        .and_then(|v| match v {
+            // If it doesn't exist, we just return "None"
+            deadpool_redis::redis::Value::Nil => Ok(None),
+            // Otherwise we try to convert it to a string to parse later
+            v => String::from_redis_value(&v).map(Some),
+        })?
+    else {
+        return Ok(None);
+    };
+
+    // Try to parse it to the output value
+    serde_json::from_str::<V>(&s)
+        .map(Some)
+        .map_err(CacheError::from)
 }
 
 /// Gets a value from redis. Or `Ok(None)` if it doesn't exist

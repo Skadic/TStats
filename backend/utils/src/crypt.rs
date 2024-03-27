@@ -2,10 +2,11 @@ use std::sync::OnceLock;
 
 use aes_gcm::{
     aead::Aead,
-    aes::cipher::ArrayLength,
-    AeadCore, Aes256Gcm, KeyInit, Nonce,
+    aes::{cipher::ArrayLength, Aes256},
+    AeadCore, Aes256Gcm, KeyInit, KeySizeUser, Nonce,
 };
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
+use base64::{prelude::BASE64_STANDARD, Engine};
+use miette::{Context, IntoDiagnostic};
 use rand::rngs::OsRng;
 use scrypt::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -17,13 +18,20 @@ use crate::consts::AES_256_KEY;
 
 static SCRYPT_PARAMS: OnceLock<Params> = OnceLock::new();
 
+// There is probably an easier way to do this. This is the size the byte array containing
+// the nonce is supposed to be.
+const NONCE_SIZE: usize =
+    std::mem::size_of::<<<Aes256Gcm as AeadCore>::NonceSize as ArrayLength<u8>>::ArrayType>();
+const KEY_SIZE: usize =
+    std::mem::size_of::<<<Aes256 as KeySizeUser>::KeySize as ArrayLength<u8>>::ArrayType>();
+
 #[derive(Debug, thiserror::Error)]
 pub enum EnvError {
     #[error("{0} is not set")]
     DoesNotExist(&'static str),
     #[error("error decoding Base64")]
     Base64(#[from] base64::DecodeError),
-    #[error("invalid aes key length: length is {0} bytes but must be 32")]
+    #[error("invalid aes key length: length is {0} bytes but must be {KEY_SIZE}")]
     InvalidAesKeyLength(usize),
 }
 
@@ -67,22 +75,31 @@ pub struct EncryptedToken {
 }
 
 impl EncryptedToken {
-    pub fn new(s: impl AsRef<[u8]>) -> Result<Self, aes_gcm::Error> {
-        let cipher = get_aes_cipher();
+    pub fn new(s: impl AsRef<[u8]>) -> miette::Result<Self> {
+        let cipher = get_aes_cipher()?;
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
 
-        let token = cipher.encrypt(&nonce, s.as_ref())?;
+        let token = cipher
+            .encrypt(&nonce, s.as_ref())
+            .into_diagnostic()
+            .wrap_err("could not encrypt token")?;
         Ok(EncryptedToken { nonce, token })
     }
 
-    pub fn decrypt(&self) -> Result<Vec<u8>, aes_gcm::Error> {
-        let cipher = get_aes_cipher();
-        cipher.decrypt(&self.nonce, self.token.as_slice())
+    pub fn decrypt(&self) -> miette::Result<Vec<u8>> {
+        let cipher = get_aes_cipher()?;
+        cipher
+            .decrypt(&self.nonce, self.token.as_slice())
+            .into_diagnostic()
+            .wrap_err("could not decrypt token")
     }
 
-    pub fn decrypt_string(&self) -> Result<String, aes_gcm::Error> {
-        let cipher = get_aes_cipher();
-        let bytes = cipher.decrypt(&self.nonce, self.token.as_slice())?;
+    pub fn decrypt_string(&self) -> miette::Result<String> {
+        let cipher = get_aes_cipher()?;
+        let bytes = cipher
+            .decrypt(&self.nonce, self.token.as_slice())
+            .into_diagnostic()
+            .wrap_err("could not decrypt token")?;
         Ok(String::from_utf8_lossy(&bytes).to_string())
     }
 }
@@ -120,12 +137,6 @@ impl<'a> Deserialize<'a> for EncryptedToken {
             .decode(nonce)
             .map_err(serde::de::Error::custom)?;
 
-        // There is probably an easier way to do this. This is the size the byte array containing
-        // the nonce is supposed to be.
-        const NONCE_SIZE: usize = std::mem::size_of::<
-            <<Aes256Gcm as AeadCore>::NonceSize as ArrayLength<u8>>::ArrayType,
-        >();
-
         // In this case the nonce has an invalid size and deserialization fails
         if decoded_nonce.len() != NONCE_SIZE {
             return Err(miette::miette!(
@@ -146,10 +157,13 @@ impl<'a> Deserialize<'a> for EncryptedToken {
 
 /// Verifies that the AES_256_KEY environment variable exists and is a valid AES-256 encryption
 /// key.
+#[tracing::instrument]
 pub fn verify_aes_key() -> Result<(), EnvError> {
     let aes_key_base64 =
         std::env::var(AES_256_KEY).map_err(|_| EnvError::DoesNotExist(AES_256_KEY))?;
+    println!("{}", &aes_key_base64[43..]);
     let aes_key = BASE64_STANDARD.decode(&aes_key_base64)?;
+
     if aes_key.len() != 32 {
         return Err(EnvError::InvalidAesKeyLength(
             aes_key_base64.as_bytes().len(),
@@ -158,17 +172,21 @@ pub fn verify_aes_key() -> Result<(), EnvError> {
     Ok(())
 }
 
-fn get_aes_cipher() -> Aes256Gcm {
+fn get_aes_cipher() -> miette::Result<Aes256Gcm> {
     let aes_key_base64 = std::env::var(AES_256_KEY)
-        .map_err(|_| EnvError::DoesNotExist(AES_256_KEY))
-        .expect("AES_256_KEY not set. did you call verify_aes_key?");
+        .into_diagnostic()
+        .wrap_err("AES_256_KEY not set. did you call verify_aes_key?")?;
     let aes_key = BASE64_STANDARD
         .decode(aes_key_base64)
-        .expect("AES_256_KEY not base64 decodeable. did you call verify_aes_key?");
-    let buf: [u8; 32] = aes_key
-        .try_into()
-        .expect("AES_256_KEY of incorrect length. did you call verify_aes_key?");
-    Aes256Gcm::new(&buf.into())
+        .into_diagnostic()
+        .wrap_err("AES_256_KEY not base64 decodeable. did you call verify_aes_key?")?;
+    let buf: [u8; 32] = aes_key.try_into().map_err(|v: Vec<u8>| {
+        miette::miette!(
+            "AES_256_KEY of incorrect length ({}, expected {KEY_SIZE}). did you call verify_aes_key?",
+            v.len()
+        )
+    })?;
+    Ok(Aes256Gcm::new(&buf.into()))
 }
 
 #[cfg(test)]

@@ -16,7 +16,7 @@ use tonic::server::NamedService;
 use tonic::transport::Body;
 use tonic::Status;
 use tonic_health::server::HealthReporter;
-use tonic_middleware::{InterceptorFor, RequestInterceptor, RequestInterceptorLayer};
+use tonic_middleware::RequestInterceptor;
 use tonic_web::GrpcWebLayer;
 use tower_http::{
     cors::{AllowHeaders, CorsLayer, ExposeHeaders},
@@ -73,7 +73,7 @@ pub async fn run_server() -> miette::Result<()> {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
     }
 
-    //session::crypt::verify_aes_key().into_diagnostic()?;
+    utils::crypt::verify_aes_key().into_diagnostic()?;
 
     let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
     let (db, redis, osu) = (db?, redis?, osu?);
@@ -178,13 +178,11 @@ pub async fn run_server() -> miette::Result<()> {
 
 /// Intercepts cors requests so they are not forwarded to the actual handler
 fn cors_interceptor(req: tonic::Request<()>) -> tonic::Result<tonic::Request<()>> {
-    //debug!(?req);
     let is_cors = match req.metadata().get("sec-fetch-mode") {
         Some(fetch_mode) if fetch_mode == "cors" => true,
         Some(_) | None => false,
     };
     if is_cors {
-        debug!("cors request!");
         Err(Status::ok("cors request".to_string()))
     } else {
         Ok(req)
