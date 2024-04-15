@@ -10,7 +10,7 @@ redis:
 
 # Run the dragonfly container
 dragonfly:
-  podman run --network=host --rm --name tstats-cache  -p 6379:6379 --ulimit memlock=-1 -d docker.dragonflydb.io/dragonflydb/dragonfly
+  podman run --network=host --rm --name tstats-redis -p 6379:6379 --ulimit memlock=-1 -d docker.dragonflydb.io/dragonflydb/dragonfly
 
 # Run the postgres container
 postgres:

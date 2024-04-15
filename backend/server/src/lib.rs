@@ -6,6 +6,7 @@ use std::time::Duration;
 use deadpool_redis::Config;
 use http::{HeaderName, HeaderValue, Method};
 use miette::{Context, IntoDiagnostic};
+use proto::osu::osu_user_service_server::OsuUserServiceServer;
 use proto::{
     osu_auth::osu_auth_service_server::OsuAuthServiceServer,
     pool::pool_service_server::PoolServiceServer, stages::stage_service_server::StageServiceServer,
@@ -16,13 +17,13 @@ use tonic::server::NamedService;
 use tonic::transport::Body;
 use tonic::Status;
 use tonic_health::server::HealthReporter;
-use tonic_middleware::RequestInterceptor;
+use tonic_middleware::{InterceptorFor, RequestInterceptor};
 use tonic_web::GrpcWebLayer;
 use tower_http::{
     cors::{AllowHeaders, CorsLayer, ExposeHeaders},
     trace::{self, TraceLayer},
 };
-use tracing::{debug, error, info, info_span, warn, Level};
+use tracing::{error, info, info_span, warn, Level};
 
 use model::{
     create_table, drop_table,
@@ -37,6 +38,7 @@ use proto::tournaments::tournament_service_server::TournamentServiceServer;
 use crate::osu::auth::Session;
 use crate::routes::debug::DebugServiceImpl;
 use crate::routes::osu_auth::OsuAuthServiceImpl;
+use crate::routes::osu_user::OsuUserServiceImpl;
 use crate::routes::pool::PoolServiceImpl;
 use crate::routes::stage::StageServiceImpl;
 use crate::routes::tournament::TournamentServiceImpl;
@@ -126,6 +128,10 @@ pub async fn run_server() -> miette::Result<()> {
 
     drop(server_setup_span);
 
+    let auth_interceptor = AuthInterceptor {
+        state: state.clone(),
+    };
+
     // Build the gRPC server
     tonic::transport::server::Server::builder()
         .accept_http1(true)
@@ -171,6 +177,10 @@ pub async fn run_server() -> miette::Result<()> {
         )))
         .add_service(StageServiceServer::new(StageServiceImpl(state.clone())))
         .add_service(PoolServiceServer::new(PoolServiceImpl(state.clone())))
+        .add_service(InterceptorFor::new(
+            OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())),
+            auth_interceptor.clone(),
+        ))
         .serve(addr)
         .await
         .into_diagnostic()
@@ -214,7 +224,7 @@ impl RequestInterceptor for AuthInterceptor {
 
         let Some(_) = Session::get_cached(auth_header_token, &self.state.redis)
             .await
-            .map_err(|_| Status::internal(format!("error reading session token")))?
+            .map_err(|_| Status::internal("error reading session token"))?
         else {
             return Err(Status::unauthenticated("expired or unknown session token"));
         };

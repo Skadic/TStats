@@ -7,7 +7,6 @@ use deadpool_redis::redis::{AsyncCommands, FromRedisValue};
 use miette::{Context, IntoDiagnostic};
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
-use tracing::info;
 
 /// A trait for structs cached in the redis store
 #[async_trait::async_trait]

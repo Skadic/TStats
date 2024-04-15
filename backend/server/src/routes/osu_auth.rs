@@ -51,7 +51,7 @@ impl OsuAuthService for OsuAuthServiceImpl {
         let client = &self.1;
 
         // Check whether the CSRF token received from the server matches the one from the cache
-        let cached_csrf_token = OsuCsrfToken::uncache(&redis, csrf_token.as_str())
+        let cached_csrf_token = OsuCsrfToken::uncache(redis, csrf_token.as_str())
             .map_err(|error| {
                 tracing::error!(%error, "error fetching CSRF token");
                 Status::internal(format!("error fetching CSRF token: {error}"))
@@ -97,11 +97,11 @@ impl OsuAuthService for OsuAuthServiceImpl {
             user_id,
             access_token: EncryptedToken::new(access_token.secret()).map_err(|error| {
                 error!("error caching access token: {error}");
-                Status::internal(format!("error caching access token"))
+                Status::internal("error caching access token")
             })?,
             refresh_token: EncryptedToken::new(refresh_token.secret()).map_err(|error| {
                 error!("error caching refresh token: {error}");
-                Status::internal(format!("error caching refresh token"))
+                Status::internal("error caching refresh token")
             })?,
         }
         .cache(redis, Some(expiry.as_secs() as usize - 30))

@@ -1,4 +1,5 @@
 use miette::IntoDiagnostic;
+use tracing_error::ErrorLayer;
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
     prelude::*,
@@ -6,13 +7,15 @@ use tracing_subscriber::{
 
 #[tokio::main]
 async fn main() -> miette::Result<()> {
-    let registry = tracing_subscriber::registry().with(Targets::new().with_targets([
-        ("server", LevelFilter::DEBUG),
-        ("utils", LevelFilter::DEBUG),
-        ("model", LevelFilter::DEBUG),
-        ("rosu_v2", LevelFilter::INFO),
-        ("tower_http", LevelFilter::INFO),
-    ]));
+    let registry = tracing_subscriber::registry()
+        .with(Targets::new().with_targets([
+            ("server", LevelFilter::DEBUG),
+            ("utils", LevelFilter::DEBUG),
+            ("model", LevelFilter::DEBUG),
+            ("rosu_v2", LevelFilter::INFO),
+            ("tower_http", LevelFilter::INFO),
+        ]))
+        .with(ErrorLayer::default());
     if let Ok(pretty_logging_enabled) = std::env::var("LOG_PRETTY")
         .into_diagnostic()
         .and_then(|v| v.parse::<bool>().into_diagnostic())

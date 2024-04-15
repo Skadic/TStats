@@ -93,6 +93,7 @@ impl From<SlimBeatmap> for proto::osu::Beatmap {
                 username: value.creator.username.into_string(),
                 country: value.creator.country.into_string(),
                 cover_url: value.creator.cover_url,
+                avatar_url: value.creator.avatar_url,
             }),
             difficulty: Some(proto::osu::Difficulty {
                 stars,
@@ -140,6 +141,7 @@ impl TryFrom<proto::osu::Beatmap> for SlimBeatmap {
             username,
             country,
             cover_url,
+            avatar_url,
         }) = value.creator
         else {
             return Err(TryFromSlimBeatmapError::MissingCreator);
@@ -164,6 +166,7 @@ impl TryFrom<proto::osu::Beatmap> for SlimBeatmap {
                 username: SmallString::from_str(username.as_str()),
                 country: SmallString::from_str(country.as_str()),
                 cover_url,
+                avatar_url
             },
             difficulty: Difficulty {
                 stars,

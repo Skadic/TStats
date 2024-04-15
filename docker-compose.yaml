@@ -1,24 +1,24 @@
 version: '3'
 services:
-  frontend:
-    build: frontend/
-    container_name: tstats-frontend
-    ports:
-      - '8000:3000'
-    depends_on:
-      - postgres
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: tstats-backend
-    ports:
-      - '3000:3000'
-    env_file: .prod_env
-    environment:
-      - RUST_BACKTRACE=1
-    depends_on:
-      - postgres
+  # frontend:
+  #   build: frontend/
+  #   container_name: tstats-frontend
+  #   ports:
+  #     - '8000:3000'
+  #   depends_on:
+  #     - postgres
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: backend/Dockerfile
+  #   container_name: tstats-backend
+  #   ports:
+  #     - '3000:3000'
+  #   env_file: .prod_env
+  #   environment:
+  #     - RUST_BACKTRACE=1
+  #   depends_on:
+  #     - postgres
   postgres:
     image: postgres:latest
     container_name: tstats-postgres
@@ -28,19 +28,19 @@ services:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
   redis:
-    image: redis:latest
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
     container_name: tstats-redis
     ports:
       - '6379:6379'
-  caddy:
-    image: caddy:latest
-    container_name: tstats-caddy
-    ports:
-      - '9900:9900'
-      - '9901:9901'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:z
-      - caddy_data:/data:z
+  # caddy:
+  #   image: caddy:latest
+  #   container_name: tstats-caddy
+  #   ports:
+  #     - '9900:9900'
+  #     - '9901:9901'
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile:z
+  #     - caddy_data:/data:z
 volumes:
   caddy_data:
 

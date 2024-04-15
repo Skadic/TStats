@@ -17,23 +17,45 @@ pub struct OsuUser {
     pub username: Username,
     pub country: CountryCode,
     pub cover_url: String,
+    pub avatar_url: String,
 }
 
 impl From<User> for OsuUser {
     fn from(value: User) -> Self {
+        dbg!(&value);
         let url = match Url::parse(&value.cover.url) {
-            Ok(url) => url
-                .path_segments()
-                .and_then(|iter| iter.last())
-                .unwrap_or(&value.cover.url)
-                .to_owned(),
+            Ok(url) => {
+                println!("url: {url}");
+                dbg!(url
+                    .path_segments()
+                    .and_then(|iter| iter.last())
+                    .unwrap_or(&value.cover.url)
+                    .to_owned())
+            }
             Err(_) => value.cover.url,
+        };
+        let ava_url = match Url::parse(&value.avatar_url) {
+            Ok(url) => url.query().unwrap().to_string(),
+            Err(_) => value.avatar_url,
         };
         Self {
             user_id: value.user_id,
             username: value.username,
             country: value.country_code,
             cover_url: url,
+            avatar_url: ava_url,
+        }
+    }
+}
+
+impl From<OsuUser> for proto::osu::User {
+    fn from(value: OsuUser) -> Self {
+        proto::osu::User {
+            user_id: value.user_id,
+            username: value.username.to_string(),
+            country: value.country.to_string(),
+            cover_url: value.cover_url,
+            avatar_url: value.avatar_url,
         }
     }
 }
