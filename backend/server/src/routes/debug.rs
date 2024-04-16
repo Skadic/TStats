@@ -1,5 +1,6 @@
 use futures::future::join_all;
 use futures::future::FutureExt;
+use model::tournament::Mode;
 use rand::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue};
 use tonic::{Request, Response, Status};
@@ -8,8 +9,7 @@ use tracing::debug;
 use model::*;
 use proto::debug_data::debug_service_server::DebugService;
 
-use crate::osu::map::{get_map, SlimBeatmap};
-use crate::osu::user::OsuUser;
+use crate::osu::map::SlimBeatmap;
 use crate::AppState;
 
 // These three tables are for generating a random tournament name.
@@ -72,6 +72,7 @@ impl DebugService for DebugServiceImpl {
             format: A::Set(*FORMATS.choose(&mut rng).unwrap()),
             //rank_range: A::Set(rank_ranges.choose(&mut rng).unwrap().clone()),
             bws: A::Set(rng.gen()),
+            mode: A::Set(tournament::Mode::Osu),
         };
 
         let tournament = tournament.insert(db).await.unwrap();
@@ -145,6 +146,222 @@ impl DebugService for DebugServiceImpl {
         Ok(Response::new(()))
     }
 
+    async fn owc23(&self, _request: Request<()>) -> Result<Response<()>, Status> {
+        use ActiveValue as A;
+
+        let db = &self.0.db;
+
+        let owc23 = tournament::ActiveModel {
+            id: A::NotSet,
+            name: A::Set("Osu World Cup 2023".to_owned()),
+            shorthand: A::Set("OWC23".to_owned()),
+            format: A::Set(4),
+            bws: A::Set(false),
+            mode: A::Set(Mode::Osu),
+        }
+        .insert(db)
+        .await
+        .unwrap();
+
+        let add_team_member = |id, player_id| async move {
+            team_member::ActiveModel {
+                team_id: A::Set(id),
+                user_id: A::Set(player_id),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+        };
+
+        let team_germany = team::ActiveModel {
+            id: A::NotSet,
+            tournament_id: A::Set(owc23.id),
+            name: A::Set("Germany".to_string()),
+        }
+        .insert(db)
+        .await
+        .unwrap();
+
+        add_team_member(team_germany.id, 8116659).await;
+        add_team_member(team_germany.id, 4504101).await;
+        add_team_member(team_germany.id, 3765989).await;
+        add_team_member(team_germany.id, 14385814).await;
+        add_team_member(team_germany.id, 13300203).await;
+        add_team_member(team_germany.id, 12952320).await;
+        add_team_member(team_germany.id, 11921197).await;
+
+        let team_usa = team::ActiveModel {
+            id: A::NotSet,
+            tournament_id: A::Set(owc23.id),
+            name: A::Set("USA".to_string()),
+        }
+        .insert(db)
+        .await
+        .unwrap();
+
+        add_team_member(team_usa.id, 7075211).await;
+        add_team_member(team_usa.id, 7813296).await;
+        add_team_member(team_usa.id, 4108547).await;
+        add_team_member(team_usa.id, 2590257).await;
+        add_team_member(team_usa.id, 4787150).await;
+        add_team_member(team_usa.id, 13380270).await;
+        add_team_member(team_usa.id, 3533958).await;
+        add_team_member(team_usa.id, 4830687).await;
+
+        macro_rules! pool {
+            {$pool:ident, $bracket:ident => $($maps:literal),+} => {
+                [$($maps),+].iter().copied().enumerate().map(|(i, map_id)| {
+                    pool_map::ActiveModel {
+                        tournament_id: A::Set(owc23.id),
+                        stage_order: A::Set($pool.stage_order),
+                        bracket_order: A::Set($bracket.bracket_order),
+                        map_id: A::Set(map_id as i64),
+                        map_order: A::Set(i as i16),
+                    }.insert(db).map(Result::unwrap)
+                })
+            };
+            {$pool:ident, $bracket:ident => $($maps:literal),+; $($other_brackets:ident => $($other_maps:literal),+);+} => {
+                pool!($pool, $($other_brackets => $($other_maps),+);+).chain(
+                pool!($pool, $bracket => $($maps),+))
+            };
+        }
+
+        {
+            let qualis = stage::ActiveModel {
+                tournament_id: A::Set(owc23.id),
+                name: A::Set("Q".to_owned()),
+                best_of: A::Set(0),
+                stage_order: A::Set(0),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            let nm = pool_bracket::ActiveModel {
+                bracket_order: A::Set(0),
+                name: A::Set("NM".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(qualis.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let hd = pool_bracket::ActiveModel {
+                bracket_order: A::Set(1),
+                name: A::Set("HD".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(qualis.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let hr = pool_bracket::ActiveModel {
+                bracket_order: A::Set(2),
+                name: A::Set("HR".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(qualis.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let dt = pool_bracket::ActiveModel {
+                bracket_order: A::Set(3),
+                name: A::Set("DT".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(qualis.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            let _res = join_all(pool! { qualis,
+                nm => 4344435, 4344451, 4344441, 4344442;
+                hd => 4344469, 4344423;
+                hr => 4344412, 4344450;
+                dt => 4344474, 4344475, 4344422
+            })
+            .await;
+        }
+        {
+            let ro32 = stage::ActiveModel {
+                tournament_id: A::Set(owc23.id),
+                name: A::Set("RO32".to_owned()),
+                best_of: A::Set(9),
+                stage_order: A::Set(1),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            let nm = pool_bracket::ActiveModel {
+                bracket_order: A::Set(0),
+                name: A::Set("NM".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(ro32.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let hd = pool_bracket::ActiveModel {
+                bracket_order: A::Set(1),
+                name: A::Set("HD".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(ro32.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let hr = pool_bracket::ActiveModel {
+                bracket_order: A::Set(2),
+                name: A::Set("HR".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(ro32.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let dt = pool_bracket::ActiveModel {
+                bracket_order: A::Set(3),
+                name: A::Set("DT".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(ro32.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let fm = pool_bracket::ActiveModel {
+                bracket_order: A::Set(4),
+                name: A::Set("FM".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(ro32.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+            let tb = pool_bracket::ActiveModel {
+                bracket_order: A::Set(5),
+                name: A::Set("TB".to_owned()),
+                tournament_id: A::Set(owc23.id),
+                stage_order: A::Set(ro32.stage_order),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            let _res = join_all(pool! { ro32,
+                nm => 4352819, 4352824,4351786,3332588;
+                hd => 4352411,4352324;
+                hr => 1414172,2020374;
+                dt => 4352790,3840580,2149694;
+                fm => 2583501,4351866,4352856;
+                tb => 3121101
+            })
+            .await;
+        }
+
+        Ok(Response::new(()))
+    }
+
     async fn dm8(&self, _request: Request<()>) -> Result<Response<()>, Status> {
         use ActiveValue as A;
 
@@ -156,6 +373,7 @@ impl DebugService for DebugServiceImpl {
             shorthand: A::Set("DM8".to_owned()),
             format: A::Set(1),
             bws: A::Set(false),
+            mode: A::Set(Mode::Osu),
         }
         .insert(db)
         .await

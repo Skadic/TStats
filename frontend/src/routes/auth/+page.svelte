@@ -1,11 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import {
 		OsuAuthServiceDefinition,
 		type OsuAuthServiceClient,
 		DeliverAuthCodeRequest,
 		DeliverAuthCodeResponse
-
 	} from '$lib/api/osuauth';
 	import { tstatsAuthToken, tstatsClient } from '$lib/rpc';
 
@@ -19,7 +19,8 @@
 			state: csrfToken!
 		};
 		let resp: DeliverAuthCodeResponse = await client.deliverAuthCode(request);
-    tstatsAuthToken.set(resp.accessToken)
+		tstatsAuthToken.set(resp.accessToken);
+		goto("/")
 	}
 </script>
 

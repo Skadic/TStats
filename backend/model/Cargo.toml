@@ -11,4 +11,5 @@ sea-orm = { version = "0.12", features = [
   "runtime-tokio-rustls",
 ] }
 serde = "1.0"
+serde_repr = "0.1"
 tracing = "0.1"

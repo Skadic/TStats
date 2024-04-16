@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    id: i32,
-    tournament_id: i32,
-    name: String,
+    pub id: i32,
+    pub tournament_id: i32,
+    pub name: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -22,11 +22,20 @@ pub enum Relation {
         on_update = "Cascade"
     )]
     Tournament,
+    /// A team has (potentially multiple) players
+    #[sea_orm(has_many = "super::team_member::Entity")]
+    Members,
 }
 
 impl Related<super::tournament::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Tournament.def()
+    }
+}
+
+impl Related<super::team_member::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Members.def()
     }
 }
 

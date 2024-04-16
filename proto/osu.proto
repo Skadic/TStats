@@ -40,8 +40,6 @@ message User {
   string country = 3;
   // The file name of the user's profile banner
   string cover_url = 4;
-  // The file name of the user's avatar
-  string avatar_url = 5;
 }
 
 // Provides access to osu user data 

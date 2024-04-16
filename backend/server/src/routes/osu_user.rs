@@ -14,10 +14,9 @@ pub struct OsuUserServiceImpl(pub AppState);
 pub async fn get_authenticated_user<T: std::fmt::Debug>(
     request: &Request<T>,
     redis: &RedisConnectionPool,
-) -> tonic::Result<Session> {
+) -> tonic::Result<Option<Session>> {
     let Some(tok) = request.metadata().get("authorization") else {
-        tracing::error!("tried to get authentication without authorization token");
-        return Err(Status::unauthenticated("session token not set"));
+        return Ok(None);
     };
 
     let token_string = String::from_utf8_lossy(tok.as_bytes());
@@ -30,11 +29,11 @@ pub async fn get_authenticated_user<T: std::fmt::Debug>(
         })
         .await?
     else {
-        tracing::error!(token = %token_string, "no session found for token");
-        return Err(Status::unauthenticated("no session found"));
+        tracing::debug!("session token not found");
+        return Ok(None);
     };
 
-    Ok(session)
+    Ok(Some(session))
 }
 
 #[async_trait]
@@ -44,7 +43,11 @@ impl OsuUserService for OsuUserServiceImpl {
         &self,
         request: Request<GetUserRequest>,
     ) -> Result<Response<proto::osu::User>, Status> {
-        let Session { osu_user_id, .. } = get_authenticated_user(&request, &self.0.redis).await?;
+        let Some(Session { osu_user_id, .. }) =
+            get_authenticated_user(&request, &self.0.redis).await?
+        else {
+            return Err(Status::not_found("no user logged in"));
+        };
 
         let user = get_user(&self.0.redis, &self.0.osu, osu_user_id)
             .await

@@ -28,10 +28,13 @@ services:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
   redis:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    image: eqalpha/keydb #docker.dragonflydb.io/dragonflydb/dragonfly:latest
     container_name: tstats-redis
     ports:
       - '6379:6379'
+        #environment:
+        #- "DFLY_conn_io_threads=2"
+        #command: "--conn_io_threads=2"
   # caddy:
   #   image: caddy:latest
   #   container_name: tstats-caddy

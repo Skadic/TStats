@@ -1,13 +1,14 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-/// A country which is allowed in a tournament
+/// An osu player part of some team
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel)]
-#[sea_orm(table_name = "team_mate")]
+#[sea_orm(table_name = "team_member")]
 #[serde(rename_all = "camelCase")]
 pub struct Model {
     #[sea_orm(primary_key)]
     team_id: i32,
+    #[sea_orm(primary_key)]
     user_id: i32,
 }
 
@@ -16,7 +17,7 @@ pub enum Relation {
     #[sea_orm(
         belongs_to = "super::team::Entity",
         from = "Column::TeamId",
-        to = "super::team::Column::Id"
+        to = "super::team::Column::Id",
     )]
     Team,
 }

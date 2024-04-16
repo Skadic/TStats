@@ -1,5 +1,6 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// A tournament with its associated data.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, DeriveEntityModel)]
@@ -19,6 +20,9 @@ pub struct Model {
     /// Whether this tournament uses badge-weighting to adjust player's ranks.
     #[sea_orm(default_value = true)]
     pub bws: bool,
+    /// The mode of this tournament
+    #[sea_orm(column_type = "TinyInteger")]
+    pub mode: Mode,
 }
 
 #[derive(Debug, Serialize, Deserialize, EnumIter, DeriveRelation, Copy, Clone)]
@@ -31,6 +35,18 @@ pub enum Relation {
     CountryRestriction,
     #[sea_orm(has_many = "super::stage::Entity")]
     Stage,
+}
+
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, Serialize_repr, Deserialize_repr, EnumIter, DeriveActiveEnum,
+)]
+#[sea_orm(rs_type = "i16", db_type = "Integer")]
+#[repr(i16)]
+pub enum Mode {
+    Osu = 0,
+    Taiko = 1,
+    CatchTheBeat = 2,
+    Mania = 3,
 }
 
 impl Related<super::team::Entity> for Entity {

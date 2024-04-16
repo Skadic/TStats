@@ -270,6 +270,8 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
         .into_diagnostic()
         .wrap_err("failed to connect to database")?;
 
+    drop_table(&db, model::team_member::Entity).await;
+    drop_table(&db, model::team::Entity).await;
     drop_table(&db, PoolMapEntity).await;
     drop_table(&db, PoolBracketEntity).await;
     drop_table(&db, RankRestrictionEntity).await;
@@ -283,6 +285,8 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
     create_table(&db, RankRestrictionEntity).await;
     create_table(&db, PoolBracketEntity).await;
     create_table(&db, PoolMapEntity).await;
+    create_table(&db, model::team::Entity).await;
+    create_table(&db, model::team_member::Entity).await;
     info!("connected to database and setup tables");
 
     Ok(db)

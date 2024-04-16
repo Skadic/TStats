@@ -10,4 +10,5 @@ service DebugService {
   rpc FillData(google.protobuf.Empty) returns (google.protobuf.Empty);
   // Adds the the German championship 8 to the database (at least a part of it)
   rpc DM8(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc OWC23(google.protobuf.Empty) returns (google.protobuf.Empty);
 }

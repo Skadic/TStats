@@ -17,6 +17,7 @@ pub mod stages {
 }
 
 pub mod osu {
+    pub type OsuUser = User;
     tonic::include_proto!("osu");
 }
 

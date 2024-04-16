@@ -5,6 +5,13 @@ package tournaments;
 import "keys.proto";
 import "stages.proto";
 
+enum Mode {
+  OSU = 0;
+  TAIKO = 1;
+  CATCH_THE_BEAT = 2;
+  MANIA = 3;
+}
+
 // Represents a tournament
 message Tournament {
   keys.TournamentKey key = 1;

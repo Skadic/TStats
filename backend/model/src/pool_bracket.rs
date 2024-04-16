@@ -32,6 +32,7 @@ pub enum Relation {
     #[sea_orm(has_many = "super::pool_map::Entity")]
     PoolMap,
 }
+
 impl Related<super::stage::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Stage.def()

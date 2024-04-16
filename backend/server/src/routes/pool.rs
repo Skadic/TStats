@@ -14,8 +14,7 @@ use proto::{
     },
 };
 use sea_orm::{
-    sea_query::Expr, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, FromQueryResult,
-    IntoActiveModel, ModelTrait, QueryFilter, QueryOrder, QuerySelect,
+    sea_query::Expr, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, FromQueryResult, IntoActiveModel, ModelTrait, QueryFilter, QueryOrder, QuerySelect
 };
 use tonic::{Request, Response, Status};
 

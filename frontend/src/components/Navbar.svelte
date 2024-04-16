@@ -5,7 +5,8 @@
 		type OsuAuthServiceClient,
 		RequestAuthCodeResponse
 	} from '$lib/api/osuauth';
-	import { tstatsClient } from '$lib/rpc';
+	import { tstatsAuthToken, tstatsClient } from '$lib/rpc';
+	import { get } from 'svelte/store';
 
 	async function requestAccess() {
 		const client: OsuAuthServiceClient = tstatsClient(OsuAuthServiceDefinition);
@@ -18,12 +19,12 @@
 	}
 
 	async function getSessionUser() {
+		if (get(tstatsAuthToken) === null) {
+			return null;
+		}
 		const client: OsuUserServiceClient = tstatsClient(OsuUserServiceDefinition);
 		const user: User = await client.get({});
-		return {
-			username: user.username,
-			avaUrl: `https://a.ppy.sh/${user.userId}`
-		};
+		return user;
 	}
 </script>
 
@@ -32,10 +33,14 @@
 		<a href="/" class="text-6xl font-bold">TStats</a>
 	</div>
 	<div class="h-20 aspect-square rounded-xl overflow-hidden">
-		{#await getSessionUser() then ava}
-			<img src={ava.avaUrl} alt="Avatar of {ava.username}" />
+		{#await getSessionUser() then user}
+			{#if user !== null}
+				<img src={`https://a.ppy.sh/${user.userId}`} alt="Avatar of {user.username}" />
+			{:else}
+				<button on:click={requestAccess} class="h-full w-full bg-white" />
+			{/if}
 		{:catch}
-			<button on:click={requestAccess} class="h-full w-full bg-white"/>
+			<button on:click={requestAccess} class="h-full w-full bg-white" />
 		{/await}
 	</div>
 </nav>

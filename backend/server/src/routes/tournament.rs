@@ -239,6 +239,8 @@ impl TournamentService for TournamentServiceImpl {
             shorthand: A::Set(tournament.shorthand.clone()),
             format: A::Set(format),
             bws: A::Set(tournament.bws),
+            // TODO Actually get the mode from the API
+            mode: A::Set(tournament::Mode::Osu)
         };
         let tournament_model = tournament_model.insert(&self.0.db).await.map_err(|e| {
             Status::internal(format!(
