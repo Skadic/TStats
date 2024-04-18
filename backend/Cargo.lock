@@ -1377,6 +1377,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "serde_repr",
+ "sqlx",
  "tracing",
 ]
 
@@ -2530,6 +2531,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "serde_json",
+ "sqlx",
  "thiserror",
  "tokio",
  "tonic",

@@ -9,7 +9,7 @@ edition = "2021"
 
 model = { path = "../model" }
 proto = { path = "../proto" }
-utils = { path = "../utils"}
+utils = { path = "../utils" }
 
 deadpool-redis = { version = "0.14.0", features = ["rt_tokio_1"] }
 # Read .env files
@@ -36,6 +36,11 @@ sea-orm = { version = "0.12", features = ["runtime-tokio-rustls"] }
 # Serialization/Deserialization
 serde = "1.0"
 serde_json = "1.0"
+sqlx = { version = "0.7", features = [
+    "macros",
+    "postgres",
+    "runtime-tokio-rustls",
+] }
 # Creating error types conveniently
 thiserror = "1.0"
 # Async runtime

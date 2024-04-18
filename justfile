@@ -31,3 +31,22 @@ compose:
 # Run the frontend as a dev server
 frontend:
   cd frontend && bun run dev
+
+# Apply all migrations to the database
+migrate:
+  sqlx migrate run --source ./backend/model/migrations
+
+# Revert the last migration to the database
+migrate_revert:
+  sqlx migrate revert --source ./backend/model/migrations
+
+# Revert all migrations to the database
+migrate_revert_all:
+  sqlx migrate revert --source ./backend/model/migrations --target-version 0
+
+# Generate entities for the backend from the database schema
+generate_entities:
+  sea-orm-cli generate entity --expanded-format --with-serde both --with-copy-enums -o ./backend/model/src/model
+
+
+

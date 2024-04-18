@@ -1,0 +1,2 @@
+DROP VIEW map;
+DROP FOREIGN TABLE raw_map;

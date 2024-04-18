@@ -13,6 +13,8 @@ use proto::{
 };
 use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
 use tonic::server::NamedService;
 use tonic::transport::Body;
 use tonic::Status;
@@ -46,9 +48,10 @@ mod routes;
 
 #[derive(Clone)]
 pub struct AppState {
-    db: DatabaseConnection,
-    osu: Arc<Osu>,
-    redis: RedisConnectionPool,
+    pub db: DatabaseConnection,
+    pub sqlx: PgPool,
+    pub osu: Arc<Osu>,
+    pub redis: RedisConnectionPool,
 }
 
 impl AppState {
@@ -71,9 +74,19 @@ pub async fn run_server() -> miette::Result<()> {
     utils::crypt::verify_aes_key().into_diagnostic()?;
 
     let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
-    let (db, redis, osu) = (db?, redis?, osu?);
+    let ((db, sqlx), redis, osu) = (db?, redis?, osu?);
 
-    let state = AppState { db, redis, osu };
+    let state = AppState {
+        db,
+        sqlx,
+        redis,
+        osu,
+    };
+
+    model::migrate(&state.sqlx)
+        .await
+        .into_diagnostic()
+        .wrap_err("could not migrate database")?;
 
     let reflection_server = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
@@ -251,14 +264,20 @@ where
 }
 
 #[tracing::instrument]
-async fn setup_database() -> miette::Result<DatabaseConnection> {
+async fn setup_database() -> miette::Result<(DatabaseConnection, PgPool)> {
     let database_url = std::env::var(DATABASE_URL)
         .into_diagnostic()
         .wrap_err("DATABASE_URL not set")?;
     info!("connecting to database...");
-    let mut opt = ConnectOptions::new(database_url);
+    let mut opt = ConnectOptions::new(&database_url);
     opt.connect_timeout(Duration::from_secs(1));
     let db: DatabaseConnection = Database::connect(opt)
+        .await
+        .into_diagnostic()
+        .wrap_err("failed to connect to database")?;
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
         .await
         .into_diagnostic()
         .wrap_err("failed to connect to database")?;
@@ -284,7 +303,7 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
     */
     info!("connected to database");
 
-    Ok(db)
+    Ok((db, pool))
 }
 
 #[tracing::instrument]
