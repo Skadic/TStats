@@ -20,7 +20,8 @@ services:
   #   depends_on:
   #     - postgres
   postgres:
-    image: postgres:latest
+    #image: postgres-redis-fdw
+    build: ./postgres
     container_name: tstats-postgres
     ports:
       - '5432:5432'

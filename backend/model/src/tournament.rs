@@ -2,13 +2,20 @@
 
 use super::sea_orm_active_enums::OsuMode;
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "tournament")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "tournament"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq, Serialize, Deserialize)]
 pub struct Model {
-    #[sea_orm(primary_key)]
     pub id: i32,
-    #[sea_orm(unique)]
     pub name: String,
     pub shorthand: String,
     pub format: i16,
@@ -16,16 +23,59 @@ pub struct Model {
     pub mode: OsuMode,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    Name,
+    Shorthand,
+    Format,
+    Bws,
+    Mode,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = i32;
+    fn auto_increment() -> bool {
+        true
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::country_restriction::Entity")]
     CountryRestriction,
-    #[sea_orm(has_many = "super::rank_restriction::Entity")]
     RankRestriction,
-    #[sea_orm(has_many = "super::stage::Entity")]
     Stage,
-    #[sea_orm(has_many = "super::team::Entity")]
     Team,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Integer.def(),
+            Self::Name => ColumnType::String(Some(30u32)).def().unique(),
+            Self::Shorthand => ColumnType::String(Some(8u32)).def(),
+            Self::Format => ColumnType::SmallInteger.def(),
+            Self::Bws => ColumnType::Boolean.def(),
+            Self::Mode => OsuMode::db_type().def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::CountryRestriction => Entity::has_many(super::country_restriction::Entity).into(),
+            Self::RankRestriction => Entity::has_many(super::rank_restriction::Entity).into(),
+            Self::Stage => Entity::has_many(super::stage::Entity).into(),
+            Self::Team => Entity::has_many(super::team::Entity).into(),
+        }
+    }
 }
 
 impl Related<super::country_restriction::Entity> for Entity {
