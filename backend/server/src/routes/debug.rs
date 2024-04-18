@@ -1,6 +1,6 @@
 use futures::future::join_all;
 use futures::future::FutureExt;
-use model::tournament::Mode;
+use model::sea_orm_active_enums::OsuMode;
 use rand::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue};
 use tonic::{Request, Response, Status};
@@ -29,7 +29,7 @@ const STAGES: [&str; 6] = ["Q", "RO16", "QF", "SF", "F", "GF"];
 
 static RANK_RANGES: [(i32, i32); 3] = [(100, 2500), (2500, 5000), (5000, 10000)];
 
-const FORMATS: [i32; 4] = [1, 2, 3, 4];
+const FORMATS: [i16; 4] = [1, 2, 3, 4];
 
 const MAP_IDS: [usize; 9] = [
     3883456, 4192228, 4189337, 3917025, 4141288, 4186607, 3876751, 4130092, 4149939,
@@ -72,7 +72,7 @@ impl DebugService for DebugServiceImpl {
             format: A::Set(*FORMATS.choose(&mut rng).unwrap()),
             //rank_range: A::Set(rank_ranges.choose(&mut rng).unwrap().clone()),
             bws: A::Set(rng.gen()),
-            mode: A::Set(tournament::Mode::Osu),
+            mode: A::Set(OsuMode::Osu),
         };
 
         let tournament = tournament.insert(db).await.unwrap();
@@ -82,7 +82,7 @@ impl DebugService for DebugServiceImpl {
             for country in restriction {
                 let restriction = country_restriction::ActiveModel {
                     tournament_id: A::Set(tournament.id),
-                    name: A::Set(country.to_string()),
+                    country_code: A::Set(country.to_string()),
                 };
 
                 restriction.insert(db).await.unwrap();
@@ -157,7 +157,7 @@ impl DebugService for DebugServiceImpl {
             shorthand: A::Set("OWC23".to_owned()),
             format: A::Set(4),
             bws: A::Set(false),
-            mode: A::Set(Mode::Osu),
+            mode: A::Set(OsuMode::Osu),
         }
         .insert(db)
         .await
@@ -373,7 +373,7 @@ impl DebugService for DebugServiceImpl {
             shorthand: A::Set("DM8".to_owned()),
             format: A::Set(1),
             bws: A::Set(false),
-            mode: A::Set(Mode::Osu),
+            mode: A::Set(OsuMode::Osu),
         }
         .insert(db)
         .await

@@ -30,7 +30,7 @@ message RankRange {
 }
 
 message Country {
-  string name = 1;
+  string country_code = 1;
 }
 
 message RangeList {

@@ -25,13 +25,6 @@ use tower_http::{
 };
 use tracing::{error, info, info_span, warn, Level};
 
-use model::{
-    create_table, drop_table,
-    entities::{
-        CountryRestrictionEntity, PoolBracketEntity, PoolMapEntity, RankRestrictionEntity,
-        StageEntity, TournamentEntity,
-    },
-};
 use proto::debug_data::debug_service_server::DebugServiceServer;
 use proto::tournaments::tournament_service_server::TournamentServiceServer;
 
@@ -270,6 +263,7 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
         .into_diagnostic()
         .wrap_err("failed to connect to database")?;
 
+    /*
     drop_table(&db, model::team_member::Entity).await;
     drop_table(&db, model::team::Entity).await;
     drop_table(&db, PoolMapEntity).await;
@@ -287,7 +281,8 @@ async fn setup_database() -> miette::Result<DatabaseConnection> {
     create_table(&db, PoolMapEntity).await;
     create_table(&db, model::team::Entity).await;
     create_table(&db, model::team_member::Entity).await;
-    info!("connected to database and setup tables");
+    */
+    info!("connected to database");
 
     Ok(db)
 }

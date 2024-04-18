@@ -6,10 +6,7 @@ use sea_orm::{
 };
 use tonic::{Request, Response, Status};
 
-use model::{
-    entities::{CountryRestrictionEntity, StageEntity, TournamentEntity},
-    *,
-};
+use model::{sea_orm_active_enums::OsuMode, *};
 use proto::{
     keys::StageKey,
     tournaments::{
@@ -78,7 +75,7 @@ impl TournamentService for TournamentServiceImpl {
         _request: Request<GetAllTournamentsRequest>,
     ) -> Result<Response<Self::GetAllStream>, Status> {
         let db = &self.0.db;
-        let tournaments = TournamentEntity::find()
+        let tournaments = tournament::Entity::find()
             .all(db)
             .map_err(|e| Status::internal(format!("failed to get all tournaments: {e}")))
             .await?;
@@ -94,7 +91,8 @@ impl TournamentService for TournamentServiceImpl {
         // Get country restrictions
         let country_restrictions = tournaments
             .load_many(
-                country_restriction::Entity::find().order_by_asc(country_restriction::Column::Name),
+                country_restriction::Entity::find()
+                    .order_by_asc(country_restriction::Column::CountryCode),
                 db,
             )
             .map_err(|e| Status::internal(format!("failed to get country restrictions: {e}")));
@@ -122,7 +120,7 @@ impl TournamentService for TournamentServiceImpl {
                         countries: country_restriction
                             .iter()
                             .map(|c| Country {
-                                name: c.name.clone(),
+                                country_code: c.country_code.clone(),
                             })
                             .collect(),
                     });
@@ -154,7 +152,7 @@ impl TournamentService for TournamentServiceImpl {
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing tournament id"))?
             .id;
-        let Some(tournament) = TournamentEntity::find_by_id(id)
+        let Some(tournament) = tournament::Entity::find_by_id(id)
             .one(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("failed to get tournament: {e}")))?
@@ -166,7 +164,7 @@ impl TournamentService for TournamentServiceImpl {
 
         // Find all stages of the tournament
         let stages = tournament
-            .find_related(StageEntity)
+            .find_related(stage::Entity)
             .order_by_asc(stage::Column::StageOrder)
             .all(&self.0.db)
             .await
@@ -194,12 +192,14 @@ impl TournamentService for TournamentServiceImpl {
 
         // Find all country restrictions for this tournament in the database
         let countries = tournament
-            .find_related(CountryRestrictionEntity)
+            .find_related(country_restriction::Entity)
             .all(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("failed to get country restrictions: {e}")))?
             .into_iter()
-            .map(|cr| Country { name: cr.name })
+            .map(|cr| Country {
+                country_code: cr.country_code,
+            })
             .collect::<Vec<_>>();
 
         let tournament = GetTournamentResponse {
@@ -229,7 +229,7 @@ impl TournamentService for TournamentServiceImpl {
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing tournament"))?;
         let name = tournament.name.clone();
-        let format = tournament.format as i32;
+        let format = tournament.format as i16;
 
         // TODO Validate stuff like the rank ranges being in the right order
 
@@ -240,7 +240,7 @@ impl TournamentService for TournamentServiceImpl {
             format: A::Set(format),
             bws: A::Set(tournament.bws),
             // TODO Actually get the mode from the API
-            mode: A::Set(tournament::Mode::Osu)
+            mode: A::Set(OsuMode::Osu),
         };
         let tournament_model = tournament_model.insert(&self.0.db).await.map_err(|e| {
             Status::internal(format!(
@@ -252,7 +252,7 @@ impl TournamentService for TournamentServiceImpl {
             for (i, range) in rank_restrictions.ranges.iter().enumerate() {
                 let restriction = model::rank_restriction::ActiveModel {
                     tournament_id: A::Set(tournament_model.id),
-                    tier: A::Set(i as i32),
+                    tier: A::Set(i as i16),
                     min: A::Set(range.min as i32),
                     max: A::Set(range.max as i32),
                 };
@@ -267,7 +267,7 @@ impl TournamentService for TournamentServiceImpl {
             for country in country_restrictions.countries.iter() {
                 let restriction = model::country_restriction::ActiveModel {
                     tournament_id: A::Set(tournament_model.id),
-                    name: A::Set(country.name.clone()),
+                    country_code: A::Set(country.country_code.clone()),
                 };
 
                 restriction.insert(&self.0.db).await.map_err(|e| {
@@ -294,7 +294,7 @@ impl TournamentService for TournamentServiceImpl {
             .ok_or_else(|| Status::invalid_argument("missing tournament id"))?
             .id;
         use ActiveValue as A;
-        let model = TournamentEntity::find_by_id(tournament_id)
+        let model = tournament::Entity::find_by_id(tournament_id)
             .one(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("failed to fetch tournament: {e}")))?
@@ -330,7 +330,7 @@ impl TournamentService for TournamentServiceImpl {
             for (i, range) in ranges.iter().enumerate() {
                 let restriction = rank_restriction::ActiveModel {
                     tournament_id: A::Set(tournament_id),
-                    tier: A::Set(i as i32),
+                    tier: A::Set(i as i16),
                     min: A::Set(range.min as i32),
                     max: A::Set(range.max as i32),
                 };
@@ -342,7 +342,7 @@ impl TournamentService for TournamentServiceImpl {
         }
 
         if let Some(format) = request.get_ref().format {
-            model.format = A::Set(format as i32);
+            model.format = A::Set(format as i16);
         }
 
         if let Some(bws) = request.get_ref().bws {
@@ -367,7 +367,7 @@ impl TournamentService for TournamentServiceImpl {
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing tournament id"))?
             .id;
-        TournamentEntity::delete_by_id(id)
+        tournament::Entity::delete_by_id(id)
             .exec(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("could not delete tournament: {e}")))?;
