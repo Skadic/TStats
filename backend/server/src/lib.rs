@@ -83,11 +83,6 @@ pub async fn run_server() -> miette::Result<()> {
         osu,
     };
 
-    model::migrate(&state.sqlx)
-        .await
-        .into_diagnostic()
-        .wrap_err("could not migrate database")?;
-
     let reflection_server = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
         .build()
@@ -134,7 +129,7 @@ pub async fn run_server() -> miette::Result<()> {
 
     drop(server_setup_span);
 
-    let auth_interceptor = AuthInterceptor {
+    let _auth_interceptor = AuthInterceptor {
         state: state.clone(),
     };
 
@@ -169,31 +164,36 @@ pub async fn run_server() -> miette::Result<()> {
                 ])),
         )
         .layer(GrpcWebLayer::new())
-        .layer(tonic::service::interceptor(cors_interceptor))
+        //.layer(tonic::service::interceptor(cors_interceptor))
         // The gRPC services
         .add_service(reflection_server)
         .add_service(health_server)
-        .add_service(OsuAuthServiceServer::new(OsuAuthServiceImpl(
-            state.clone(),
-            osu::auth::get_auth_client(),
-        )))
+        .add_service(InterceptorFor::new(
+            OsuAuthServiceServer::new(OsuAuthServiceImpl(
+                state.clone(),
+                osu::auth::get_auth_client(),
+            )),
+            CorsInterceptor,
+        ))
         .add_service(DebugServiceServer::new(DebugServiceImpl(state.clone())))
         .add_service(TournamentServiceServer::new(TournamentServiceImpl(
             state.clone(),
         )))
         .add_service(StageServiceServer::new(StageServiceImpl(state.clone())))
         .add_service(PoolServiceServer::new(PoolServiceImpl(state.clone())))
-        .add_service(InterceptorFor::new(
-            OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())),
-            auth_interceptor.clone(),
-        ))
+        .add_service(OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())))
+        // .add_service(InterceptorFor::new(
+        //     OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())),
+        //     auth_interceptor.clone(),
+        // ))
         .serve(addr)
         .await
         .into_diagnostic()
 }
 
 /// Intercepts cors requests so they are not forwarded to the actual handler
-fn cors_interceptor(req: tonic::Request<()>) -> tonic::Result<tonic::Request<()>> {
+#[tracing::instrument(skip_all, fields(fetch_mode = ?req.metadata().get("sec-fetch-mode")))]
+fn cors_interceptor<T>(req: tonic::Request<T>) -> tonic::Result<tonic::Request<T>> {
     let is_cors = match req.metadata().get("sec-fetch-mode") {
         Some(fetch_mode) if fetch_mode == "cors" => true,
         Some(_) | None => false,
@@ -205,6 +205,25 @@ fn cors_interceptor(req: tonic::Request<()>) -> tonic::Result<tonic::Request<()>
     }
 }
 
+#[derive(Clone, Copy)]
+struct CorsInterceptor;
+
+#[tonic::async_trait]
+impl RequestInterceptor for CorsInterceptor {
+    #[tracing::instrument(skip(self), rename = "cors", level = "trace")]
+    async fn intercept(&self, req: http::Request<Body>) -> Result<http::Request<Body>, Status> {
+        let is_cors = match req.headers().get("sec-fetch-mode") {
+            Some(fetch_mode) if fetch_mode == "cors" => true,
+            Some(_) | None => false,
+        };
+        if is_cors {
+            Err(Status::ok("cors request".to_string()))
+        } else {
+            Ok(req)
+        }
+    }
+}
+
 #[derive(Clone)]
 struct AuthInterceptor {
     state: AppState,
@@ -212,7 +231,7 @@ struct AuthInterceptor {
 
 #[tonic::async_trait]
 impl RequestInterceptor for AuthInterceptor {
-    #[tracing::instrument(skip(self), rename = "authorize")]
+    #[tracing::instrument(skip(self), rename = "authorize", level = "trace")]
     async fn intercept(&self, req: http::Request<Body>) -> Result<http::Request<Body>, Status> {
         let auth_header_token = match req.headers().get("authorization") {
             Some(c) => c
@@ -255,7 +274,7 @@ where
         Ok(value) => value
             .parse::<T>()
             .into_diagnostic()
-            .wrap_err(format!("could not parse {env_var} (value is {value})")),
+            .wrap_err_with(|| format!("could not parse {env_var} (value is {value})")),
         Err(e) => {
             warn!("could not read {env_var} ({e}), using default");
             Ok(default_fn())
@@ -282,26 +301,12 @@ async fn setup_database() -> miette::Result<(DatabaseConnection, PgPool)> {
         .into_diagnostic()
         .wrap_err("failed to connect to database")?;
 
-    /*
-    drop_table(&db, model::team_member::Entity).await;
-    drop_table(&db, model::team::Entity).await;
-    drop_table(&db, PoolMapEntity).await;
-    drop_table(&db, PoolBracketEntity).await;
-    drop_table(&db, RankRestrictionEntity).await;
-    drop_table(&db, StageEntity).await;
-    drop_table(&db, CountryRestrictionEntity).await;
-    drop_table(&db, TournamentEntity).await;
+    model::migrate(&pool)
+        .await
+        .into_diagnostic()
+        .wrap_err("could not migrate database")?;
 
-    create_table(&db, TournamentEntity).await;
-    create_table(&db, CountryRestrictionEntity).await;
-    create_table(&db, StageEntity).await;
-    create_table(&db, RankRestrictionEntity).await;
-    create_table(&db, PoolBracketEntity).await;
-    create_table(&db, PoolMapEntity).await;
-    create_table(&db, model::team::Entity).await;
-    create_table(&db, model::team_member::Entity).await;
-    */
-    info!("connected to database");
+    info!("connected to and setup database");
 
     Ok((db, pool))
 }

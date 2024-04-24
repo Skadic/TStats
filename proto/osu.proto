@@ -45,7 +45,11 @@ message User {
 // Provides access to osu user data 
 service OsuUserService {
   // Get the user data for the currently signed-in user
-  rpc Get(GetUserRequest) returns (User);
+  rpc Get(GetUserRequest) returns (GetUserResponse);
 }
 
 message GetUserRequest {}
+message GetUserResponse {
+  // The logged-in user
+  optional User user = 1;
+}

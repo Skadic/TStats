@@ -6,10 +6,10 @@
 		RankRange,
 		Tournament
 	} from '$lib/api/tournaments';
-	import { createAccordion, createSync, melt, type CreateAccordionProps } from '@melt-ui/svelte';
+	import { createAccordion, melt, type CreateAccordionProps } from '@melt-ui/svelte';
+	import { slide } from 'svelte/transition';
 	import StageCard from '../../../components/StageCard.svelte';
 	import TournamentInfo from '../../../components/TournamentInfo.svelte';
-	import { fade, slide } from 'svelte/transition';
 
 	export let data;
 	let tournamentData: GetTournamentResponse = data.tournament;
@@ -24,11 +24,11 @@
 	};
 
 	const {
-		elements: { root, content, item, heading, trigger },
+		elements: { root: accordion_root, content, item, heading, trigger },
 		states: { value }
 	} = createAccordion({
 		onValueChange: handleChange,
-		forceVisible: true,
+		forceVisible: true
 	});
 </script>
 
@@ -42,7 +42,7 @@
 		<TournamentInfo {tournament} {rankRanges} {countryRestrictions} />
 	</div>
 
-	<div use:melt={$root}>
+	<div use:melt={$accordion_root}>
 		<h2 use:melt={$heading} class="text-4xl font-bold p-3 pb-5">Stages</h2>
 		{#each stages as stage, i}
 			<div
@@ -60,7 +60,10 @@
 				</button>
 
 				{#if $value === stage.stage?.name ?? 'unnamed stage'}
-					<div use:melt={$content(stage.stage?.name ?? 'unnamed stage')} transition:slide={{duration: 200}}>
+					<div
+						use:melt={$content(stage.stage?.name ?? 'unnamed stage')}
+						transition:slide={{ duration: 200 }}
+					>
 						<StageCard
 							tournamentId={tournament.key?.id ?? -1}
 							stage={{

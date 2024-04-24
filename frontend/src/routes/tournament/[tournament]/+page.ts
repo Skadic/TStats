@@ -19,8 +19,10 @@ export async function load({ params }: any) {
 	);
 	const stageClient: StageServiceClient = tstatsClient(StageServiceDefinition, channel);
 
+	const key = { id: parseInt(params.tournament) };
+
 	const tournament: GetTournamentResponse = await tournamentClient.get({
-		key: { id: parseInt(params.tournament) }
+		key: key
 	});
 
 	const request = stageClient.getAll({

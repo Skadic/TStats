@@ -1,6 +1,8 @@
 <script>
 	import Navbar from '../components/Navbar.svelte';
 	import '../styles/app.css';
+
+	export const ssr = false;
 </script>
 
 <body class="flex flex-col gap-10">

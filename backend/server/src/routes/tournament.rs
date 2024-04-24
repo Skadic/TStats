@@ -22,6 +22,7 @@ use proto::{
         tournament_service_server::TournamentService, GetTournamentResponse, RankRange, Tournament,
     },
 };
+use tracing::error;
 
 use crate::AppState;
 
@@ -142,6 +143,7 @@ impl TournamentService for TournamentServiceImpl {
         Ok(Response::new(futures::stream::iter(iter)))
     }
 
+    #[tracing::instrument(skip_all, fields(id = ?request.get_ref().key))]
     async fn get(
         &self,
         request: Request<GetTournamentRequest>,
@@ -150,12 +152,18 @@ impl TournamentService for TournamentServiceImpl {
             .get_ref()
             .key
             .as_ref()
-            .ok_or_else(|| Status::invalid_argument("missing tournament id"))?
+            .ok_or_else(|| {
+                error!("missing tournament id in request");
+                Status::invalid_argument("missing tournament id in request")
+            })?
             .id;
         let Some(tournament) = tournament::Entity::find_by_id(id)
             .one(&self.0.db)
             .await
-            .map_err(|e| Status::internal(format!("failed to get tournament: {e}")))?
+            .map_err(|e| {
+                error!(error = %e, "failed to get tournament from database");
+                Status::internal("failed to get tournament")
+            })?
         else {
             return Err(Status::not_found(format!(
                 "tournament with id '{id}' not found"
@@ -168,7 +176,10 @@ impl TournamentService for TournamentServiceImpl {
             .order_by_asc(stage::Column::StageOrder)
             .all(&self.0.db)
             .await
-            .map_err(|e| Status::internal(format!("failed to get stages: {e}")))?
+            .map_err(|e| {
+                error!(error = %e, "failed to get stages from database");
+                Status::internal("failed to get stages")
+            })?
             .into_iter()
             .map(|stage| proto::stages::Stage {
                 name: stage.name,
@@ -182,7 +193,10 @@ impl TournamentService for TournamentServiceImpl {
             .order_by_asc(rank_restriction::Column::Tier)
             .all(&self.0.db)
             .await
-            .map_err(|e| Status::internal(format!("failed to get rank restriction: {e}")))?
+            .map_err(|e| {
+                error!(error = %e, "failed to get rank restrictions from database");
+                Status::internal("failed to get rank restriction")
+            })?
             .into_iter()
             .map(|r| RankRange {
                 min: r.min as u32,
@@ -195,7 +209,10 @@ impl TournamentService for TournamentServiceImpl {
             .find_related(country_restriction::Entity)
             .all(&self.0.db)
             .await
-            .map_err(|e| Status::internal(format!("failed to get country restrictions: {e}")))?
+            .map_err(|e| {
+                error!(error = %e, "failed to get rank restrictions from database");
+                Status::internal("failed to get country restrictions")
+            })?
             .into_iter()
             .map(|cr| Country {
                 country_code: cr.country_code,
