@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { PoolServiceDefinition, type PoolBracket, type PoolServiceClient } from '$lib/api/pool';
 	import type { Stage } from '$lib/api/stages';
-	import { tstatsClient } from '$lib/rpc';
+	import { tstatsClient } from '$lib/ts/rpc';
 	import PoolList from './PoolList.svelte';
 	import { slide } from 'svelte/transition';
 

@@ -7,7 +7,7 @@
 		DeliverAuthCodeRequest,
 		DeliverAuthCodeResponse
 	} from '$lib/api/osuauth';
-	import { tstatsAuthToken, tstatsClient } from '$lib/rpc';
+	import { tstatsAuthToken, tstatsClient } from '$lib/ts/rpc';
 
 	let csrfToken: string | null = $page.url.searchParams.get('state');
 	let authCode: string | null = $page.url.searchParams.get('code');

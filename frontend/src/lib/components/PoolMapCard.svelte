@@ -4,7 +4,6 @@
 	export let map: Beatmap;
 	export let bracketName: string;
 	export let bracketOrder: number;
-	console.log(map);
 	let creator: User = map.creator!;
 	let difficulty: Difficulty = map.difficulty!;
 	function formatLength(seconds: number): string {

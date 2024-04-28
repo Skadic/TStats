@@ -1,6 +1,5 @@
 <script lang="ts">
 	import TournamentCard from './TournamentCard.svelte';
-	import '../styles/app.css';
 	import { Tournament, type GetAllTournamentsResponse, RangeList } from '$lib/api/tournaments';
 
 	export let tournaments: GetAllTournamentsResponse[];

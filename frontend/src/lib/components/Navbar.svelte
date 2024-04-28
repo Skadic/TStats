@@ -5,7 +5,7 @@
 		type OsuAuthServiceClient,
 		RequestAuthCodeResponse
 	} from '$lib/api/osuauth';
-	import { tstatsAuthToken, tstatsClient } from '$lib/rpc';
+	import { tstatsAuthToken, tstatsClient } from '$lib/ts/rpc';
 	import { createAvatar, melt } from '@melt-ui/svelte';
 	import { get } from 'svelte/store';
 	import Loader from './Loader.svelte';

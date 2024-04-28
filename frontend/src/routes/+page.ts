@@ -3,7 +3,7 @@ import {
 	type TournamentServiceClient,
 	GetAllTournamentsResponse
 } from '$lib/api/tournaments';
-import { tstatsClient } from '$lib/rpc';
+import { tstatsClient } from '$lib/ts/rpc';
 
 export async function load({ fetch, params }) {
 	const client: TournamentServiceClient = tstatsClient(TournamentServiceDefinition);

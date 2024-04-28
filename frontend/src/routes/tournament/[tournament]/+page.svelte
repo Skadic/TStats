@@ -1,15 +1,15 @@
 <script lang="ts">
-	import type { GetAllStagesResponse, Stage } from '$lib/api/stages';
+	import type { Stage } from '$lib/api/stages';
 	import type {
 		CountryList,
 		GetTournamentResponse,
 		RankRange,
 		Tournament
 	} from '$lib/api/tournaments';
-	import { createAccordion, melt, type CreateAccordionProps } from '@melt-ui/svelte';
+	import { createAccordion, melt } from '@melt-ui/svelte';
 	import { slide } from 'svelte/transition';
-	import StageCard from '../../../components/StageCard.svelte';
-	import TournamentInfo from '../../../components/TournamentInfo.svelte';
+	import StageCard from '$lib/components/StageCard.svelte';
+	import TournamentInfo from '$lib/components/TournamentInfo.svelte';
 
 	export let data;
 	let tournament: Tournament = data.tournament;

@@ -1,7 +1,6 @@
 import {
 	StageServiceDefinition,
 	type StageServiceClient,
-	GetAllStagesResponse,
 	Stage
 } from '$lib/api/stages';
 import {
@@ -9,7 +8,7 @@ import {
 	type TournamentServiceClient,
 	GetTournamentResponse
 } from '$lib/api/tournaments';
-import { tstatsChannel, tstatsClient } from '$lib/rpc';
+import { tstatsChannel, tstatsClient } from '$lib/ts/rpc';
 
 export async function load({ params }: any) {
 	const channel = tstatsChannel();

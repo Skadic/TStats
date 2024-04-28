@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ImportantTournaments from '../components/ImportantTournaments.svelte';
-	import TournamentList from '../components/TournamentList.svelte';
+	import ImportantTournaments from '$lib/components/ImportantTournaments.svelte';
+	import TournamentList from '$lib/components/TournamentList.svelte';
 	export let data;
 	console.log(data);
 </script>
