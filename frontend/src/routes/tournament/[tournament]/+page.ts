@@ -3,7 +3,7 @@ import {
 	type StageServiceClient,
 	GetAllStagesResponse,
 	Stage
-} from '$lib/api/stages.js';
+} from '$lib/api/stages';
 import {
 	TournamentServiceDefinition,
 	type TournamentServiceClient,

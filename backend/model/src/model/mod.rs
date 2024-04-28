@@ -3,11 +3,16 @@
 pub mod prelude;
 
 pub mod country_restriction;
+pub mod r#match;
+pub mod match_link;
 pub mod pool_bracket;
 pub mod pool_map;
+pub mod qualifier_run;
 pub mod rank_restriction;
+pub mod score;
 pub mod sea_orm_active_enums;
 pub mod stage;
 pub mod team;
 pub mod team_member;
 pub mod tournament;
+pub mod versus_match;

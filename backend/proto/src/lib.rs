@@ -1,5 +1,7 @@
 pub const FILE_DESCRIPTOR_SET: &[u8] = tonic::include_file_descriptor_set!("tstats_descriptor");
 
+mod implementation;
+
 pub mod osu_auth {
     tonic::include_proto!("osu.auth");
 }
@@ -27,4 +29,8 @@ pub mod pool {
 
 pub mod debug_data {
     tonic::include_proto!("debug");
+}
+
+pub mod utils {
+    tonic::include_proto!("utils");
 }

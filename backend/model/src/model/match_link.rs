@@ -8,30 +8,32 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "team_member"
+        "match_link"
     }
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq, Serialize, Deserialize)]
 pub struct Model {
-    pub team_id: i32,
-    pub user_id: i32,
+    pub match_id: i32,
+    pub link_order: i16,
+    pub osu_mp_id: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
-    TeamId,
-    UserId,
+    MatchId,
+    LinkOrder,
+    OsuMpId,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
 pub enum PrimaryKey {
-    TeamId,
-    UserId,
+    MatchId,
+    LinkOrder,
 }
 
 impl PrimaryKeyTrait for PrimaryKey {
-    type ValueType = (i32, i32);
+    type ValueType = (i32, i16);
     fn auto_increment() -> bool {
         true
     }
@@ -39,16 +41,16 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    Score,
-    Team,
+    Match,
 }
 
 impl ColumnTrait for Column {
     type EntityName = Entity;
     fn def(&self) -> ColumnDef {
         match self {
-            Self::TeamId => ColumnType::Integer.def(),
-            Self::UserId => ColumnType::Integer.def(),
+            Self::MatchId => ColumnType::Integer.def(),
+            Self::LinkOrder => ColumnType::SmallInteger.def().unique(),
+            Self::OsuMpId => ColumnType::Integer.def(),
         }
     }
 }
@@ -56,24 +58,17 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::Score => Entity::has_many(super::score::Entity).into(),
-            Self::Team => Entity::belongs_to(super::team::Entity)
-                .from(Column::TeamId)
-                .to(super::team::Column::Id)
+            Self::Match => Entity::belongs_to(super::r#match::Entity)
+                .from(Column::MatchId)
+                .to(super::r#match::Column::Id)
                 .into(),
         }
     }
 }
 
-impl Related<super::score::Entity> for Entity {
+impl Related<super::r#match::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Score.def()
-    }
-}
-
-impl Related<super::team::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Team.def()
+        Relation::Match.def()
     }
 }
 

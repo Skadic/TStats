@@ -48,6 +48,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     PoolBracket,
+    Score,
 }
 
 impl ColumnTrait for Column {
@@ -78,6 +79,7 @@ impl RelationTrait for Relation {
                     super::pool_bracket::Column::BracketOrder,
                 ))
                 .into(),
+            Self::Score => Entity::has_many(super::score::Entity).into(),
         }
     }
 }
@@ -85,6 +87,12 @@ impl RelationTrait for Relation {
 impl Related<super::pool_bracket::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PoolBracket.def()
+    }
+}
+
+impl Related<super::score::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Score.def()
     }
 }
 

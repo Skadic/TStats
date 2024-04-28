@@ -4,6 +4,7 @@ package stages;
 
 import "keys.proto";
 import "pool.proto";
+import "utils.proto";
 
 message Stage {
   // A short form of the stage's name, e.g. "QF", "SF", etc
@@ -14,6 +15,10 @@ message Stage {
   uint32 best_of = 2;
   // The order of this stage in the tournament
   uint32 stage_order = 3;
+  // The start date of this stage
+  optional utils.DateMillis start_date = 4;
+  // The end date of this stage
+  optional utils.DateMillis end_date = 5;
 }
 
 // Provides access to a stages in a tournament
@@ -56,6 +61,10 @@ message CreateStageRequest {
   keys.TournamentKey tournament_key = 1;
   string name = 2;
   uint32 best_of = 3;
+  // The start date of this stage
+  optional utils.DateMillis start_date = 4;
+  // The end date of this stage
+  optional utils.DateMillis end_date = 5;
 }
 
 message CreateStageResponse {

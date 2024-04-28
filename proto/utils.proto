@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package utils;
+
+/// Timestamp representing the milliseconds since epoch
+message DateMillis {
+    int64 millis = 1;
+}

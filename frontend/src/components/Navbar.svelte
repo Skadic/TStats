@@ -61,7 +61,7 @@
 <nav class="flex justify-between bg-bg-400 shadow-bg-400 shadow-md border-bg-600 border-b-2">
 	<a href="/" class="text-6xl px-10 font-bold text-center my-auto">TStats</a>
 	<div class="p-2">
-		<div class="h-20 aspect-square rounded-xl overflow-hidden grid place-content-center ">
+		<div class="h-20 aspect-square rounded-xl overflow-hidden">
 			{#if $loadingStatus === 'loading'}
 				<Loader />
 			{:else}

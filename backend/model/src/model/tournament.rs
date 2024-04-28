@@ -21,6 +21,9 @@ pub struct Model {
     pub format: i16,
     pub bws: bool,
     pub mode: OsuMode,
+    pub banner: Option<String>,
+    pub start_date: Option<DateTime>,
+    pub end_date: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -31,6 +34,9 @@ pub enum Column {
     Format,
     Bws,
     Mode,
+    Banner,
+    StartDate,
+    EndDate,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -63,6 +69,9 @@ impl ColumnTrait for Column {
             Self::Format => ColumnType::SmallInteger.def(),
             Self::Bws => ColumnType::Boolean.def(),
             Self::Mode => OsuMode::db_type().def(),
+            Self::Banner => ColumnType::String(Some(48u32)).def().null(),
+            Self::StartDate => ColumnType::DateTime.def().null(),
+            Self::EndDate => ColumnType::DateTime.def().null(),
         }
     }
 }
@@ -99,15 +108,6 @@ impl Related<super::stage::Entity> for Entity {
 impl Related<super::team::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Team.def()
-    }
-}
-
-impl Related<super::pool_bracket::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::stage::Relation::PoolBracket.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::stage::Relation::Tournament.def().rev())
     }
 }
 

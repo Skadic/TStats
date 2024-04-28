@@ -1,5 +1,5 @@
 use super::tournament::find_stage;
-use crate::{osu::map::get_map, AppState};
+use crate::{osu::map::get_map, routes::convert_start_end, AppState};
 use futures::{stream::FuturesOrdered, TryFutureExt, TryStreamExt};
 use model::stage;
 use proto::stages::{
@@ -59,6 +59,8 @@ impl StageService for StageServiceImpl {
                     name: stage.name.clone(),
                     best_of: stage.best_of as u32,
                     stage_order: stage.stage_order as u32,
+                    start_date: stage.start_date.map(Into::into),
+                    end_date: stage.end_date.map(Into::into),
                 }),
             })
             .map(Result::Ok)
@@ -120,6 +122,8 @@ impl StageService for StageServiceImpl {
                 name: stage.name.clone(),
                 best_of: stage.best_of as u32,
                 stage_order: stage_key.stage_order,
+                start_date: stage.start_date.map(Into::into),
+                end_date: stage.end_date.map(Into::into),
             }),
             pool: Some(proto::pool::Pool {
                 brackets: brackets
@@ -170,11 +174,15 @@ impl StageService for StageServiceImpl {
             .map(|max| max.stage_order + 1)
             .unwrap_or_default();
 
+        let (start_date, end_date) = convert_start_end(request.start_date, request.end_date)?;
+
         let stage = model::stage::ActiveModel {
             tournament_id: A::Set(tournament_key.id),
             name: A::Set(request.name),
             stage_order: A::Set(new_stage_order),
             best_of: A::Set(request.best_of as i16),
+            start_date: A::Set(start_date),
+            end_date: A::Set(end_date),
         };
 
         stage
@@ -214,12 +222,14 @@ impl StageService for StageServiceImpl {
             .update(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("could not update stage: {e}")))?;
-
+        
         Ok(Response::new(UpdateStageResponse {
             stage: Some(proto::stages::Stage {
                 name: stage.name,
                 best_of: stage.best_of as u32,
                 stage_order: stage.stage_order as u32,
+                start_date: stage.start_date.map(Into::into),
+                end_date: stage.end_date.map(Into::into),
             }),
         }))
     }

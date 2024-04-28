@@ -4,7 +4,7 @@
 </script>
 
 <body class="flex flex-col">
-		<Navbar />
+	<Navbar />
 	<div class="flex flex-col">
 		<slot />
 	</div>

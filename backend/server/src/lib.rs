@@ -38,7 +38,7 @@ use crate::routes::pool::PoolServiceImpl;
 use crate::routes::stage::StageServiceImpl;
 use crate::routes::tournament::TournamentServiceImpl;
 
-use utils::{consts::*, Cacheable, LogStatus};
+use utils::{consts::*, Cacheable, LogStatus, TStatsPaths};
 
 type RedisConnection = deadpool_redis::Connection;
 type RedisConnectionPool = deadpool_redis::Pool;
@@ -52,6 +52,7 @@ pub struct AppState {
     pub sqlx: PgPool,
     pub osu: Arc<Osu>,
     pub redis: RedisConnectionPool,
+    pub paths: TStatsPaths,
 }
 
 impl AppState {
@@ -76,11 +77,22 @@ pub async fn run_server() -> miette::Result<()> {
     let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
     let ((db, sqlx), redis, osu) = (db?, redis?, osu?);
 
+    let base_path = parse_env(TSTATS_DATA_DIR, || {
+        std::env::current_dir()
+            .expect("could not get working directory")
+            .join("tsdata")
+    })?;
+    let paths = TStatsPaths::new(base_path)
+        .into_diagnostic()
+        .wrap_err("could not canonicalize path")?;
+    info!("Storing data in {:?}", paths.base());
+
     let state = AppState {
         db,
         sqlx,
         redis,
         osu,
+        paths,
     };
 
     let reflection_server = tonic_reflection::server::Builder::configure()

@@ -4,6 +4,7 @@ use sea_orm::{
     query::*, ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait,
     IntoActiveModel, ModelTrait,
 };
+use sqlx::types::chrono::NaiveDateTime;
 use tonic::{Request, Response, Status};
 
 use model::{sea_orm_active_enums::OsuMode, *};
@@ -24,7 +25,7 @@ use proto::{
 };
 use tracing::error;
 
-use crate::AppState;
+use crate::{routes::convert_start_end, AppState};
 
 pub async fn find_stage(
     stage_key: &StageKey,
@@ -103,11 +104,31 @@ impl TournamentService for TournamentServiceImpl {
             tokio::join!(rank_restrictions, country_restrictions);
         let (rank_restrictions, country_restrictions) = (rank_restrictions?, country_restrictions?);
 
+        let banners = tournaments
+            .iter()
+            .map(|tournament| match &tournament.banner {
+                Some(banner_name) => {
+                    return std::fs::read(self.0.paths.banner(banner_name)).map(Option::Some);
+                }
+                None => Ok(None),
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| {
+                error!(%error, "could not read banner image file");
+                Status::internal("could not read banner image")
+            })?;
+
         let iter: Box<
             dyn Iterator<Item = Result<GetAllTournamentsResponse, Status>> + Send + Sync,
         > = Box::new(
-            izip!(tournaments, rank_restrictions, country_restrictions).map(
-                |(tournament, rank_restriction, country_restriction)| {
+            izip!(
+                tournaments,
+                rank_restrictions,
+                country_restrictions,
+                banners
+            )
+            .map(
+                |(tournament, rank_restriction, country_restriction, banner)| {
                     let rank_restrictions = Some(RangeList {
                         ranges: rank_restriction
                             .iter()
@@ -125,6 +146,7 @@ impl TournamentService for TournamentServiceImpl {
                             })
                             .collect(),
                     });
+
                     Ok(GetAllTournamentsResponse {
                         tournament: Some(Tournament {
                             key: Some(TournamentKey { id: tournament.id }),
@@ -132,6 +154,10 @@ impl TournamentService for TournamentServiceImpl {
                             shorthand: tournament.shorthand,
                             format: tournament.format as u32,
                             bws: tournament.bws,
+                            mode: tournament.mode.into(),
+                            banner,
+                            start_date: tournament.start_date.map(Into::into),
+                            end_date: tournament.end_date.map(Into::into),
                         }),
                         rank_restrictions,
                         country_restrictions,
@@ -181,10 +207,16 @@ impl TournamentService for TournamentServiceImpl {
                 Status::internal("failed to get stages")
             })?
             .into_iter()
-            .map(|stage| proto::stages::Stage {
-                name: stage.name,
-                best_of: stage.best_of as u32,
-                stage_order: stage.stage_order as u32,
+            .map(|stage| {
+                let start_date = stage.start_date.map(NaiveDateTime::into);
+                let end_date = stage.end_date.map(NaiveDateTime::into);
+                proto::stages::Stage {
+                    name: stage.name,
+                    best_of: stage.best_of as u32,
+                    stage_order: stage.stage_order as u32,
+                    start_date,
+                    end_date,
+                }
             })
             .collect::<Vec<_>>();
 
@@ -219,6 +251,7 @@ impl TournamentService for TournamentServiceImpl {
             })
             .collect::<Vec<_>>();
 
+        let banner = tournament.fetch_banner(&self.0.paths);
         let tournament = GetTournamentResponse {
             tournament: Some(Tournament {
                 key: Some(TournamentKey { id: tournament.id }),
@@ -226,6 +259,10 @@ impl TournamentService for TournamentServiceImpl {
                 shorthand: tournament.shorthand,
                 format: tournament.format as u32,
                 bws: tournament.bws,
+                mode: tournament.mode.into(),
+                banner,
+                start_date: tournament.start_date.map(Into::into),
+                end_date: tournament.start_date.map(Into::into),
             }),
             country_restrictions: Some(CountryList { countries }),
             rank_restrictions: Some(RangeList { ranges }),
@@ -240,15 +277,15 @@ impl TournamentService for TournamentServiceImpl {
         request: Request<CreateTournamentRequest>,
     ) -> Result<Response<CreateTournamentResponse>, Status> {
         use ActiveValue as A;
+        let request = request.into_inner();
         let tournament = request
-            .get_ref()
             .tournament
-            .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing tournament"))?;
         let name = tournament.name.clone();
         let format = tournament.format as i16;
 
         // TODO Validate stuff like the rank ranges being in the right order
+        let (start_date, end_date) = convert_start_end(tournament.start_date, tournament.end_date)?;
 
         let tournament_model = model::tournament::ActiveModel {
             id: A::NotSet,
@@ -258,6 +295,10 @@ impl TournamentService for TournamentServiceImpl {
             bws: A::Set(tournament.bws),
             // TODO Actually get the mode from the API
             mode: A::Set(OsuMode::Osu),
+            // TODO Actually request a (optional) banner from the frontend
+            banner: A::NotSet,
+            start_date: A::Set(start_date),
+            end_date: A::Set(end_date),
         };
         let tournament_model = tournament_model.insert(&self.0.db).await.map_err(|e| {
             Status::internal(format!(
@@ -265,7 +306,7 @@ impl TournamentService for TournamentServiceImpl {
             ))
         })?;
 
-        if let Some(ref rank_restrictions) = request.get_ref().rank_restrictions {
+        if let Some(ref rank_restrictions) = request.rank_restrictions {
             for (i, range) in rank_restrictions.ranges.iter().enumerate() {
                 let restriction = model::rank_restriction::ActiveModel {
                     tournament_id: A::Set(tournament_model.id),
@@ -280,7 +321,7 @@ impl TournamentService for TournamentServiceImpl {
             }
         }
 
-        if let Some(ref country_restrictions) = request.get_ref().country_restrictions {
+        if let Some(ref country_restrictions) = request.country_restrictions {
             for country in country_restrictions.countries.iter() {
                 let restriction = model::country_restriction::ActiveModel {
                     tournament_id: A::Set(tournament_model.id),

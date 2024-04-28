@@ -4,6 +4,14 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "match_type")]
+pub enum MatchType {
+    #[sea_orm(string_value = "qualifier")]
+    Qualifier,
+    #[sea_orm(string_value = "versus_match")]
+    VersusMatch,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "osu_mode")]
 pub enum OsuMode {
     #[sea_orm(string_value = "catch")]

@@ -9,6 +9,7 @@ edition = "2021"
 aes-gcm = { version = "0.10.3", features = ["std"] }
 async-trait = "0.1.79"
 base64 = "0.22.0"
+const_format = "0.2.32"
 deadpool-redis = "0.14.0"
 miette = "7.2.0"
 rand = "0.8.5"

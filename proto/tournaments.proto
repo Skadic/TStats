@@ -4,6 +4,7 @@ package tournaments;
 
 import "keys.proto";
 import "stages.proto";
+import "utils.proto";
 
 enum Mode {
   OSU = 0;
@@ -21,7 +22,16 @@ message Tournament {
   string shorthand = 3;
   // The tournament format
   uint32 format = 4;
+  // Whether this tournament has BWS or not
   bool bws = 5;
+  // This tournament's mode
+  Mode mode = 6;
+  // The start date of this tournament
+  optional utils.DateMillis start_date = 7;
+  // The end date of this tournament
+  optional utils.DateMillis end_date = 8;
+  // This tournament's banner
+  optional bytes banner = 9;
 }
 
 message RankRange {

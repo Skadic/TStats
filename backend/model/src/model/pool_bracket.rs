@@ -87,13 +87,4 @@ impl Related<super::stage::Entity> for Entity {
     }
 }
 
-impl Related<super::tournament::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::stage::Relation::Tournament.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::stage::Relation::PoolBracket.def().rev())
-    }
-}
-
 impl ActiveModelBehavior for ActiveModel {}

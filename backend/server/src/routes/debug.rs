@@ -1,8 +1,12 @@
 use futures::future::join_all;
 use futures::future::FutureExt;
+use model::sea_orm_active_enums::MatchType;
 use model::sea_orm_active_enums::OsuMode;
 use rand::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue};
+use sqlx::types::chrono::NaiveDate;
+use sqlx::types::chrono::NaiveDateTime;
+use sqlx::types::chrono::NaiveTime;
 use tonic::{Request, Response, Status};
 use tracing::debug;
 
@@ -73,6 +77,9 @@ impl DebugService for DebugServiceImpl {
             //rank_range: A::Set(rank_ranges.choose(&mut rng).unwrap().clone()),
             bws: A::Set(rng.gen()),
             mode: A::Set(OsuMode::Osu),
+            banner: A::NotSet,
+            start_date: A::Set(None),
+            end_date: A::Set(None),
         };
 
         let tournament = tournament.insert(db).await.unwrap();
@@ -108,6 +115,8 @@ impl DebugService for DebugServiceImpl {
                 tournament_id: A::Set(tournament.id),
                 stage_order: A::Set(stage_order as i16),
                 best_of: A::Set(rng.gen_range(3..6) * 2 + 1),
+                start_date: A::Set(None),
+                end_date: A::Set(None),
             };
 
             let _stage = stage.insert(db).await.unwrap();
@@ -158,6 +167,9 @@ impl DebugService for DebugServiceImpl {
             format: A::Set(4),
             bws: A::Set(false),
             mode: A::Set(OsuMode::Osu),
+            banner: A::Set(None),
+            start_date: A::Set(None),
+            end_date: A::Set(None),
         }
         .insert(db)
         .await
@@ -208,6 +220,24 @@ impl DebugService for DebugServiceImpl {
         add_team_member(team_usa.id, 3533958).await;
         add_team_member(team_usa.id, 4830687).await;
 
+        let team_spain = team::ActiveModel {
+            id: A::NotSet,
+            tournament_id: A::Set(owc23.id),
+            name: A::Set("Spain".to_string()),
+        }
+        .insert(db)
+        .await
+        .unwrap();
+
+        add_team_member(team_spain.id, 6995685).await;
+        add_team_member(team_spain.id, 12296128).await;
+        add_team_member(team_spain.id, 12975612).await;
+        add_team_member(team_spain.id, 9582556).await;
+        add_team_member(team_spain.id, 13962152).await;
+        add_team_member(team_spain.id, 6735738).await;
+        add_team_member(team_spain.id, 12760743).await;
+        add_team_member(team_spain.id, 6216284).await;
+
         macro_rules! pool {
             {$pool:ident, $bracket:ident => $($maps:literal),+} => {
                 [$($maps),+].iter().copied().enumerate().map(|(i, map_id)| {
@@ -232,6 +262,8 @@ impl DebugService for DebugServiceImpl {
                 name: A::Set("Q".to_owned()),
                 best_of: A::Set(0),
                 stage_order: A::Set(0),
+                start_date: A::Set(None),
+                end_date: A::Set(None),
             }
             .insert(db)
             .await
@@ -288,6 +320,8 @@ impl DebugService for DebugServiceImpl {
                 name: A::Set("RO32".to_owned()),
                 best_of: A::Set(9),
                 stage_order: A::Set(1),
+                start_date: A::Set(None),
+                end_date: A::Set(None),
             }
             .insert(db)
             .await
@@ -357,6 +391,97 @@ impl DebugService for DebugServiceImpl {
                 tb => 3121101
             })
             .await;
+
+            let germany_spain_match = model::r#match::ActiveModel {
+                id: A::NotSet,
+                tournament_id: A::Set(ro32.tournament_id),
+                stage_order: A::Set(ro32.stage_order),
+                date: A::Set(NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2023, 10, 29).unwrap(),
+                    NaiveTime::from_hms_opt(18, 30, 0).unwrap(),
+                )),
+                match_type: A::Set(MatchType::VersusMatch),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            model::versus_match::ActiveModel {
+                match_id: A::Set(germany_spain_match.id),
+                team_red: A::Set(team_germany.id),
+                team_blue: A::Set(team_spain.id),
+                score_red: A::Set(Some(5)),
+                score_blue: A::Set(Some(0)),
+                match_type: A::Set(germany_spain_match.match_type),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            model::match_link::ActiveModel {
+                match_id: A::Set(germany_spain_match.id),
+                link_order: A::Set(0),
+                osu_mp_id: A::Set(111087337),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            model::score::ActiveModel {
+                team_id: A::Set(team_germany.id),
+                player_id: A::Set(8116659),
+                tournament_id: A::Set(ro32.tournament_id),
+                stage_order: A::Set(ro32.stage_order),
+                bracket_order: A::Set(0),
+                map_order: A::Set(3),
+                match_id: A::Set(germany_spain_match.id),
+                score: A::Set(987576),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            model::score::ActiveModel {
+                team_id: A::Set(team_germany.id),
+                player_id: A::Set(4504101),
+                tournament_id: A::Set(ro32.tournament_id),
+                stage_order: A::Set(ro32.stage_order),
+                bracket_order: A::Set(0),
+                map_order: A::Set(3),
+                match_id: A::Set(germany_spain_match.id),
+                score: A::Set(982767),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            model::score::ActiveModel {
+                team_id: A::Set(team_spain.id),
+                player_id: A::Set(12760743),
+                tournament_id: A::Set(ro32.tournament_id),
+                stage_order: A::Set(ro32.stage_order),
+                bracket_order: A::Set(0),
+                map_order: A::Set(3),
+                match_id: A::Set(germany_spain_match.id),
+                score: A::Set(813145),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+
+            model::score::ActiveModel {
+                team_id: A::Set(team_spain.id),
+                player_id: A::Set(13962152),
+                tournament_id: A::Set(ro32.tournament_id),
+                stage_order: A::Set(ro32.stage_order),
+                bracket_order: A::Set(0),
+                map_order: A::Set(3),
+                match_id: A::Set(germany_spain_match.id),
+                score: A::Set(699198),
+            }
+            .insert(db)
+            .await
+            .unwrap();
         }
 
         Ok(Response::new(()))
@@ -374,6 +499,9 @@ impl DebugService for DebugServiceImpl {
             format: A::Set(1),
             bws: A::Set(false),
             mode: A::Set(OsuMode::Osu),
+            banner: A::Set(None),
+            start_date: A::Set(None),
+            end_date: A::Set(None),
         }
         .insert(db)
         .await
@@ -404,6 +532,8 @@ impl DebugService for DebugServiceImpl {
                 name: A::Set("Q".to_owned()),
                 best_of: A::Set(0),
                 stage_order: A::Set(0),
+                start_date: A::Set(None),
+                end_date: A::Set(None),
             }
             .insert(db)
             .await
@@ -462,6 +592,8 @@ impl DebugService for DebugServiceImpl {
                 name: A::Set("RO64".to_owned()),
                 best_of: A::Set(9),
                 stage_order: A::Set(1),
+                start_date: A::Set(None),
+                end_date: A::Set(None),
             }
             .insert(db)
             .await
