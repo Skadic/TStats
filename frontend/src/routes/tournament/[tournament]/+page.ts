@@ -1,7 +1,8 @@
 import {
 	StageServiceDefinition,
 	type StageServiceClient,
-	GetAllStagesResponse
+	GetAllStagesResponse,
+	Stage
 } from '$lib/api/stages.js';
 import {
 	TournamentServiceDefinition,
@@ -21,7 +22,7 @@ export async function load({ params }: any) {
 
 	const key = { id: parseInt(params.tournament) };
 
-	const tournament: GetTournamentResponse = await tournamentClient.get({
+	const tournamentResponse: GetTournamentResponse = await tournamentClient.get({
 		key: key
 	});
 
@@ -29,15 +30,17 @@ export async function load({ params }: any) {
 		tournamentKey: { id: parseInt(params.tournament) }
 	});
 
-	const stages: GetAllStagesResponse[] = [];
+	const stages: Stage[] = [];
 	for await (const stage of request) {
-		stages.push(stage);
+		stages.push(stage?.stage!);
 	}
 
 	return {
-		tournament,
+		tournament: tournamentResponse.tournament!,
+		rankRanges: tournamentResponse.rankRestrictions?.ranges!,
+		countryRestrictions: tournamentResponse.countryRestrictions!,
 		channel,
-		stages
+		stages: stages
 	};
 }
 

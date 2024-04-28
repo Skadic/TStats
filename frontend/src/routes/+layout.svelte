@@ -1,15 +1,11 @@
 <script>
 	import Navbar from '../components/Navbar.svelte';
 	import '../styles/app.css';
-
-	export const ssr = false;
 </script>
 
-<body class="flex flex-col gap-10">
-	<div class="py-4 bg-bg-400 shadow-bg-400 shadow-md">
+<body class="flex flex-col">
 		<Navbar />
-	</div>
-	<div class="lg:w-3/5 m-auto flex flex-col justify-center">
+	<div class="flex flex-col">
 		<slot />
 	</div>
 </body>

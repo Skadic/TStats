@@ -8,7 +8,7 @@
 	export let tournamentId: number;
 	export let stage: Stage;
 
-	$: poolPromise = (async function fetchPool(tournament: number, stage: number) {
+	async function fetchPool(tournament: number, stage: number) {
 		const poolClient: PoolServiceClient = tstatsClient(PoolServiceDefinition);
 		return await poolClient.get({
 			stageKey: {
@@ -16,11 +16,12 @@
 				tournamentKey: { id: tournament }
 			}
 		});
-	})(tournamentId, stage.stageOrder);
+	}
+
 </script>
 
 <div class="">
-	{#await poolPromise}
+	{#await fetchPool(tournamentId, stage.stageOrder)}
 		fetching pool...
 	{:then pool}
 		<div in:slide class="px-4 py-2">

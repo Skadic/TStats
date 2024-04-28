@@ -1,5 +1,10 @@
 <script lang="ts">
-	import type { Country, CountryList, GetTournamentResponse, RankRange, Tournament } from '$lib/api/tournaments';
+	import type {
+		Country,
+		CountryList,
+		RankRange,
+		Tournament
+	} from '$lib/api/tournaments';
 	import Flag from './Flag.svelte';
 
 	export let tournament: Tournament;
@@ -9,54 +14,59 @@
 	let countries: Country[] = countryRestrictions.countries!;
 </script>
 
-<div class="tournamentInfo flex flex-wrap w-3/4">
-	<!-- Rank Ranges -->
-	<div class="infoHeading">
-		Rank Range{#if rankRanges.length > 1}s{/if}
-	</div>
-	<div class="infoContent">
-		{#if rankRanges.length == 0}
-			Open Rank
-		{:else if rankRanges.length == 1}
-			<span>{rankRanges[0].min}</span>
-			<span class="px-1">-</span>
-			<span>{rankRanges[0].max}</span>
-		{:else}
-			<table class="min-w-full">
-				{#each rankRanges as range, i}
-					<tr>
-						<td class="font-bold">Tier {i + 1}:</td>
-						<td class="pl-3">{range.min}</td>
-						<td class="px-1">-</td>
-						<td class="">{range.max}</td>
-					</tr>
-				{/each}
-			</table>
-		{/if}
-	</div>
-	<!-- BWS -->
-	{#if rankRanges.length == 0}
-		<div class="infoHeading">BWS</div>
-		<div class="infoContent">{tournament.bws ? 'Yes' : 'No'}</div>
-	{/if}
-
-	<!-- Format -->
-	<div class="infoHeading">Match Format</div>
-	<div class="infoContent">
-		{#if tournament.format > 0}
-			 {tournament.format}v{tournament.format}
-		{/if}
-	</div>
-
-	<!-- Country Restrictions -->
-	{#if countries.length > 0 }
-		<div class="infoHeading">Country Restrictions</div>
-		<div class="infoContent">
-			{#each countries as country}
-				<Flag country={country.name.toLowerCase()} />
-			{/each}
+<div class="flex flex-col justify-center items-center rounded-2xl lg:rounded-lg p-3">
+	<h1 class="text-5xl lg:text-6xl font-bold text-center p-3 pb-5">
+		{tournament.name}
+	</h1>
+	<div class="tournamentInfo flex flex-wrap w-3/4">
+		<!-- Rank Ranges -->
+		<div class="infoHeading">
+			Rank Range{#if rankRanges.length > 1}s{/if}
 		</div>
-	{/if}
+		<div class="infoContent">
+			{#if rankRanges.length == 0}
+				Open Rank
+			{:else if rankRanges.length == 1}
+				<span>{rankRanges[0].min}</span>
+				<span class="px-1">-</span>
+				<span>{rankRanges[0].max}</span>
+			{:else}
+				<table class="min-w-full">
+					{#each rankRanges as range, i}
+						<tr>
+							<td class="font-bold">Tier {i + 1}:</td>
+							<td class="pl-3">{range.min}</td>
+							<td class="px-1">-</td>
+							<td class="">{range.max}</td>
+						</tr>
+					{/each}
+				</table>
+			{/if}
+		</div>
+		<!-- BWS -->
+		{#if rankRanges.length == 0}
+			<div class="infoHeading">BWS</div>
+			<div class="infoContent">{tournament.bws ? 'Yes' : 'No'}</div>
+		{/if}
+
+		<!-- Format -->
+		<div class="infoHeading">Match Format</div>
+		<div class="infoContent">
+			{#if tournament.format > 0}
+				{tournament.format}v{tournament.format}
+			{/if}
+		</div>
+
+		<!-- Country Restrictions -->
+		{#if countries.length > 0}
+			<div class="infoHeading">Country Restrictions</div>
+			<div class="infoContent">
+				{#each countries as country}
+					<Flag country={country.countryCode.toLowerCase()} />
+				{/each}
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>

@@ -4,6 +4,6 @@
 @tailwind utilities;
 
 body {
-    font-family: 'Poppins', 'sans-serif';
-    @apply bg-bg text-text;
+	font-family: 'Poppins', 'sans-serif';
+	@apply bg-bg text-text;
 }
