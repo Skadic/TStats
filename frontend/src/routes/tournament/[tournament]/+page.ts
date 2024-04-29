@@ -1,30 +1,9 @@
-import {
-	StageServiceDefinition,
-	type StageServiceClient,
-	Stage
-} from '$lib/api/stages';
-import {
-	TournamentServiceDefinition,
-	type TournamentServiceClient,
-	GetTournamentResponse
-} from '$lib/api/tournaments';
-import { tstatsChannel, tstatsClient } from '$lib/ts/rpc';
+import { StageServiceDefinition, type StageServiceClient, Stage } from '$lib/api/stages';
+import { tstatsClient } from '$lib/ts/rpc';
 
-export async function load({ params }: any) {
-	const channel = tstatsChannel();
-
-	const tournamentClient: TournamentServiceClient = tstatsClient(
-		TournamentServiceDefinition,
-		channel
-	);
-	const stageClient: StageServiceClient = tstatsClient(StageServiceDefinition, channel);
-
-	const key = { id: parseInt(params.tournament) };
-
-	const tournamentResponse: GetTournamentResponse = await tournamentClient.get({
-		key: key
-	});
-
+export async function load({ params, parent }: any) {
+	let parent_data = await parent();
+	const stageClient: StageServiceClient = tstatsClient(StageServiceDefinition, parent_data.channel);
 	const request = stageClient.getAll({
 		tournamentKey: { id: parseInt(params.tournament) }
 	});
@@ -35,67 +14,6 @@ export async function load({ params }: any) {
 	}
 
 	return {
-		tournament: tournamentResponse.tournament!,
-		rankRanges: tournamentResponse.rankRestrictions?.ranges!,
-		countryRestrictions: tournamentResponse.countryRestrictions!,
-		channel,
 		stages: stages
 	};
 }
-
-/*
-export async function load({ fetch, params }): Promise<TournamentResult> {
-	const tournamentResult = await fetch(
-		`http://172.31.26.242:3000/api/tournament?` +
-			new URLSearchParams({
-				id: params.tournament
-			}),
-		{
-			method: 'GET',
-			headers: new Headers({
-				'Content-Type': 'application/json'
-			})
-		}
-	);
-	const tournament: ExtendedTournament = ExtendedTournament.deserialize(
-		await tournamentResult.json()
-	);
-	const numStages: number = tournament.stages.length;
-
-	let poolPromises: Promise<PoolBracket[]>[] = [];
-
-	for (let i = 0; i < numStages; i++) {
-		const stage: Stage = tournament.stages[i];
-		const res = fetch(
-			`http://172.31.26.242:3000/api/pool?` +
-				new URLSearchParams({
-					tournament_id: params.tournament,
-					stage_order: stage.stageOrder.toString()
-				}),
-			{
-				method: 'GET',
-				headers: new Headers({
-					'Content-Type': 'application/json'
-				})
-			}
-		).then(async v => await v.json())
-		
-		poolPromises.push(res);
-	}
-
-	let poolBrackets: PoolBracket[][] = []
-	for (let i = 0; i < numStages; i++) {
-		let newArr = []
-		const arr = await poolPromises[i];
-		for (const bracket of arr) {
-			newArr.push(PoolBracket.deserialize(bracket))
-		}
-		poolBrackets.push(newArr)
-	}
-
-	return {
-		tournament,
-		poolBrackets
-	};
-}
-*/
