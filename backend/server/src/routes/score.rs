@@ -1,6 +1,8 @@
+use futures::{StreamExt, TryStreamExt};
 use proto::{
     keys::PoolMapKey,
-    scores::{score_service_server::ScoreService, GetScoresRequest, GetScoresResponse},
+    osu::api::get_user,
+    scores::{score_service_server::ScoreService, GetScoresRequest, GetScoresResponse, Score},
 };
 use tonic::{Request, Response, Status};
 use tracing::error;
@@ -8,7 +10,7 @@ use tracing::error;
 use crate::AppState;
 use proto::osu::api::get_map;
 
-struct ScoreServiceImpl(AppState);
+pub struct ScoreServiceImpl(pub AppState);
 
 #[tonic::async_trait]
 impl ScoreService for ScoreServiceImpl {
@@ -26,11 +28,12 @@ impl ScoreService for ScoreServiceImpl {
             map_order,
         } = extract_pool_map_key(request.pool_map_key)?;
 
-        let v = sqlx::query!(
+        let query_result = sqlx::query!(
             "
             SELECT tournament_id, stage_order, bracket_order, map_order, map_id, player_id, score FROM pool_map
             LEFT JOIN score USING (tournament_id, stage_order, bracket_order, map_order)
             WHERE tournament_id = $1 AND stage_order = $2 AND bracket_order = $3 AND map_order = $4
+            ORDER BY score DESC
             ", tournament_id, stage_order as i32, bracket_order as i32, map_order as i32
         )
         .fetch_all(&state.sqlx)
@@ -40,7 +43,7 @@ impl ScoreService for ScoreServiceImpl {
             Status::internal("could not get scores")
         })?;
 
-        if v.is_empty() {
+        if query_result.is_empty() {
             error!(
                 tournament_id,
                 stage_order, bracket_order, map_order, "map does not exist in pool"
@@ -48,7 +51,7 @@ impl ScoreService for ScoreServiceImpl {
             return Err(Status::not_found("map does not exist in pool"));
         }
 
-        let map_id = v[0].map_id;
+        let map_id = query_result[0].map_id;
         let map = get_map(&self.0.redis, &self.0.osu, map_id as u32)
             .await
             .map_err(|error| {
@@ -56,11 +59,29 @@ impl ScoreService for ScoreServiceImpl {
                 Status::internal("could not get map from osu api")
             })?;
 
-        //proto::osu::Beatmap {
-        //
-        //      }
+        let scores = futures::stream::iter(&query_result)
+            .then(|v| async {
+                let user = match get_user(&self.0.redis, &self.0.osu, v.player_id as u32).await {
+                    Ok(user) => Some(user),
+                    Err(e) => return Err(e),
+                };
 
-        todo!()
+                Ok(Score {
+                    user,
+                    score: v.score as u64,
+                })
+            })
+            .try_collect::<Vec<_>>()
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "error getting user");
+                Status::internal("error getting user")
+            })?;
+
+        Ok(Response::new(GetScoresResponse {
+            beatmap: Some(map),
+            scores,
+        }))
     }
 }
 

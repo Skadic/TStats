@@ -1,0 +1,1 @@
+DROP TABLE qualifier_run;

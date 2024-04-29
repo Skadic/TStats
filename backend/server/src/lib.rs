@@ -7,6 +7,7 @@ use deadpool_redis::Config;
 use http::{HeaderName, HeaderValue, Method};
 use miette::{Context, IntoDiagnostic};
 use proto::osu::osu_user_service_server::OsuUserServiceServer;
+use proto::scores::score_service_server::ScoreServiceServer;
 use proto::{
     osu_auth::osu_auth_service_server::OsuAuthServiceServer,
     pool::pool_service_server::PoolServiceServer, stages::stage_service_server::StageServiceServer,
@@ -35,6 +36,7 @@ use crate::routes::debug::DebugServiceImpl;
 use crate::routes::osu_auth::OsuAuthServiceImpl;
 use crate::routes::osu_user::OsuUserServiceImpl;
 use crate::routes::pool::PoolServiceImpl;
+use crate::routes::score::ScoreServiceImpl;
 use crate::routes::stage::StageServiceImpl;
 use crate::routes::tournament::TournamentServiceImpl;
 
@@ -194,6 +196,7 @@ pub async fn run_server() -> miette::Result<()> {
         .add_service(StageServiceServer::new(StageServiceImpl(state.clone())))
         .add_service(PoolServiceServer::new(PoolServiceImpl(state.clone())))
         .add_service(OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())))
+        .add_service(ScoreServiceServer::new(ScoreServiceImpl(state.clone())))
         // .add_service(InterceptorFor::new(
         //     OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())),
         //     auth_interceptor.clone(),
