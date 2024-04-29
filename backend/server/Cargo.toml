@@ -11,7 +11,7 @@ model = { path = "../model" }
 proto = { path = "../proto" }
 utils = { path = "../utils" }
 
-deadpool-redis = { version = "0.14.0", features = ["rt_tokio_1"] }
+deadpool-redis = { version = "0.15.0", features = ["rt_tokio_1"] }
 # Read .env files
 dotenvy = "0.15"
 # Utilities for working with futures

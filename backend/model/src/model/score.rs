@@ -14,7 +14,6 @@ impl EntityName for Entity {
 
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq, Serialize, Deserialize)]
 pub struct Model {
-    pub team_id: i32,
     pub player_id: i32,
     pub tournament_id: i32,
     pub stage_order: i16,
@@ -26,7 +25,6 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
-    TeamId,
     PlayerId,
     TournamentId,
     StageOrder,
@@ -57,14 +55,12 @@ impl PrimaryKeyTrait for PrimaryKey {
 pub enum Relation {
     Match,
     PoolMap,
-    TeamMember,
 }
 
 impl ColumnTrait for Column {
     type EntityName = Entity;
     fn def(&self) -> ColumnDef {
         match self {
-            Self::TeamId => ColumnType::Integer.def(),
             Self::PlayerId => ColumnType::Integer.def(),
             Self::TournamentId => ColumnType::Integer.def(),
             Self::StageOrder => ColumnType::SmallInteger.def(),
@@ -97,13 +93,6 @@ impl RelationTrait for Relation {
                     super::pool_map::Column::MapOrder,
                 ))
                 .into(),
-            Self::TeamMember => Entity::belongs_to(super::team_member::Entity)
-                .from((Column::TeamId, Column::PlayerId))
-                .to((
-                    super::team_member::Column::TeamId,
-                    super::team_member::Column::UserId,
-                ))
-                .into(),
         }
     }
 }
@@ -117,21 +106,6 @@ impl Related<super::r#match::Entity> for Entity {
 impl Related<super::pool_map::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PoolMap.def()
-    }
-}
-
-impl Related<super::team_member::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::TeamMember.def()
-    }
-}
-
-impl Related<super::team::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::team_member::Relation::Team.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::team_member::Relation::Score.def().rev())
     }
 }
 

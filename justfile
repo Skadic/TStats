@@ -37,11 +37,11 @@ migrate:
   sqlx migrate run --source ./backend/model/migrations
 
 # Revert the last migration to the database
-migrate_revert:
+revert_one_migration:
   sqlx migrate revert --source ./backend/model/migrations
 
 # Revert all migrations to the database
-migrate_revert_all:
+revert_all_migrations:
   sqlx migrate revert --source ./backend/model/migrations --target-version 0
 
 # Generate entities for the backend from the database schema

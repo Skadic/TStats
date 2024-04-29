@@ -13,7 +13,6 @@ use tracing::debug;
 use model::*;
 use proto::debug_data::debug_service_server::DebugService;
 
-use crate::osu::map::SlimBeatmap;
 use crate::AppState;
 
 // These three tables are for generating a random tournament name.
@@ -428,7 +427,6 @@ impl DebugService for DebugServiceImpl {
             .unwrap();
 
             model::score::ActiveModel {
-                team_id: A::Set(team_germany.id),
                 player_id: A::Set(8116659),
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),
@@ -442,7 +440,6 @@ impl DebugService for DebugServiceImpl {
             .unwrap();
 
             model::score::ActiveModel {
-                team_id: A::Set(team_germany.id),
                 player_id: A::Set(4504101),
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),
@@ -456,7 +453,6 @@ impl DebugService for DebugServiceImpl {
             .unwrap();
 
             model::score::ActiveModel {
-                team_id: A::Set(team_spain.id),
                 player_id: A::Set(12760743),
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),
@@ -470,7 +466,6 @@ impl DebugService for DebugServiceImpl {
             .unwrap();
 
             model::score::ActiveModel {
-                team_id: A::Set(team_spain.id),
                 player_id: A::Set(13962152),
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),

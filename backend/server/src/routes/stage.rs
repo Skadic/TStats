@@ -1,5 +1,6 @@
 use super::tournament::find_stage;
-use crate::{osu::map::get_map, routes::convert_start_end, AppState};
+use proto::osu::api::get_map;
+use crate::{ routes::convert_start_end, AppState};
 use futures::{stream::FuturesOrdered, TryFutureExt, TryStreamExt};
 use model::stage;
 use proto::stages::{

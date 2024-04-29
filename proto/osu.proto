@@ -12,7 +12,7 @@ message Beatmap {
   // The id of the mapset
   uint32 mapset_id = 4;
   // The id of the beatmap
-  uint64 map_id = 5;
+  uint32 map_id = 5;
   // The creator of the beatmap
   User creator = 6;
   // The difficulty values of this beatmap

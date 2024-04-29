@@ -39,7 +39,6 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    Score,
     Team,
 }
 
@@ -56,18 +55,11 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::Score => Entity::has_many(super::score::Entity).into(),
             Self::Team => Entity::belongs_to(super::team::Entity)
                 .from(Column::TeamId)
                 .to(super::team::Column::Id)
                 .into(),
         }
-    }
-}
-
-impl Related<super::score::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Score.def()
     }
 }
 

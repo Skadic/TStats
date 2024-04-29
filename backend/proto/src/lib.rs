@@ -19,6 +19,7 @@ pub mod stages {
 }
 
 pub mod osu {
+    pub use crate::implementation::osu::api;
     pub type OsuUser = User;
     tonic::include_proto!("osu");
 }
@@ -33,4 +34,12 @@ pub mod debug_data {
 
 pub mod utils {
     tonic::include_proto!("utils");
+}
+
+pub mod scores {
+    tonic::include_proto!("scores");
+}
+
+pub mod team {
+    tonic::include_proto!("team");
 }

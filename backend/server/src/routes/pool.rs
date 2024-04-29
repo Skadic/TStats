@@ -1,8 +1,9 @@
 use super::tournament::find_stage;
-use crate::{osu::map::get_map, AppState};
-use utils::LogStatus;
-use futures::{stream::FuturesOrdered, TryFutureExt, TryStreamExt};
+use crate::AppState;
+use futures::TryStreamExt;
+use futures::{stream::FuturesOrdered, TryFutureExt};
 use model::{pool_bracket, pool_map};
+use proto::osu::api::get_map;
 use proto::{
     keys::StageKey,
     pool::{
@@ -14,9 +15,11 @@ use proto::{
     },
 };
 use sea_orm::{
-    sea_query::Expr, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, FromQueryResult, IntoActiveModel, ModelTrait, QueryFilter, QueryOrder, QuerySelect
+    sea_query::Expr, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, FromQueryResult,
+    IntoActiveModel, ModelTrait, QueryFilter, QueryOrder, QuerySelect,
 };
 use tonic::{Request, Response, Status};
+use utils::LogStatus;
 
 pub struct PoolServiceImpl(pub AppState);
 
@@ -53,7 +56,6 @@ impl PoolService for PoolServiceImpl {
                     .map(|map| get_map(&self.0.redis, self.0.osu.as_ref(), map.map_id as u32))
                     .collect::<FuturesOrdered<_>>()
                     // Transform the beatmaps into the on-the-wire format
-                    .map_ok(proto::osu::Beatmap::from)
                     .try_collect::<Vec<_>>()
                     .map_ok(|maps| (bracket, maps))
                     // Transform the brackets into the on-the-wire format
@@ -221,7 +223,6 @@ impl PoolService for PoolServiceImpl {
             .into_iter()
             .map(|map| get_map(&self.0.redis, self.0.osu.as_ref(), map.map_id as u32))
             .collect::<FuturesOrdered<_>>()
-            .map_ok(proto::osu::Beatmap::from)
             .map_err(|e| Status::internal(format!("error fetching map info: {e}")))
             .try_collect::<Vec<_>>()
             .await

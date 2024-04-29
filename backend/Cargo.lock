@@ -577,11 +577,10 @@ dependencies = [
 
 [[package]]
 name = "deadpool"
-version = "0.10.0"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb84100978c1c7b37f09ed3ce3e5f843af02c2a2c431bae5b19230dad2c1b490"
+checksum = "ff0fc28638c21092aba483136debc6e177fff3dace8c835d715866923b03323e"
 dependencies = [
- "async-trait",
  "deadpool-runtime",
  "num_cpus",
  "tokio",
@@ -589,12 +588,12 @@ dependencies = [
 
 [[package]]
 name = "deadpool-redis"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36f2381b0e993d06a1f6d49f486b33bc4004085bf980340fc05726bacc681fff"
+checksum = "c2244d421c9514eab2e1ce1aa1e3c9d5c7cbb9cf3d9bbcac21a6b27e6a868d84"
 dependencies = [
  "deadpool",
- "redis 0.24.0",
+ "redis 0.25.2",
 ]
 
 [[package]]
@@ -1907,12 +1906,18 @@ dependencies = [
 name = "proto"
 version = "0.1.0"
 dependencies = [
+ "deadpool-redis",
+ "miette",
  "prost",
  "prost-types",
+ "rosu-v2",
+ "serde",
  "sqlx",
  "thiserror",
  "tonic",
  "tonic-build",
+ "url",
+ "utils",
 ]
 
 [[package]]

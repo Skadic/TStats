@@ -25,3 +25,17 @@ message PoolBracketKey {
   // The bracket's order in the tournament
   uint32 bracket_order = 2;
 }
+
+// A key to a map in a map pool 
+message PoolMapKey {
+  // The key to a pool mod bracket
+  PoolBracketKey bracket_key = 1;
+  // The map's order in the mod bracket. e.g. NM1 has order 0, NM2 has order 1, ... Likewise, HD1 has order 0, HD2 has order 1, etc.
+  uint32 map_order = 2;
+}
+
+message TeamKey {
+  // The tournament's id
+  TournamentKey tournament_key = 1;
+  uint32 team_id = 2;
+}

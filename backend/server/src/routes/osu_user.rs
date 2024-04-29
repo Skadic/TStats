@@ -1,12 +1,9 @@
 use futures::TryFutureExt;
-use proto::osu::{osu_user_service_server::OsuUserService, GetUserRequest, GetUserResponse};
+use proto::osu::{api::get_user, osu_user_service_server::OsuUserService, GetUserRequest, GetUserResponse};
 use tonic::{async_trait, Request, Response, Status};
 use utils::Cacheable;
 
-use crate::{
-    osu::{auth::Session, user::get_user},
-    AppState, RedisConnectionPool,
-};
+use crate::{osu::auth::Session, AppState, RedisConnectionPool};
 
 pub struct OsuUserServiceImpl(pub AppState);
 

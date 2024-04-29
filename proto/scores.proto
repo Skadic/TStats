@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+import "osu.proto";
+import "keys.proto";
+
+package scores;
+
+message Score {
+    // The osu user who set the score
+    osu.User user = 1;
+    uint64 score = 2;
+}
+
+service ScoreService {
+    rpc Get(GetScoresRequest) returns (GetScoresResponse);
+}
+
+
+message GetScoresRequest {
+    keys.PoolMapKey pool_map_key = 1;
+}
+
+message GetScoresResponse {
+    osu.Beatmap beatmap = 1;
+    repeated Score scores = 2;
+}

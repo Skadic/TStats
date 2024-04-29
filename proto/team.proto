@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+import "osu.proto";
+import "keys.proto";
+
+package team;
+
+message Team {
+    keys.TeamKey team_key = 1;
+    string name = 2;
+    repeated osu.User user = 3;
+}
+
+service TeamService {
+  rpc GetAll(GetAllTeamsRequest) returns (stream GetAllTeamsResponse);
+  rpc Get(GetTeamRequest) returns (GetTeamResponse);
+}
+
+message GetAllTeamsRequest {
+    keys.TournamentKey tournament_id = 1;
+}
+
+message GetAllTeamsResponse {
+    Team team = 1;
+}
+
+message GetTeamRequest {
+    uint32 team_id = 1;
+}
+
+message GetTeamResponse {
+    optional Team team = 1;
+}

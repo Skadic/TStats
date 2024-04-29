@@ -10,6 +10,7 @@ pub mod pool;
 pub mod stage;
 pub mod tournament;
 pub mod osu_auth;
+pub mod score;
 
 
 fn convert_start_end(

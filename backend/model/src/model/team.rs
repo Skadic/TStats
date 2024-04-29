@@ -87,13 +87,4 @@ impl Related<super::tournament::Entity> for Entity {
     }
 }
 
-impl Related<super::score::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::team_member::Relation::Score.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::team_member::Relation::Team.def().rev())
-    }
-}
-
 impl ActiveModelBehavior for ActiveModel {}
