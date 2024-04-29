@@ -1,7 +1,14 @@
 <script lang="ts">
-	import "/node_modules/flag-icons/css/flag-icons.min.css";
+	import '/node_modules/flag-icons/css/flag-icons.min.css';
 
-    export let country: string;
+	export let country: string;
+	export let extraStyles: string = '';
 </script>
 
-<span class = "rounded-md mx-px fi fi-{country}"></span>
+<span class="bg-center flag fi fi-{country.toLowerCase()} {extraStyles}" />
+
+<style>
+	.flag {
+		aspect-ratio: 4/3;
+	}
+</style>

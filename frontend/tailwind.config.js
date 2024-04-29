@@ -6,6 +6,9 @@ export default {
 	theme: {
 		extend: {
 			colors: {
+				gold: '#bfaa2d',
+				silver: '#d0e0f0',
+				bronze: '#d28a1e',
 				bg: {
 					DEFAULT: '#1a1d1c',
 					100: '#090a09',

@@ -2,6 +2,8 @@
 	import type { PoolBracket } from '$lib/api/pool';
 	import PoolMapCard from './PoolMapCard.svelte';
 
+	export let tournamentId: number;
+	export let stage: number;
 	export let brackets: PoolBracket[];
 </script>
 
@@ -12,7 +14,14 @@
 				{#if bracket.maps !== undefined}
 					<h2 class="text-3xl font-bold">{bracket.name}</h2>
 					{#each bracket.maps.maps as map, i}
-						<PoolMapCard bracketOrder={i + 1} bracketName={brackets[bracketIndex].name} {map} />
+						<div class=" transition-all duration-200 hover:scale-105">
+							<PoolMapCard
+								linkData={{ bracket: bracketIndex, stage, tournamentId }}
+								bracketName={brackets[bracketIndex].name}
+								mapOrder={i}
+								{map}
+							/>
+						</div>
 					{/each}
 				{:else}
 					Maps undefined

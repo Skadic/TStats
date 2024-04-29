@@ -25,7 +25,7 @@
 		fetching pool...
 	{:then pool}
 		<div in:slide class="px-4 py-2">
-			<PoolList brackets={pool.pool?.brackets ?? []} />
+			<PoolList {tournamentId} stage={stage.stageOrder} brackets={pool.pool?.brackets ?? []} />
 		</div>
 	{/await}
 </div>

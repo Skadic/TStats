@@ -1,9 +1,13 @@
 <script lang="ts">
+	import type { PoolMapKey } from '$lib/api/keys';
 	import type { Beatmap, Difficulty, User } from '$lib/api/osu';
 
 	export let map: Beatmap;
 	export let bracketName: string;
-	export let bracketOrder: number;
+	export let mapOrder: number;
+	export let linkData: { tournamentId: number; stage: number; bracket: number } | undefined =
+		undefined;
+
 	let creator: User = map.creator!;
 	let difficulty: Difficulty = map.difficulty!;
 	function formatLength(seconds: number): string {
@@ -49,34 +53,39 @@
 			}
 		}
 	}
+
+	const link: string | undefined =
+		linkData !== undefined
+			? `/tournament/${linkData.tournamentId}/stage/${linkData.stage}/map/${linkData.bracket}/${mapOrder}`
+			: undefined;
 </script>
 
 <div
-	class="container flex flex-col-reverse lg:flex-row justify-between rounded-xl shadow-md shadow-bg-100 transition-all duration-200 hover:scale-105"
+	class="container flex flex-col-reverse lg:flex-row justify-between rounded-xl shadow-md shadow-bg-100"
 	style:--bgstyle={cover()}
 >
 	<div
 		class="flex bracket-bg text-bg font-bold text-3xl lg:py-5 w-full lg:w-24 rounded-b-xl lg:rounded-br-none lg:rounded-l-xl justify-center items-center"
 		style:--bgcolor={bracketColor()}
 	>
-		{bracketName + bracketOrder}
+		{bracketName + (mapOrder + 1)}
 	</div>
 	<div class="w-full p-2">
 		<div>
-			<a
-				class="lg:flex lg:flex-col"
-				href="https://osu.ppy.sh/beatmapsets/{map.mapsetId}#osu/{map.mapId}"
-			>
-				<h1 class="text-xl font-bold">{map.name}</h1>
-				<div class="text-lg font-semibold">
-					{map.artistName} / {creator.username}
-				</div>
-			</a>
-			<div class="flex flex-col lg:flex-row items-start justify-between">
+			<div class="flex justify-between items-center">
+				<a class="lg:flex lg:flex-col" href={link}>
+					<h1 class="text-xl font-bold">{map.name}</h1>
+					<div class="text-lg font-semibold">
+						{map.artistName} / {creator.username}
+					</div>
+				</a>
+				<div class="bg-white h-12 aspect-square"></div>
+			</div>
+			<div class="flex flex-col lg:flex-row justify-between items-center">
 				<h2 class="font-bold bg-accent-400 text-bg p-1 rounded-md mt-5 lg:my-2">
 					{map.difficultyName}
 				</h2>
-				<div class="flex items-center justify-between lg:gap-3 pt-5 lg:pt-0">
+				<div class="flex items-center justify-between gap-2 lg:gap-3 pt-5 lg:pt-0">
 					<span><b>★</b> {round2(difficulty.stars)}</span>
 					<span><b>Length</b> {formatLength(difficulty.length)}</span>
 					<div class="flex items-center gap-2">

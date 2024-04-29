@@ -41,7 +41,7 @@
   },
   "type": "module",
   "dependencies": {
-    "flag-icons": "^6.7.0",
+    "flag-icons": "^7",
     "long": "^5.2.3",
     "nice-grpc-web": "^3.3.2",
     "protobufjs": "^7.2.5"
