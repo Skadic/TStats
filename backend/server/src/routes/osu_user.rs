@@ -48,7 +48,7 @@ impl OsuUserService for OsuUserServiceImpl {
             return Ok(Response::new(GetUserResponse { user: None }));
         };
 
-        let user = get_user(&self.0.redis, &self.0.osu, osu_user_id)
+        let user = get_user(&self.0.redis, self.0.osu.as_ref(), osu_user_id)
             .await
             .map(proto::osu::User::from)
             .map(Option::Some)

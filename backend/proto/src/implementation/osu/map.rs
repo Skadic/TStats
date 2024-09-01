@@ -15,8 +15,8 @@ impl Cacheable for crate::osu::Beatmap {
 
 impl crate::osu::Beatmap {
     pub fn from_map_set_and_creator(
-        map: &Beatmap,
-        set: &Beatmapset,
+        map: &BeatmapExtended,
+        set: &BeatmapsetExtended,
         creator: &crate::osu::User,
     ) -> Self {
         Self {

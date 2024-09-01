@@ -1,9 +1,9 @@
-use rosu_v2::{prelude::User, Osu};
+use rosu_v2::prelude::UserExtended;
 use url::Url;
 use utils::Cacheable;
 
-impl From<User> for crate::osu::User {
-    fn from(value: User) -> Self {
+impl From<UserExtended> for crate::osu::User {
+    fn from(value: UserExtended) -> Self {
         let url = match Url::parse(&value.cover.url) {
             Ok(url) => url
                 .path_segments()

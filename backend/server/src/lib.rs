@@ -16,8 +16,8 @@ use rosu_v2::prelude::*;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use tonic::body::BoxBody;
 use tonic::server::NamedService;
-use tonic::transport::Body;
 use tonic::Status;
 use tonic_health::server::HealthReporter;
 use tonic_middleware::{InterceptorFor, RequestInterceptor};
@@ -99,7 +99,7 @@ pub async fn run_server() -> miette::Result<()> {
 
     let reflection_server = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
-        .build()
+        .build_v1alpha()
         .into_diagnostic()
         .wrap_err("error creating the gRPC reflection server")?;
 
@@ -226,7 +226,7 @@ struct CorsInterceptor;
 #[tonic::async_trait]
 impl RequestInterceptor for CorsInterceptor {
     #[tracing::instrument(skip(self), rename = "cors", level = "trace")]
-    async fn intercept(&self, req: http::Request<Body>) -> Result<http::Request<Body>, Status> {
+    async fn intercept(&self, req: tonic::codegen::http::Request<BoxBody>) -> Result<http::Request<BoxBody>, Status> {
         let is_cors = match req.headers().get("sec-fetch-mode") {
             Some(fetch_mode) if fetch_mode == "cors" => true,
             Some(_) | None => false,
@@ -247,7 +247,7 @@ struct AuthInterceptor {
 #[tonic::async_trait]
 impl RequestInterceptor for AuthInterceptor {
     #[tracing::instrument(skip(self), rename = "authorize", level = "trace")]
-    async fn intercept(&self, req: http::Request<Body>) -> Result<http::Request<Body>, Status> {
+    async fn intercept(&self, req: tonic::codegen::http::Request<BoxBody>) -> Result<http::Request<BoxBody>, Status> {
         let auth_header_token = match req.headers().get("authorization") {
             Some(c) => c
                 .to_str()

@@ -146,7 +146,7 @@ async fn request_user_data(access_token: &str) -> tonic::Result<rosu_v2::model::
     );
     let resp = oauth2::reqwest::async_http_client(oauth2::HttpRequest {
         url: Url::parse("https://osu.ppy.sh/api/v2/me").unwrap(),
-        method: reqwest::Method::GET,
+        method: oauth2::http::Method::GET,
         headers,
         body: vec![],
     })

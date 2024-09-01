@@ -8,15 +8,11 @@ edition = "2021"
 [dependencies]
 utils = { path = "../utils" }
 
-sea-orm = { version = "0.12", features = [
+sea-orm = { version = "1", features = [
   "sqlx-postgres",
   "runtime-tokio-rustls",
 ] }
-sqlx = { version = "0.7", features = [
-  "macros",
-  "postgres",
-  "runtime-tokio-rustls",
-] }
+sqlx = { version = "0.7", features = ["macros", "postgres", "runtime-tokio-rustls"] }
 serde = "1.0"
 serde_repr = "0.1"
 tracing = "0.1"

@@ -33,7 +33,7 @@ fn convert_start_end(
     };
 
     if let (Some(ref start), Some(ref end)) = (start_date, end_date) {
-        if start.timestamp_millis() > end.timestamp_millis() {
+        if start.and_utc().timestamp_millis() > end.and_utc().timestamp_millis() {
             return Err(Status::invalid_argument("start date is after end date"));
         }
     }

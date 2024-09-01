@@ -1,7 +1,8 @@
 set dotenv-load
 set dotenv-filename := ".env.local"
 
-default: # List the available recipes
+# List the available recipes
+default:
   @just --list --justfile {{justfile()}}
 
 # Run the redis container
@@ -14,7 +15,7 @@ dragonfly:
 
 # Run the postgres container
 postgres:
-  podman run --rm --name tstats-postgres -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=root -d postgres
+  podman run --rm --name tstats-postgres -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=root -d red-postgres
 
 # Run the backend in debug mode
 backend:
@@ -30,7 +31,7 @@ compose:
 
 # Run the frontend as a dev server
 frontend:
-  cd frontend && bun run dev
+  cd frontend && npm run dev
 
 # Apply all migrations to the database
 migrate:

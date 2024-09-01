@@ -161,10 +161,9 @@ impl<'a> Deserialize<'a> for EncryptedToken {
 pub fn verify_aes_key() -> Result<(), EnvError> {
     let aes_key_base64 =
         std::env::var(AES_256_KEY).map_err(|_| EnvError::DoesNotExist(AES_256_KEY))?;
-    println!("{}", &aes_key_base64[43..]);
     let aes_key = BASE64_STANDARD.decode(&aes_key_base64)?;
 
-    if aes_key.len() != 32 {
+    if dbg!(aes_key.len()) != 32 {
         return Err(EnvError::InvalidAesKeyLength(
             aes_key_base64.as_bytes().len(),
         ));

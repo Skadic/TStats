@@ -1,5 +1,5 @@
 use prost_types::Timestamp;
-use sqlx::types::chrono::NaiveDateTime;
+use sqlx::types::chrono::{DateTime, NaiveDateTime};
 
 use crate::utils::DateMillis;
 
@@ -29,7 +29,7 @@ impl TryFrom<Timestamp> for DateMillis {
 impl From<NaiveDateTime> for DateMillis {
     fn from(value: NaiveDateTime) -> Self {
         DateMillis {
-            millis: value.timestamp_millis(),
+            millis: value.and_utc().timestamp_millis(),
         }
     }
 }
@@ -38,7 +38,8 @@ impl TryFrom<DateMillis> for NaiveDateTime {
     type Error = DateConversionError;
 
     fn try_from(value: DateMillis) -> Result<Self, Self::Error> {
-        Self::from_timestamp_millis(value.millis)
+        DateTime::from_timestamp_millis(value.millis)
             .ok_or(DateConversionError::MillisOutOfRange(value.millis))
+            .map(|v| v.naive_utc())
     }
 }

@@ -8,13 +8,13 @@ edition = "2021"
 [dependencies]
 utils = { path = "../utils" }
 
-deadpool-redis = "0.15"
+deadpool-redis = "0.16"
 miette = "7.2"
-prost = { version = "0.12" }
-prost-types = "0.12.4"
-tonic = "0.11"
+prost = { version = "0.13" }
+prost-types = "0.13"
+tonic = "0.12"
 thiserror = "1"
-rosu-v2 = "0.8"
+rosu-v2 = "0.9"
 serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.7", features = [
   "macros",
@@ -24,4 +24,4 @@ sqlx = { version = "0.7", features = [
 url = "2.5"
 
 [build-dependencies]
-tonic-build = "0.11"
+tonic-build = "0.12"
