@@ -11,3 +11,4 @@ pub const SALT_STRING_B64: &str = "SALT_STRING_B64";
 pub const AES_256_KEY: &str = "AES_256_KEY";
 pub const TSTATS_DATA_DIR: &str = "TSTATS_DATA_DIR";
 
+pub const TSTATS_AUTH_COOKIE_NAME: &str = "tstats_auth";

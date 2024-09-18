@@ -3,7 +3,6 @@ use sqlx::types::chrono::{DateTime, NaiveDateTime};
 
 use crate::utils::DateMillis;
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum DateConversionError {
     #[error("milliseconds out of range: {0}")]
@@ -24,7 +23,6 @@ impl TryFrom<Timestamp> for DateMillis {
         }
     }
 }
-
 
 impl From<NaiveDateTime> for DateMillis {
     fn from(value: NaiveDateTime) -> Self {

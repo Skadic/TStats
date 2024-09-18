@@ -1,5 +1,5 @@
-mod model;
 mod implementation;
+mod model;
 
 pub use model::*;
 use sqlx::PgPool;

@@ -1,8 +1,8 @@
 use super::tournament::find_stage;
-use proto::osu::api::get_map;
-use crate::{ routes::convert_start_end, AppState};
+use crate::{routes::convert_start_end, AppState};
 use futures::{stream::FuturesOrdered, TryFutureExt, TryStreamExt};
 use model::stage;
+use proto::osu::api::get_map;
 use proto::stages::{
     stage_service_server::StageService, CreateStageRequest, CreateStageResponse,
     DeleteStageRequest, DeleteStageResponse, GetAllStagesRequest, GetAllStagesResponse,
@@ -223,7 +223,7 @@ impl StageService for StageServiceImpl {
             .update(&self.0.db)
             .await
             .map_err(|e| Status::internal(format!("could not update stage: {e}")))?;
-        
+
         Ok(Response::new(UpdateStageResponse {
             stage: Some(proto::stages::Stage {
                 name: stage.name,

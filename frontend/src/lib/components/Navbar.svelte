@@ -25,6 +25,7 @@
 		try {
 			const client: OsuUserServiceClient = tstatsClient(OsuUserServiceDefinition);
 			const user: User | undefined = (await client.get({})).user;
+			console.log(JSON.stringify(user))
 			if (user !== undefined) {
 				return user;
 			} else return undefined;

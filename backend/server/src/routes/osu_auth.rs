@@ -1,5 +1,9 @@
 use std::str::FromStr;
 
+use crate::{
+    osu::auth::{OsuApiTokens, OsuAuthCode, OsuCsrfToken},
+    AppState,
+};
 use futures::TryFutureExt;
 use oauth2::{basic::BasicClient, reqwest::async_http_client, AuthorizationCode, TokenResponse};
 use proto::osu_auth::{
@@ -9,12 +13,8 @@ use proto::osu_auth::{
 use tonic::{metadata::MetadataValue, Request, Response, Status};
 use tracing::error;
 use url::Url;
+use utils::consts::TSTATS_AUTH_COOKIE_NAME;
 use utils::{crypt::EncryptedToken, Cacheable};
-
-use crate::{
-    osu::auth::{OsuApiTokens, OsuAuthCode, OsuCsrfToken, Session},
-    AppState,
-};
 
 pub struct OsuAuthServiceImpl(pub AppState, pub BasicClient);
 
@@ -92,8 +92,7 @@ impl OsuAuthService for OsuAuthServiceImpl {
 
         tracing::info!(user_id, "successfully authenticated user");
 
-        // All is well, so we save the accesss token and refresh token
-        OsuApiTokens {
+        let api_tokens = OsuApiTokens {
             user_id,
             access_token: EncryptedToken::new(access_token.secret()).map_err(|error| {
                 error!("error caching access token: {error}");
@@ -103,21 +102,19 @@ impl OsuAuthService for OsuAuthServiceImpl {
                 error!("error caching refresh token: {error}");
                 Status::internal("error caching refresh token")
             })?,
-        }
-        .cache(redis, Some(expiry.as_secs() as usize - 30))
-        .map_err(|error| Status::internal(format!("error caching access tokens: {error}")))
-        .await?;
-        let session = Session::new(user_id);
+        };
 
-        session
-            .cache(redis, Some(600))
-            .await
-            .map_err(|e| Status::internal(format!("error caching session token: {e}")))?;
+        // All is well, so we save the access token and refresh token
+        let token = api_tokens.as_token();
+        token
+            .cache(redis, Some(expiry.as_secs() as usize - 30))
+            .map_err(|error| Status::internal(format!("error caching access tokens: {error}")))
+            .await?;
 
         let mut resp = Response::new(DeliverAuthCodeResponse {
-            access_token: session.session_id,
+            access_token: token.token.clone(),
         });
-        let cookie = format!("mycookie={}", access_token.secret());
+        let cookie = format!("{TSTATS_AUTH_COOKIE_NAME}={}", &token.token);
         resp.metadata_mut().append(
             "set-cookie",
             MetadataValue::from_str(&cookie)

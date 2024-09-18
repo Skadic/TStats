@@ -1,3 +1,3 @@
+pub mod api;
 mod map;
 mod user;
-pub mod api;

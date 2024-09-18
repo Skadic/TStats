@@ -26,19 +26,19 @@ impl<T> LogStatus for Result<T, Status> {
             match level {
                 Level::TRACE => {
                     trace!("{}", status.message());
-                },
+                }
                 Level::DEBUG => {
                     debug!("{}", status.message());
-                },
+                }
                 Level::INFO => {
                     info!("{}", status.message());
-                },
+                }
                 Level::WARN => {
                     warn!("{}", status.message());
-                },
+                }
                 Level::ERROR => {
                     error!("{}", status.message());
-                },
+                }
             }
 
             status

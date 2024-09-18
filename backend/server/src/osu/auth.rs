@@ -1,13 +1,14 @@
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, DecodeError, Engine};
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
 };
 use rand::{RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use url::Url;
-
 use utils::{cache::CacheResult, crypt::EncryptedToken, Cacheable};
 
 use crate::RedisConnectionPool;
@@ -168,5 +169,54 @@ impl Cacheable for OsuApiTokens {
 
     fn key(&self) -> &Self::KeyType {
         &self.user_id
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum OsuApiTokensFromTokenError {
+    #[error("could not decode apitokens from base64")]
+    Base64Decode(#[from] DecodeError),
+    #[error("error transforming api tokens from/to json")]
+    Serde(#[from] serde_json::Error),
+}
+
+impl OsuApiTokens {
+    pub fn as_token(&self) -> ApiToken {
+        let json_str = serde_json::to_string(self).expect("error serializing tokens");
+        ApiToken {
+            user_id: self.user_id,
+            token: BASE64_STANDARD.encode(json_str),
+        }
+    }
+
+    pub fn from_token(token: ApiToken) -> Result<Self, OsuApiTokensFromTokenError> {
+        let base64_bytes = BASE64_STANDARD.decode(token.token)?;
+        let json_str = String::from_utf8_lossy(&base64_bytes);
+        let tokens = serde_json::from_str(&json_str)?;
+        Ok(tokens)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+pub struct ApiToken {
+    pub user_id: u32,
+    pub token: String,
+}
+
+impl Display for ApiToken {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.token)
+    }
+}
+
+impl Cacheable for ApiToken {
+    type KeyType = str;
+
+    fn type_key() -> &'static str {
+        "apitoken"
+    }
+
+    fn key(&self) -> &Self::KeyType {
+        self.token.as_str()
     }
 }
