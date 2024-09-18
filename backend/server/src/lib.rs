@@ -22,6 +22,7 @@ use tonic::Status;
 use tonic_health::server::HealthReporter;
 use tonic_middleware::{InterceptorFor, RequestInterceptor};
 use tonic_web::GrpcWebLayer;
+use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tower_http::{
     cors::{AllowHeaders, CorsLayer, ExposeHeaders},
     trace::{self, TraceLayer},
@@ -31,7 +32,6 @@ use tracing::{error, info, info_span, warn, Level};
 use proto::debug_data::debug_service_server::DebugServiceServer;
 use proto::tournaments::tournament_service_server::TournamentServiceServer;
 
-use crate::osu::auth::Session;
 use crate::routes::debug::DebugServiceImpl;
 use crate::routes::osu_auth::OsuAuthServiceImpl;
 use crate::routes::osu_user::OsuUserServiceImpl;
@@ -40,11 +40,13 @@ use crate::routes::score::ScoreServiceImpl;
 use crate::routes::stage::StageServiceImpl;
 use crate::routes::tournament::TournamentServiceImpl;
 
-use utils::{consts::*, Cacheable, LogStatus, TStatsPaths};
+use crate::auth_middleware::AuthLayer;
+use utils::{consts::*, TStatsPaths};
 
 type RedisConnection = deadpool_redis::Connection;
 type RedisConnectionPool = deadpool_redis::Pool;
 
+mod auth_middleware;
 mod osu;
 mod routes;
 
@@ -143,9 +145,10 @@ pub async fn run_server() -> miette::Result<()> {
 
     drop(server_setup_span);
 
-    let _auth_interceptor = AuthInterceptor {
-        state: state.clone(),
-    };
+    let auth_layer = AuthLayer::new(
+        state.clone(),
+        [<OsuUserServiceServer<()> as NamedService>::NAME],
+    );
 
     // Build the gRPC server
     tonic::transport::server::Server::builder()
@@ -178,7 +181,7 @@ pub async fn run_server() -> miette::Result<()> {
                 ])),
         )
         .layer(GrpcWebLayer::new())
-        //.layer(tonic::service::interceptor(cors_interceptor))
+        .layer(AsyncRequireAuthorizationLayer::new(auth_layer))
         // The gRPC services
         .add_service(reflection_server)
         .add_service(health_server)
@@ -195,12 +198,14 @@ pub async fn run_server() -> miette::Result<()> {
         )))
         .add_service(StageServiceServer::new(StageServiceImpl(state.clone())))
         .add_service(PoolServiceServer::new(PoolServiceImpl(state.clone())))
-        .add_service(OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())))
+        .add_service(InterceptorFor::new(
+            OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())),
+            AuthLayer::new(
+                state.clone(),
+                [<OsuUserServiceServer<()> as NamedService>::NAME],
+            ),
+        ))
         .add_service(ScoreServiceServer::new(ScoreServiceImpl(state.clone())))
-        // .add_service(InterceptorFor::new(
-        //     OsuUserServiceServer::new(OsuUserServiceImpl(state.clone())),
-        //     auth_interceptor.clone(),
-        // ))
         .serve(addr)
         .await
         .into_diagnostic()
@@ -226,7 +231,10 @@ struct CorsInterceptor;
 #[tonic::async_trait]
 impl RequestInterceptor for CorsInterceptor {
     #[tracing::instrument(skip(self), rename = "cors", level = "trace")]
-    async fn intercept(&self, req: tonic::codegen::http::Request<BoxBody>) -> Result<http::Request<BoxBody>, Status> {
+    async fn intercept(
+        &self,
+        req: tonic::codegen::http::Request<BoxBody>,
+    ) -> Result<http::Request<BoxBody>, Status> {
         let is_cors = match req.headers().get("sec-fetch-mode") {
             Some(fetch_mode) if fetch_mode == "cors" => true,
             Some(_) | None => false,
@@ -236,40 +244,6 @@ impl RequestInterceptor for CorsInterceptor {
         } else {
             Ok(req)
         }
-    }
-}
-
-#[derive(Clone)]
-struct AuthInterceptor {
-    state: AppState,
-}
-
-#[tonic::async_trait]
-impl RequestInterceptor for AuthInterceptor {
-    #[tracing::instrument(skip(self), rename = "authorize", level = "trace")]
-    async fn intercept(&self, req: tonic::codegen::http::Request<BoxBody>) -> Result<http::Request<BoxBody>, Status> {
-        let auth_header_token = match req.headers().get("authorization") {
-            Some(c) => c
-                .to_str()
-                .map_err(|_| Status::unauthenticated("non-unicode session token"))?,
-            _ => {
-                return Err(Status::unauthenticated("authorization cookie not set"));
-            }
-        };
-
-        if !auth_header_token.starts_with("Bearer ") {
-            return Err(Status::unauthenticated("invalid session token")).warn_status();
-        }
-        let auth_header_token = &auth_header_token[7..];
-
-        let Some(_) = Session::get_cached(auth_header_token, &self.state.redis)
-            .await
-            .map_err(|_| Status::internal("error reading session token"))?
-        else {
-            return Err(Status::unauthenticated("expired or unknown session token"));
-        };
-
-        Ok(req)
     }
 }
 

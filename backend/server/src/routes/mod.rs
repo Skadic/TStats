@@ -5,13 +5,12 @@ use tracing::error;
 
 #[allow(unused)]
 pub mod debug;
+pub mod osu_auth;
 pub mod osu_user;
 pub mod pool;
+pub mod score;
 pub mod stage;
 pub mod tournament;
-pub mod osu_auth;
-pub mod score;
-
 
 fn convert_start_end(
     start_date: Option<DateMillis>,

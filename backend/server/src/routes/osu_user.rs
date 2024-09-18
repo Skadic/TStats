@@ -1,9 +1,10 @@
+use crate::{osu::auth::ApiToken, AppState, RedisConnectionPool};
 use futures::TryFutureExt;
-use proto::osu::{api::get_user, osu_user_service_server::OsuUserService, GetUserRequest, GetUserResponse};
+use proto::osu::{
+    api::get_user, osu_user_service_server::OsuUserService, GetUserRequest, GetUserResponse,
+};
 use tonic::{async_trait, Request, Response, Status};
 use utils::Cacheable;
-
-use crate::{osu::auth::Session, AppState, RedisConnectionPool};
 
 pub struct OsuUserServiceImpl(pub AppState);
 
@@ -11,7 +12,7 @@ pub struct OsuUserServiceImpl(pub AppState);
 pub async fn get_authenticated_user<T: std::fmt::Debug>(
     request: &Request<T>,
     redis: &RedisConnectionPool,
-) -> tonic::Result<Option<Session>> {
+) -> tonic::Result<Option<ApiToken>> {
     let Some(tok) = request.metadata().get("authorization") else {
         tracing::debug!(?request, "no user logged in");
         return Ok(None);
@@ -20,7 +21,7 @@ pub async fn get_authenticated_user<T: std::fmt::Debug>(
     let token_string = String::from_utf8_lossy(tok.as_bytes());
     // Remove "Bearer " from the token
     let token_string = &token_string[7..];
-    let Some(session) = Session::get_cached(token_string, redis)
+    let Some(session) = ApiToken::get_cached(token_string, redis)
         .map_err(|e| {
             tracing::error!(error = %e, "could not get session");
             Status::internal("error getting session")
@@ -41,17 +42,17 @@ impl OsuUserService for OsuUserServiceImpl {
         &self,
         request: Request<GetUserRequest>,
     ) -> Result<Response<GetUserResponse>, Status> {
-        let Some(Session { osu_user_id, .. }) =
+        let Some(ApiToken { user_id, .. }) =
             get_authenticated_user(&request, &self.0.redis).await?
         else {
             tracing::debug!("no user logged in");
             return Ok(Response::new(GetUserResponse { user: None }));
         };
 
-        let user = get_user(&self.0.redis, self.0.osu.as_ref(), osu_user_id)
+        let user = get_user(&self.0.redis, self.0.osu.as_ref(), user_id)
             .await
             .map(proto::osu::User::from)
-            .map(Option::Some)
+            .map(Some)
             .map_err(|e| {
                 tracing::error!(error = %e, "could not get osu user");
                 Status::internal("could not get osu user")
