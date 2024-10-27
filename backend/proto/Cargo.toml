@@ -10,6 +10,7 @@ utils = { path = "../utils" }
 
 deadpool-redis = "0.16"
 miette = "7.2"
+poem-openapi.workspace = true
 prost = { version = "0.13" }
 prost-types = "0.13"
 tonic = "0.12"

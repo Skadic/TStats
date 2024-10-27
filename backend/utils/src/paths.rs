@@ -1,4 +1,7 @@
-use std::{io::ErrorKind, path::{Path, PathBuf}};
+use std::{
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
 
 use const_format::concatcp;
 
@@ -26,8 +29,8 @@ impl TStatsPaths {
             Err(err) if err.kind() == ErrorKind::NotFound => {
                 std::fs::create_dir_all(&path)?;
                 path.as_ref().to_owned().canonicalize()?
-            },
-            error => error?
+            }
+            error => error?,
         };
         for path in PATHS.iter().map(|cur| base_path.join(cur)) {
             std::fs::create_dir_all(path)?;

@@ -11,12 +11,20 @@ edition = "2021"
 name = "tstats_backend"
 path = "src/main.rs"
 
+[workspace.dependencies]
+
+chrono = { version = "0.4" }
+miette = { version = "7.1.0" }
+poem = { version = "3.1", features = [ "redis-session", "server", "tokio-stream"]}
+poem-openapi = { version = "5.1", features = [ "swagger-ui", "chrono" ] }
+tokio = { version = "1.41", features = ["macros"] }
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 
 tracing-subscriber = { version = "0.3" }
 server = { path = "server" }
-miette = { version = "7.1.0" }
-tokio = { version = "1.34", features = ["macros"] }
+miette.workspace = true
+tokio.workspace = true
 tracing-error = "0.2.0"

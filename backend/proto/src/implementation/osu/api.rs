@@ -1,8 +1,10 @@
 use deadpool_redis::Pool as RedisConnectionPool;
 use miette::IntoDiagnostic;
 use rosu_v2::{error::OsuError, Osu};
-use utils::{cache::{CacheError, CacheResult}, Cacheable};
-
+use utils::{
+    cache::{CacheError, CacheResult},
+    Cacheable,
+};
 
 /// Gets information about a map from the osu API.
 ///
