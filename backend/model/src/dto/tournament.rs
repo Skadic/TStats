@@ -1,33 +1,12 @@
+use crate::db::sea_orm_active_enums::OsuMode;
 use chrono::NaiveDate;
-use poem_openapi::{Enum, Object};
+use poem_openapi::Object;
 
 #[derive(Object, PartialEq, Eq, Debug)]
 pub struct GetAllTournamentsResponse {
     pub tournament: Tournament,
     pub rank_restrictions: Vec<RankRange>,
-    pub country_restrictions: Vec<Country>
-}
-
-
-#[derive(Enum, PartialEq, Eq, Debug)]
-pub enum OsuMode {
-    Osu,
-    Taiko,
-    Catch,
-    Mania
-}
-
-use model::sea_orm_active_enums::OsuMode as DbOsuMode;
-
-impl From<DbOsuMode> for OsuMode {
-    fn from(value: DbOsuMode) -> Self {
-        match value {
-            DbOsuMode::Osu => Self::Osu,
-            DbOsuMode::Taiko => Self::Taiko,
-            DbOsuMode::Catch => Self::Catch,
-            DbOsuMode::Mania => Self::Mania,
-        }
-    }
+    pub country_restrictions: Vec<Country>,
 }
 
 #[derive(Object, PartialEq, Eq, Debug)]
@@ -40,7 +19,7 @@ pub struct Tournament {
     pub mode: OsuMode,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
-    pub banner: Option<Vec<u8>>
+    pub banner: Option<Vec<u8>>,
 }
 
 #[derive(Object, PartialEq, Eq, Debug)]
@@ -51,5 +30,5 @@ pub struct RankRange {
 
 #[derive(Object, PartialEq, Eq, Debug)]
 pub struct Country {
-    pub country_code: String
+    pub country_code: String,
 }

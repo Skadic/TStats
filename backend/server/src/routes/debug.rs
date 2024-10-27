@@ -1,10 +1,10 @@
 use crate::AppState;
-use futures::future::join_all;
-use futures::future::FutureExt;
-use model::sea_orm_active_enums::{MatchType, OsuMode};
-use model::{country_restriction, pool_bracket, pool_map, stage, team, team_member, tournament};
+use model::db::sea_orm_active_enums::{MatchType, OsuMode};
+use model::db::{
+    country_restriction, pool_bracket, pool_map, stage, team, team_member, tournament,
+};
 use poem_openapi::OpenApi;
-use sea_orm::ActiveModelTrait;
+use sea_orm::{ActiveModelTrait, EntityTrait};
 use sqlx::types::chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 
 pub struct DebugApi(pub AppState);
@@ -113,7 +113,7 @@ impl DebugApi {
                         bracket_order: A::Set($bracket.bracket_order),
                         map_id: A::Set(map_id as i64),
                         map_order: A::Set(i as i16),
-                    }.insert(db).map(Result::unwrap)
+                    }
                 })
             };
             {$pool:ident, $bracket:ident => $($maps:literal),+; $($other_brackets:ident => $($other_maps:literal),+);+} => {
@@ -172,13 +172,16 @@ impl DebugApi {
             .await
             .unwrap();
 
-            let _res = join_all(pool! { qualis,
+            let pool_maps = pool! { qualis,
                 nm => 4344435, 4344451, 4344441, 4344442;
                 hd => 4344469, 4344423;
                 hr => 4344412, 4344450;
                 dt => 4344474, 4344475, 4344422
-            })
-            .await;
+            };
+            pool_map::Entity::insert_many(pool_maps)
+                .exec(db)
+                .await
+                .unwrap();
         }
         {
             let ro32 = stage::ActiveModel {
@@ -248,17 +251,21 @@ impl DebugApi {
             .await
             .unwrap();
 
-            let _res = join_all(pool! { ro32,
+            let pool_maps = pool! { ro32,
                 nm => 4352819, 4352824,4351786,3332588;
                 hd => 4352411,4352324;
                 hr => 1414172,2020374;
                 dt => 4352790,3840580,2149694;
                 fm => 2583501,4351866,4352856;
                 tb => 3121101
-            })
-            .await;
+            };
 
-            let germany_spain_match = model::r#match::ActiveModel {
+            pool_map::Entity::insert_many(pool_maps)
+                .exec(db)
+                .await
+                .unwrap();
+
+            let germany_spain_match = model::db::r#match::ActiveModel {
                 id: A::NotSet,
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),
@@ -272,7 +279,7 @@ impl DebugApi {
             .await
             .unwrap();
 
-            model::versus_match::ActiveModel {
+            model::db::versus_match::ActiveModel {
                 match_id: A::Set(germany_spain_match.id),
                 team_red: A::Set(team_germany.id),
                 team_blue: A::Set(team_spain.id),
@@ -284,7 +291,7 @@ impl DebugApi {
             .await
             .unwrap();
 
-            model::match_link::ActiveModel {
+            model::db::match_link::ActiveModel {
                 match_id: A::Set(germany_spain_match.id),
                 link_order: A::Set(0),
                 osu_mp_id: A::Set(111087337),
@@ -293,7 +300,7 @@ impl DebugApi {
             .await
             .unwrap();
 
-            model::score::ActiveModel {
+            model::db::score::ActiveModel {
                 player_id: A::Set(8116659),
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),
@@ -306,7 +313,7 @@ impl DebugApi {
             .await
             .unwrap();
 
-            model::score::ActiveModel {
+            model::db::score::ActiveModel {
                 player_id: A::Set(4504101),
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),
@@ -319,7 +326,7 @@ impl DebugApi {
             .await
             .unwrap();
 
-            model::score::ActiveModel {
+            model::db::score::ActiveModel {
                 player_id: A::Set(12760743),
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),
@@ -332,7 +339,7 @@ impl DebugApi {
             .await
             .unwrap();
 
-            model::score::ActiveModel {
+            model::db::score::ActiveModel {
                 player_id: A::Set(13962152),
                 tournament_id: A::Set(ro32.tournament_id),
                 stage_order: A::Set(ro32.stage_order),

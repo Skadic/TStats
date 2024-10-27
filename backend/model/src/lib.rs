@@ -1,7 +1,7 @@
+pub mod db;
+pub mod dto;
 mod implementation;
-mod model;
 
-pub use model::*;
 use sqlx::PgPool;
 
 /// Migrate the database to be up to date with the SQL migration scripts.

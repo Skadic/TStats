@@ -24,7 +24,6 @@ use utils::{consts::*, TStatsPaths};
 type RedisConnection = deadpool_redis::Connection;
 type RedisConnectionPool = deadpool_redis::Pool;
 
-mod dto;
 mod osu;
 mod routes;
 

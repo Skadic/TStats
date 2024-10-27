@@ -1605,6 +1605,8 @@ dependencies = [
 name = "model"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "poem-openapi",
  "sea-orm",
  "serde",
  "serde_repr",

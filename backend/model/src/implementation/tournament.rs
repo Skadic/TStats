@@ -1,6 +1,6 @@
 use utils::TStatsPaths;
 
-use crate::tournament;
+use crate::db::tournament;
 
 impl tournament::Model {
     pub fn fetch_banner(&self, paths: &TStatsPaths) -> Option<Vec<u8>> {

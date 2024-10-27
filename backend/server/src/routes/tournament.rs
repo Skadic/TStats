@@ -1,12 +1,10 @@
-use crate::dto::tournament::{Country, Tournament};
-use crate::{
-    dto::tournament::{GetAllTournamentsResponse, RankRange},
-    AppState,
-};
+use crate::AppState;
 use futures::TryFutureExt;
 use itertools::izip;
 use miette::miette;
-use model::{country_restriction, rank_restriction, stage, tournament};
+use model::db::{country_restriction, rank_restriction, stage, tournament};
+use model::dto::tournament::{Country, Tournament};
+use model::dto::tournament::{GetAllTournamentsResponse, RankRange};
 use poem::error::InternalServerError;
 use poem_openapi::{payload::Json, OpenApi};
 use sea_orm::{
@@ -88,7 +86,7 @@ impl TournamentApi {
             .iter()
             .map(|tournament| match &tournament.banner {
                 Some(banner_name) => {
-                    return std::fs::read(self.0.paths.banner(banner_name)).map(Option::Some);
+                    return std::fs::read(self.0.paths.banner(banner_name)).map(Some);
                 }
                 None => Ok(None),
             })
@@ -138,3 +136,5 @@ impl TournamentApi {
         Ok(Json(iter.collect()))
     }
 }
+
+mod test {}

@@ -47,7 +47,13 @@ revert_all_migrations:
 
 # Generate entities for the backend from the database schema
 generate_entities:
-  sea-orm-cli generate entity --expanded-format --with-serde both --with-copy-enums -o ./backend/model/src/model
+  sea-orm-cli generate entity \
+    --expanded-format \
+    --with-serde both \
+    --enum-extra-derives 'poem_openapi::Enum' \
+    --model-extra-derives 'poem_openapi::Object' \
+    --with-copy-enums \
+    -o ./backend/model/src/db
 
 
 

@@ -1,4 +1,4 @@
-use crate::sea_orm_active_enums::OsuMode;
+use crate::db::sea_orm_active_enums::OsuMode;
 
 mod tournament;
 
