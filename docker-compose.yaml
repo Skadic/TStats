@@ -1,50 +1,28 @@
-version: '3'
 services:
-  # frontend:
-  #   build: frontend/
-  #   container_name: tstats-frontend
-  #   ports:
-  #     - '8000:3000'
-  #   depends_on:
-  #     - postgres
-  # backend:
-  #   build:
-  #     context: .
-  #     dockerfile: backend/Dockerfile
-  #   container_name: tstats-backend
-  #   ports:
-  #     - '3000:3000'
-  #   env_file: .prod_env
-  #   environment:
-  #     - RUST_BACKTRACE=1
-  #   depends_on:
-  #     - postgres
   postgres:
-    #image: postgres-redis-fdw
-    build: ./postgres
+    image: postgres:17-alpine
     container_name: tstats-postgres
     ports:
       - '5432:5432'
     environment:
-      - POSTGRES_USER=root
-      - POSTGRES_PASSWORD=root
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASS}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    env_file:
+      - .env
   redis:
-    image: eqalpha/keydb #docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    image: eqalpha/keydb
     container_name: tstats-redis
     ports:
       - '6379:6379'
-        #environment:
-        #- "DFLY_conn_io_threads=2"
-        #command: "--conn_io_threads=2"
-  # caddy:
-  #   image: caddy:latest
-  #   container_name: tstats-caddy
-  #   ports:
-  #     - '9900:9900'
-  #     - '9901:9901'
-  #   volumes:
-  #     - ./Caddyfile:/etc/caddy/Caddyfile:z
-  #     - caddy_data:/data:z
-volumes:
-  caddy_data:
-
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s

@@ -1,47 +1,91 @@
-use tonic::Status;
-use tracing::{debug, error, info, trace, warn, Level};
+use std::{fmt::Display, future::Future};
 
-pub trait LogStatus: Sized {
-    fn log_status(self, level: Level) -> Self;
-    fn trace_status(self) -> Self {
-        self.log_status(Level::TRACE)
+use futures::FutureExt;
+use poem::http::StatusCode;
+
+pub trait LogPoemError<T, Msg>: Sized {
+    fn log_internal_server_error(self, server_msg: Msg) -> poem::Result<T> {
+        self.log_poem_error_with_client_msg(server_msg, None, StatusCode::INTERNAL_SERVER_ERROR)
     }
-    fn debug_status(self) -> Self {
-        self.log_status(Level::DEBUG)
+
+    fn log_error(self, server_msg: Msg, status: StatusCode) -> poem::Result<T> {
+        self.log_poem_error_with_client_msg(server_msg, None, status)
     }
-    fn info_status(self) -> Self {
-        self.log_status(Level::INFO)
+
+    fn log_poem_error_with_client_msg(
+        self,
+        server_msg: Msg,
+        client_msg: Option<Msg>,
+        status: StatusCode,
+    ) -> poem::Result<T>;
+}
+
+pub trait LogPoemErrorFuture<T, Msg>: Sized + Send {
+    fn log_internal_server_error(self, server_msg: Msg) -> impl Future<Output = poem::Result<T>> + Send {
+        self.log_poem_error_with_client_msg(server_msg, None, StatusCode::INTERNAL_SERVER_ERROR)
     }
-    fn warn_status(self) -> Self {
-        self.log_status(Level::WARN)
+
+    fn log_error(
+        self,
+        server_msg: Msg,
+        status: StatusCode,
+    ) -> impl Future<Output = poem::Result<T>> + Send {
+        self.log_poem_error_with_client_msg(server_msg, None, status)
     }
-    fn error_status(self) -> Self {
-        self.log_status(Level::ERROR)
+
+    fn log_poem_error_with_client_msg(
+        self,
+        server_msg: Msg,
+        client_msg: Option<Msg>,
+        status: StatusCode,
+    ) -> impl Future<Output = poem::Result<T>> + Send;
+}
+
+impl<T, E: std::error::Error + Send + Sync + 'static, Msg: Display> LogPoemError<T, Msg>
+    for Result<T, E>
+{
+    fn log_poem_error_with_client_msg(
+        self,
+        server_msg: Msg,
+        client_msg: Option<Msg>,
+        status: StatusCode,
+    ) -> poem::Result<T> {
+        self.inspect_err(|error| tracing::error!(%error, "{server_msg}"))
+            .map_err(|_| match client_msg {
+                Some(msg) => poem::Error::from_string(msg.to_string(), status),
+                None => poem::Error::from_status(status),
+            })
     }
 }
 
-impl<T> LogStatus for Result<T, Status> {
-    fn log_status(self, level: Level) -> Self {
-        self.map_err(|status| {
-            match level {
-                Level::TRACE => {
-                    trace!("{}", status.message());
-                }
-                Level::DEBUG => {
-                    debug!("{}", status.message());
-                }
-                Level::INFO => {
-                    info!("{}", status.message());
-                }
-                Level::WARN => {
-                    warn!("{}", status.message());
-                }
-                Level::ERROR => {
-                    error!("{}", status.message());
-                }
-            }
-
-            status
+impl<T, Msg: Display> LogPoemError<T, Msg> for Option<T> {
+    fn log_poem_error_with_client_msg(
+        self,
+        server_msg: Msg,
+        client_msg: Option<Msg>,
+        status: StatusCode,
+    ) -> poem::Result<T> {
+        self.ok_or_else(|| {
+            tracing::error!("{server_msg}");
+            return match client_msg {
+                Some(msg) => poem::Error::from_string(msg.to_string(), status),
+                None => poem::Error::from_status(status),
+            };
         })
+    }
+}
+
+impl<T, F, Msg> LogPoemErrorFuture<T, Msg> for F
+where
+    F: Future<Output: LogPoemError<T, Msg>> + Send,
+    Msg: Display + Send + 'static,
+{
+    fn log_poem_error_with_client_msg(
+        self,
+        server_msg: Msg,
+        client_msg: Option<Msg>,
+        status: StatusCode,
+    ) -> impl Future<Output = poem::Result<T>> + Send {
+        self.map(move |res| res.log_poem_error_with_client_msg(server_msg, client_msg, status))
     }
 }

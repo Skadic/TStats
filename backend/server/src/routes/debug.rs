@@ -6,6 +6,7 @@ use model::db::{
 use poem_openapi::OpenApi;
 use sea_orm::{ActiveModelTrait, EntityTrait};
 use sqlx::types::chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use utils::*;
 
 pub struct DebugApi(pub AppState);
 
@@ -13,7 +14,8 @@ pub struct DebugApi(pub AppState);
 impl DebugApi {
     /// hi
     #[oai(path = "/owc23", method = "get")]
-    async fn owc23(&self) -> () {
+    #[tracing::instrument(skip(self))]
+    async fn owc23(&self) -> poem::Result<()> {
         use sea_orm::ActiveValue as A;
 
         let db = &self.0.db;
@@ -31,7 +33,7 @@ impl DebugApi {
         }
         .insert(db)
         .await
-        .unwrap();
+        .log_internal_server_error("could not insert tournament")?;
 
         country_restriction::ActiveModel {
             tournament_id: A::Set(owc23.id),
@@ -352,6 +354,6 @@ impl DebugApi {
             .await
             .unwrap();
         }
-        ()
+        Ok(())
     }
 }

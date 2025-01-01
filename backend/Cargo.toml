@@ -14,10 +14,28 @@ path = "src/main.rs"
 [workspace.dependencies]
 
 chrono = { version = "0.4" }
-miette = { version = "7.1.0" }
+config = "0.14"
+deadpool-redis = { version = "0.18", features = ["rt_tokio_1"] }
+# Utilities for working with futures
+futures = "0.3"
+jwt = "0.16"
+miette = { version = "7.4.0", features = ["fancy"]}
 poem = { version = "3.1", features = [ "redis-session", "server", "tokio-stream"]}
 poem-openapi = { version = "5.1", features = [ "swagger-ui", "chrono" ] }
-tokio = { version = "1.41", features = ["macros"] }
+redis = { version = "0.27", features = ["aio", "tokio-comp"] }
+# SQL ORM
+sea-orm = { version = "1.1", features = ["runtime-tokio-rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+serde_repr = "0.1"
+sqlx = { version = "0.8", features = [
+    "macros",
+    "postgres",
+    "runtime-tokio-rustls",
+] }
+thiserror = "2"
+tokio = { version = "1.42", features = ["rt-multi-thread", "macros", "signal"] }
+url = "2.5"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

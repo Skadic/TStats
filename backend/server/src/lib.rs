@@ -3,16 +3,21 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
 use deadpool_redis::Config;
-use http::{HeaderValue, Method};
+use http::HeaderValue;
 use miette::{miette, Context, IntoDiagnostic};
 use poem::listener::TcpListener;
-use poem::middleware::Cors;
+use poem::session::{CookieConfig, CookieSession};
+use poem::web::cookie::CookieKey;
 use poem::{EndpointExt, Route, Server};
 use poem_openapi::OpenApiService;
 use rosu_v2::prelude::*;
+use routes::auth::AuthApi;
 use routes::tournament::TournamentApi;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use service::TStatsServices;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use tracing::{error, info, info_span, warn};
@@ -24,8 +29,8 @@ use utils::{consts::*, TStatsPaths};
 type RedisConnection = deadpool_redis::Connection;
 type RedisConnectionPool = deadpool_redis::Pool;
 
-mod osu;
 mod routes;
+mod service;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -34,6 +39,7 @@ pub struct AppState {
     pub osu: Arc<Osu>,
     pub redis: RedisConnectionPool,
     pub paths: TStatsPaths,
+    pub services: TStatsServices,
 }
 
 impl AppState {
@@ -52,11 +58,13 @@ pub async fn run_server() -> miette::Result<()> {
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
     }
-
-    utils::crypt::verify_aes_key().into_diagnostic()?;
+    let session_signing_key = parse_env(SESSION_SIGNING_KEY, || String::new())
+        .and_then(|s| BASE64_STANDARD.decode(s).into_diagnostic())
+        .map(|v| CookieKey::from(&v))?;
 
     let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
     let ((db, sqlx), redis, osu) = (db?, redis?, osu?);
+    let services = TStatsServices::new(&redis);
 
     let base_path = parse_env(TSTATS_DATA_DIR, || {
         std::env::current_dir()
@@ -74,6 +82,7 @@ pub async fn run_server() -> miette::Result<()> {
         redis,
         osu,
         paths,
+        services,
     };
 
     let frontend_method = parse_env(FRONTEND_METHOD, || "http".to_owned())?;
@@ -96,11 +105,16 @@ pub async fn run_server() -> miette::Result<()> {
     drop(server_setup_span);
 
     let openapi_service = OpenApiService::new(
-        (DebugApi(state.clone()), TournamentApi(state.clone())),
+        (
+            DebugApi(state.clone()),
+            TournamentApi(state.clone()),
+            AuthApi {
+                auth_service: Arc::clone(&state.services.auth),
+            },
+        ),
         "TStats API",
         "0.1",
-    )
-    .server(format!("{host}:{port}"));
+    );
     let spec_endpoint = openapi_service.spec_endpoint();
     let swagger_ui = openapi_service.swagger_ui();
 
@@ -108,13 +122,18 @@ pub async fn run_server() -> miette::Result<()> {
         .nest("/api", openapi_service)
         .nest("/swagger", swagger_ui)
         .nest("/spec", spec_endpoint)
+        /*
         .with(
             Cors::new()
                 .allow_methods([Method::GET, Method::POST])
                 .allow_headers(["Authorization"])
                 .allow_origin(frontend_addr),
         )
-        .with(poem::middleware::Tracing);
+        */
+        .with(poem::middleware::Tracing)
+        .with(CookieSession::new(
+            CookieConfig::signed(session_signing_key).max_age(Some(Duration::from_secs(86400))),
+        ));
 
     Server::new(TcpListener::bind(addr))
         .run(route)

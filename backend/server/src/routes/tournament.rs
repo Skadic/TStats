@@ -1,16 +1,17 @@
 use crate::AppState;
-use futures::TryFutureExt;
 use itertools::izip;
 use miette::miette;
+use model::db::prelude::*;
 use model::db::{country_restriction, rank_restriction, stage, tournament};
-use model::dto::tournament::{Country, Tournament};
-use model::dto::tournament::{GetAllTournamentsResponse, RankRange};
-use poem::error::InternalServerError;
+use model::dto::tournament::TournamentDto;
+use poem::error::NotFoundError;
+use poem::session::Session;
+use poem::web::Path;
 use poem_openapi::{payload::Json, OpenApi};
 use sea_orm::{
-    query::*, ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait,
-    IntoActiveModel, ModelTrait,
+    ColumnTrait, DatabaseConnection, EntityTrait, LoaderTrait, ModelTrait, QueryFilter, QueryOrder,
 };
+use utils::{LogPoemError, LogPoemErrorFuture};
 
 pub struct TournamentApi(pub AppState);
 
@@ -19,8 +20,8 @@ async fn find_stage(
     stage_order: i32,
     db: &DatabaseConnection,
 ) -> miette::Result<(tournament::Model, stage::Model)> {
-    let res = tournament::Entity::find_by_id(tournament_id)
-        .find_also_related(stage::Entity)
+    let res = Tournament::find_by_id(tournament_id)
+        .find_also_related(Stage)
         .filter(stage::Column::StageOrder.eq(stage_order))
         .one(db)
         .await
@@ -31,9 +32,7 @@ async fn find_stage(
         Some((tournament, Some(stage))) => (tournament, stage),
         Some((_, None)) => {
             return Err(miette!(
-                "stage {} in tournament {} does not exist",
-                stage_order,
-                tournament_id
+                "stage {stage_order} in tournament {tournament_id} does not exist",
             ))
         }
         None => {
@@ -51,36 +50,29 @@ async fn find_stage(
 impl TournamentApi {
     #[oai(path = "/", method = "get")]
     #[tracing::instrument(skip_all)]
-    async fn get_all(&self) -> poem::Result<Json<Vec<GetAllTournamentsResponse>>> {
+    async fn get_all(&self, session: &Session) -> poem::Result<Json<Vec<TournamentDto>>> {
+        session.set("my_msg", "HALLO");
         let db = &self.0.db;
-        let tournaments = tournament::Entity::find()
+        let tournaments: Vec<tournament::Model> = Tournament::find()
             .all(db)
-            .map_err(InternalServerError)
+            .log_internal_server_error("failed to get tournaments")
             .await?;
 
         // Get rank restrictions
         let rank_restrictions = tournaments
             .load_many(
-                rank_restriction::Entity::find().order_by_asc(rank_restriction::Column::Tier),
+                RankRestriction::find().order_by_asc(rank_restriction::Column::Tier),
                 db,
             )
-            .inspect_err(|error| tracing::error!(%error, "failed to get rank restrictions"))
-            .map_err(InternalServerError);
+            .log_internal_server_error("failed to get rank restrictions");
 
         // Get country restrictions
         let country_restrictions = tournaments
             .load_many(
-                country_restriction::Entity::find()
-                    .order_by_asc(country_restriction::Column::CountryCode),
+                CountryRestriction::find().order_by_asc(country_restriction::Column::CountryCode),
                 db,
             )
-            .inspect_err(|error| tracing::error!(%error, "failed to get country restrictions"))
-            .map_err(InternalServerError);
-
-        // Wait for the queries and unpack them
-        let (rank_restrictions, country_restrictions) =
-            tokio::join!(rank_restrictions, country_restrictions);
-        let (rank_restrictions, country_restrictions) = (rank_restrictions?, country_restrictions?);
+            .log_internal_server_error("failed to get country restrictions");
 
         let banners = tournaments
             .iter()
@@ -91,8 +83,12 @@ impl TournamentApi {
                 None => Ok(None),
             })
             .collect::<Result<Vec<_>, _>>()
-            .inspect_err(|error| tracing::error!(%error, "could not read banner image"))
-            .map_err(InternalServerError)?;
+            .log_internal_server_error("could not read banner image")?;
+
+        // Wait for the queries and unpack them
+        let (rank_restrictions, country_restrictions) =
+            tokio::try_join!(rank_restrictions, country_restrictions)
+                .log_internal_server_error("failed to get country_restrictions")?;
 
         let iter = izip!(
             tournaments,
@@ -102,32 +98,19 @@ impl TournamentApi {
         )
         .map(
             |(tournament, rank_restriction, country_restriction, banner)| {
-                let rank_restrictions = rank_restriction
-                    .iter()
-                    .map(|r| RankRange {
-                        min: r.min as u32,
-                        max: r.max as u32,
-                    })
-                    .collect();
-                let country_restrictions = country_restriction
-                    .iter()
-                    .map(|c| Country {
-                        country_code: c.country_code.clone(),
-                    })
-                    .collect();
+                let rank_restrictions = rank_restriction.iter().map(Into::into).collect();
+                let country_restrictions = country_restriction.iter().map(Into::into).collect();
 
-                GetAllTournamentsResponse {
-                    tournament: Tournament {
-                        id: tournament.id,
-                        name: tournament.name,
-                        shorthand: tournament.shorthand,
-                        format: tournament.format as u32,
-                        bws: tournament.bws,
-                        mode: tournament.mode.into(),
-                        banner,
-                        start_date: tournament.start_date.map(Into::into),
-                        end_date: tournament.end_date.map(Into::into),
-                    },
+                TournamentDto {
+                    id: tournament.id,
+                    name: tournament.name,
+                    shorthand: tournament.shorthand,
+                    format: tournament.format as u32,
+                    bws: tournament.bws,
+                    mode: tournament.mode.into(),
+                    banner,
+                    start_date: tournament.start_date.map(Into::into),
+                    end_date: tournament.end_date.map(Into::into),
                     rank_restrictions,
                     country_restrictions,
                 }
@@ -135,6 +118,62 @@ impl TournamentApi {
         );
         Ok(Json(iter.collect()))
     }
+
+    #[oai(path = "/:id", method = "get")]
+    #[tracing::instrument(skip_all)]
+    async fn get(&self, Path(id): Path<i32>) -> poem::Result<Json<TournamentDto>> {
+        let db = &self.0.db;
+        let tournament: tournament::Model = Tournament::find_by_id(id as i32)
+            .one(db)
+            .log_internal_server_error("could not load tournament")
+            .await?
+            .ok_or(NotFoundError)?;
+
+        // Get rank restrictions
+        let rank_restrictions = tournament
+            .find_related(RankRestriction)
+            .order_by_asc(rank_restriction::Column::Tier)
+            .all(db)
+            .log_internal_server_error("failed to get rank restrictions");
+
+        // Get country restrictions
+        let country_restrictions = tournament
+            .find_related(CountryRestriction)
+            .order_by_asc(country_restriction::Column::CountryCode)
+            .all(db)
+            .log_internal_server_error("failed to get country restrictions");
+
+        let banner = match &tournament.banner {
+            Some(banner_name) => Some(
+                std::fs::read(self.0.paths.banner(banner_name))
+                    .log_internal_server_error("could not read banner image")?,
+            ),
+            None => None,
+        };
+
+        // Wait for the queries and unpack them
+        let (rank_restrictions, country_restrictions) =
+            tokio::try_join!(rank_restrictions, country_restrictions)
+                .log_internal_server_error("failed to get country_restrictions")?;
+
+        Ok(Json(TournamentDto {
+            id: tournament.id,
+            name: tournament.name,
+            shorthand: tournament.shorthand,
+            format: tournament.format as u32,
+            bws: tournament.bws,
+            mode: tournament.mode.into(),
+            banner,
+            start_date: tournament.start_date.map(Into::into),
+            end_date: tournament.end_date.map(Into::into),
+            rank_restrictions: rank_restrictions.into_iter().map(Into::into).collect(),
+            country_restrictions: country_restrictions.into_iter().map(Into::into).collect(),
+        }))
+    }
 }
 
-mod test {}
+mod test {
+
+    #[sqlx::test]
+    async fn test_basic() {}
+}
