@@ -1,20 +1,51 @@
+import { Image } from "@kobalte/core/image";
 import { Component } from "../lib/types";
+import { createResource, useContext } from "solid-js";
+import { Button } from "@kobalte/core/button";
+import {
+	AuthContext,
+	fetchSignedInUserAvatar,
+	requestAccess,
+} from "../lib/auth";
+import { tstatsClient } from "../lib/rpc";
+import { A, useLocation } from "@solidjs/router";
+
+function userAvatar(userId: number) {
+	return userId ? `https://a.ppy.sh/${userId}` : null;
+}
 
 const Navbar: Component = () => {
-	// {#await signedInUser}
-	// 	<Loader />
-	// {:then}
-	// 	<img use:melt={$image} alt="User Avatar" />
-	// 	<button use:melt={$fallback} onclick={requestAccess} class="h-full w-full bg-white" aria-label="Authorize with osu account"></button>
-	// {/await}
+	const client = tstatsClient();
+
+	const [signedInUser, _] = useContext(AuthContext);
+	const [signedInUserAvatar] = createResource(signedInUser, (id) =>
+		userAvatar(id),
+	);
+
+	const location = useLocation();
+
+	async function redirectToOsuAuthPage() {
+		const osuAuthUrl = await requestAccess(location.pathname, client);
+		window.location.href = osuAuthUrl!;
+	}
 
 	return (
 		<nav class="flex justify-between bg-bg-400 shadow-bg-400 shadow-md border-bg-600 border-b-2">
-			<a href="/" class="text-6xl px-10 font-bold text-center my-auto">
+			<A href="/" class="text-6xl px-10 font-bold text-center my-auto">
 				TStats
-			</a>
+			</A>
 			<div class="p-2">
-				<div class="h-20 aspect-square rounded-xl overflow-hidden"></div>
+				<div class="h-20 bg-text-500 aspect-square rounded-xl overflow-hidden">
+					<Image>
+						<Image.Img src={signedInUserAvatar() ?? ""} />
+						<Image.Fallback class="bg-white" />
+					</Image>
+					<Button
+						onclick={redirectToOsuAuthPage}
+						class="h-full w-full"
+						aria-label="Authorize with osu account"
+					/>
+				</div>
 			</div>
 		</nav>
 	);

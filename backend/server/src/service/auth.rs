@@ -57,7 +57,7 @@ pub struct OsuAuthCode {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct OsuCsrfToken(pub oauth2::CsrfToken);
+pub struct OsuCsrfToken(pub oauth2::CsrfToken, pub String);
 
 impl Deref for OsuCsrfToken {
     type Target = oauth2::CsrfToken;
@@ -82,18 +82,24 @@ impl AuthService {
     }
 }
 
-#[derive(Debug, Serialize)]
-pub struct AuthResponse {
-    user_id: u32,
-    access_token: AccessToken,
-    refresh_token: RefreshToken,
-    expires_in: Duration,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionContent {
+    pub user_id: u32,
+    pub access_token: AccessToken,
+    pub refresh_token: RefreshToken,
+    pub expires_in: Duration,
+}
+
+#[derive(Debug)]
+pub struct AuthResult {
+    pub session: SessionContent,
+    pub return_url: String,
 }
 
 impl AuthService {
     #[tracing::instrument(skip_all)]
-    pub async fn request_auth_code(&self) -> poem::Result<Url> {
-        let auth_url = OsuAuthCode::request(&self.oauth_client, &self.redis)
+    pub async fn request_auth_code(&self, return_url: &str) -> poem::Result<Url> {
+        let auth_url = OsuAuthCode::request(return_url, &self.oauth_client, &self.redis)
             .log_internal_server_error("error requesting auth code")
             .await?;
         Ok(auth_url)
@@ -104,7 +110,7 @@ impl AuthService {
         &self,
         auth_code: &str,
         csrf_token: &str,
-    ) -> poem::Result<AuthResponse> {
+    ) -> poem::Result<AuthResult> {
         let auth_code = AuthorizationCode::new(auth_code.to_string());
         let redis = &self.redis;
         let client = &self.oauth_client;
@@ -141,11 +147,14 @@ impl AuthService {
         tracing::info!(user_id, "successfully authenticated user");
 
         // All is well, so we save the accesss token and refresh token
-        return Ok(AuthResponse {
-            user_id,
-            access_token,
-            refresh_token,
-            expires_in,
+        return Ok(AuthResult {
+            session: SessionContent {
+                user_id,
+                access_token,
+                refresh_token,
+                expires_in,
+            },
+            return_url: cached_csrf_token.1,
         });
     }
 }
@@ -191,14 +200,20 @@ async fn request_user_data(access_token: &str) -> poem::Result<rosu_v2::model::u
 }
 
 impl OsuAuthCode {
-    pub async fn request(client: &BasicClient, redis: &RedisConnectionPool) -> CacheResult<Url> {
+    pub async fn request(
+        return_url: impl AsRef<str>,
+        client: &BasicClient,
+        redis: &RedisConnectionPool,
+    ) -> CacheResult<Url> {
         let (auth_url, csrf_token) = client
             .authorize_url(CsrfToken::new_random)
             .add_scope(Scope::new("public".into()))
             .add_scope(Scope::new("identify".into()))
             .url();
 
-        OsuCsrfToken(csrf_token).cache(redis, Some(300)).await?;
+        OsuCsrfToken(csrf_token, return_url.as_ref().to_string())
+            .cache(redis, Some(300))
+            .await?;
 
         Ok(auth_url)
     }

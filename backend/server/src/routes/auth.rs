@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
 use model::dto::auth::{
-    DeliverAuthCodeRequestDto, DeliverAuthCodeResponseDto, RequestAuthCodeResponseDto,
+    AuthenticatedUserDto, DeliverAuthCodeRequestDto, DeliverAuthCodeResponseDto,
+    RequestAuthCodeResponseDto,
 };
 use poem::session::Session;
-use poem_openapi::{payload::Json, OpenApi};
+use poem_openapi::{param::Query, payload::Json, OpenApi};
+use tracing::debug;
 use utils::consts::OSU_SESSION;
 
-use crate::service::AuthService;
+use crate::service::{AuthService, SessionContent};
 
 pub struct AuthApi {
     pub auth_service: Arc<AuthService>,
@@ -17,26 +19,51 @@ pub struct AuthApi {
 impl AuthApi {
     #[oai(path = "/", method = "get")]
     #[tracing::instrument(skip_all)]
-    async fn request_auth_code(&self) -> poem::Result<Json<RequestAuthCodeResponseDto>> {
-        let auth_url = self.auth_service.request_auth_code().await?.to_string();
+    /// Request Auth Code
+    async fn request_auth_code(
+        &self,
+        #[oai(name = "returnUrl")] Query(return_url): Query<String>,
+    ) -> poem::Result<Json<RequestAuthCodeResponseDto>> {
+        let auth_url = self
+            .auth_service
+            .request_auth_code(&return_url)
+            .await?
+            .to_string();
         Ok(Json(RequestAuthCodeResponseDto { auth_url }))
     }
 
     #[oai(path = "/", method = "post")]
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip(self, session))]
+    /// Deliver Auth Code
     async fn deliver_auth_code(
         &self,
         Json(request): Json<DeliverAuthCodeRequestDto>,
         session: &Session,
-    ) -> poem::Result<DeliverAuthCodeResponseDto> {
+    ) -> poem::Result<Json<DeliverAuthCodeResponseDto>> {
+        debug!("delivering auth code");
         let auth_result = self
             .auth_service
             .deliver_auth_code(&request.auth_code, &request.state)
             .await?;
-        session.set(OSU_SESSION, auth_result);
+        session.set(OSU_SESSION, &auth_result.session);
 
-        Ok(DeliverAuthCodeResponseDto::Redirect(
-            "https://localdev.skadic.moe:3000".to_owned(),
-        ))
+        Ok(Json(DeliverAuthCodeResponseDto {
+            return_url: auth_result.return_url,
+            user_id: auth_result.session.user_id,
+        }))
+    }
+
+    #[oai(path = "/user", method = "get")]
+    #[tracing::instrument(skip_all)]
+    /// Get Authenticated User
+    async fn get_authenticated_user(
+        &self,
+        session: &Session,
+    ) -> poem::Result<Json<Option<AuthenticatedUserDto>>> {
+        let session = session.get::<SessionContent>(OSU_SESSION);
+
+        Ok(Json(session.map(|session| AuthenticatedUserDto {
+            user_id: session.user_id,
+        })))
     }
 }

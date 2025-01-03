@@ -7,8 +7,6 @@ const TournamentCard: Component<{ tournament: Tournament }> = (props) => {
 		(r) => r !== undefined,
 	);
 
-	console.log(props.tournament.rankRestrictions);
-
 	const [rankRange, setRankRange] = createSignal("");
 
 	const first = rankRestrictions[0];

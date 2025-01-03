@@ -1,5 +1,5 @@
 import { RouteSectionProps } from "@solidjs/router";
-import { Component } from "../lib/types";
+import { Component, EmptyObject } from "../lib/types";
 import ImportantTournaments from "../components/ImportantTournaments";
 import { tstatsClient } from "../lib/rpc";
 import { createResource } from "solid-js";
@@ -11,10 +11,7 @@ async function fetchTournaments(): Promise<Tournament[]> {
 	return await client.GET("/tournaments").then((result) => result.data!);
 }
 
-const TournamentView: Component<RouteSectionProps<any>> = () => {
-	// <!-- <ImportantTournaments /> -->
-	// <!-- <TournamentList tournaments={data.tournaments} /> -->
-	//
+const TournamentView: Component<RouteSectionProps<EmptyObject>> = () => {
 	const [tournaments] = createResource(fetchTournaments);
 
 	return (

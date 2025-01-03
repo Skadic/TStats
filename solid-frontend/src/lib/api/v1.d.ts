@@ -115,7 +115,9 @@ export interface paths {
         /** Request Auth Code */
         get: {
             parameters: {
-                query?: never;
+                query: {
+                    returnUrl: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -147,12 +149,13 @@ export interface paths {
                 };
             };
             responses: {
-                301: {
+                200: {
                     headers: {
-                        LOCATION: string;
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json; charset=utf-8": components["schemas"]["DeliverAuthCodeResponse"];
+                    };
                 };
             };
         };
@@ -211,6 +214,11 @@ export interface components {
         DeliverAuthCodeRequest: {
             authCode: string;
             state: string;
+        };
+        DeliverAuthCodeResponse: {
+            /** Format: uint32 */
+            userId: number;
+            returnUrl: string;
         };
         /** @enum {string} */
         OsuMode: "Catch" | "Mania" | "Osu" | "Taiko";

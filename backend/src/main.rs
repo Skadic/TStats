@@ -9,7 +9,7 @@ use tracing_subscriber::{
 async fn main() -> miette::Result<()> {
     let registry = tracing_subscriber::registry()
         .with(Targets::new().with_targets([
-            ("server", LevelFilter::DEBUG),
+            ("server", LevelFilter::TRACE),
             ("utils", LevelFilter::DEBUG),
             ("model", LevelFilter::DEBUG),
             ("rosu_v2", LevelFilter::INFO),

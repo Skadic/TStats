@@ -6,14 +6,15 @@ use std::time::Duration;
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use deadpool_redis::Config;
-use http::HeaderValue;
+use http::{HeaderValue, Method};
 use miette::{miette, Context, IntoDiagnostic};
-use poem::listener::TcpListener;
+use poem::listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener};
+use poem::middleware::Cors;
 use poem::session::{CookieConfig, CookieSession};
-use poem::web::cookie::CookieKey;
-use poem::{EndpointExt, Route, Server};
+use poem::web::cookie::{CookieKey, SameSite};
+use poem::{handler, options, EndpointExt, Route, Server};
 use poem_openapi::OpenApiService;
-use rosu_v2::prelude::*;
+use rosu_v2::Osu;
 use routes::auth::AuthApi;
 use routes::tournament::TournamentApi;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
@@ -50,6 +51,9 @@ impl AppState {
         })
     }
 }
+
+const KEY: &str = include_str!("../../../certs/private.key.pem");
+const CERT: &str = include_str!("../../../certs/domain.cert.pem");
 
 #[tracing::instrument]
 pub async fn run_server() -> miette::Result<()> {
@@ -119,26 +123,45 @@ pub async fn run_server() -> miette::Result<()> {
     let swagger_ui = openapi_service.swagger_ui();
 
     let route = Route::new()
+        .at("/*", options(cors_handler))
         .nest("/api", openapi_service)
         .nest("/swagger", swagger_ui)
         .nest("/spec", spec_endpoint)
-        /*
         .with(
             Cors::new()
-                .allow_methods([Method::GET, Method::POST])
-                .allow_headers(["Authorization"])
-                .allow_origin(frontend_addr),
+                .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+                .allow_headers([
+                    "Authorization",
+                    "content-length",
+                    "Origin",
+                    "Content-Type",
+                    "X-Auth-Token",
+                ])
+                .allow_origin(frontend_addr)
+                .allow_credentials(true),
         )
-        */
         .with(poem::middleware::Tracing)
         .with(CookieSession::new(
-            CookieConfig::signed(session_signing_key).max_age(Some(Duration::from_secs(86400))),
+            CookieConfig::signed(session_signing_key)
+                .max_age(Some(Duration::from_secs(86400)))
+                .same_site(Some(SameSite::None))
+                .secure(true)
+                .max_age(Duration::from_secs(86400))
+                .domain(".skadic.moe"),
         ));
 
-    Server::new(TcpListener::bind(addr))
-        .run(route)
-        .await
-        .into_diagnostic()
+    Server::new(
+        TcpListener::bind(addr)
+            .rustls(RustlsConfig::new().fallback(RustlsCertificate::new().key(KEY).cert(CERT))),
+    )
+    .run(route)
+    .await
+    .into_diagnostic()
+}
+
+#[handler]
+fn cors_handler() -> http::StatusCode {
+    http::StatusCode::OK
 }
 
 /// Reads an environment variable and tries to parse it into the specified type.

@@ -51,7 +51,6 @@ impl TournamentApi {
     #[oai(path = "/", method = "get")]
     #[tracing::instrument(skip_all)]
     async fn get_all(&self, session: &Session) -> poem::Result<Json<Vec<TournamentDto>>> {
-        session.set("my_msg", "HALLO");
         let db = &self.0.db;
         let tournaments: Vec<tournament::Model> = Tournament::find()
             .all(db)
