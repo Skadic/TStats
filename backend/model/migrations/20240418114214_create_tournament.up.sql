@@ -12,3 +12,4 @@ CREATE TABLE tournament (
     CHECK (start_date <= end_date)
 );
 CREATE INDEX ix_tournament_name ON tournament (name);
+

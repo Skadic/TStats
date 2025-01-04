@@ -1,14 +1,22 @@
-use crate::AppState;
+use miette::{Context, IntoDiagnostic};
 use model::db::sea_orm_active_enums::{MatchType, OsuMode};
 use model::db::{
     country_restriction, pool_bracket, pool_map, stage, team, team_member, tournament,
 };
 use poem_openapi::OpenApi;
-use sea_orm::{ActiveModelTrait, EntityTrait};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
 use sqlx::types::chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use utils::*;
 
-pub struct DebugApi(pub AppState);
+pub struct DebugApi {
+    db: DatabaseConnection,
+}
+
+impl DebugApi {
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
+    }
+}
 
 #[OpenApi]
 impl DebugApi {
@@ -18,7 +26,7 @@ impl DebugApi {
     async fn owc23(&self) -> poem::Result<()> {
         use sea_orm::ActiveValue as A;
 
-        let db = &self.0.db;
+        let db = &self.db;
 
         let owc23 = tournament::ActiveModel {
             id: A::NotSet,
@@ -33,6 +41,8 @@ impl DebugApi {
         }
         .insert(db)
         .await
+        .into_diagnostic()
+        .wrap_err("could not insert owc23")
         .log_internal_server_error("could not insert tournament")?;
 
         country_restriction::ActiveModel {
@@ -41,7 +51,9 @@ impl DebugApi {
         }
         .insert(db)
         .await
-        .unwrap();
+        .into_diagnostic()
+        .wrap_err("could not insert owc23")
+        .log_internal_server_error("could not insert owc23")?;
 
         let add_team_member = |id, player_id| async move {
             team_member::ActiveModel {

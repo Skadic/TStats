@@ -7,7 +7,7 @@ use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use deadpool_redis::Config;
 use http::{HeaderValue, Method};
-use miette::{miette, Context, IntoDiagnostic};
+use miette::{miette, Context, IntoDiagnostic, Result};
 use poem::listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener};
 use poem::middleware::Cors;
 use poem::session::{CookieConfig, CookieSession};
@@ -56,7 +56,7 @@ const KEY: &str = include_str!("../../../certs/private.key.pem");
 const CERT: &str = include_str!("../../../certs/domain.cert.pem");
 
 #[tracing::instrument]
-pub async fn run_server() -> miette::Result<()> {
+pub async fn run_server() -> Result<()> {
     let server_setup_span = info_span!("server_setup").entered();
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
@@ -65,29 +65,6 @@ pub async fn run_server() -> miette::Result<()> {
     let session_signing_key = parse_env(SESSION_SIGNING_KEY, || String::new())
         .and_then(|s| BASE64_STANDARD.decode(s).into_diagnostic())
         .map(|v| CookieKey::from(&v))?;
-
-    let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
-    let ((db, sqlx), redis, osu) = (db?, redis?, osu?);
-    let services = TStatsServices::new(&redis);
-
-    let base_path = parse_env(TSTATS_DATA_DIR, || {
-        std::env::current_dir()
-            .expect("could not get working directory")
-            .join("tsdata")
-    })?;
-    let paths = TStatsPaths::new(base_path)
-        .into_diagnostic()
-        .wrap_err("could not canonicalize path")?;
-    info!("Storing data in {:?}", paths.base());
-
-    let state = AppState {
-        db,
-        sqlx,
-        redis,
-        osu,
-        paths,
-        services,
-    };
 
     let frontend_method = parse_env(FRONTEND_METHOD, || "http".to_owned())?;
     let frontend_host: String = parse_env(FRONTEND_HOST, || "localhost".to_owned())?;
@@ -106,15 +83,14 @@ pub async fn run_server() -> miette::Result<()> {
 
     info!("Starting server");
 
+    let state = create_state().await?;
     drop(server_setup_span);
 
     let openapi_service = OpenApiService::new(
         (
-            DebugApi(state.clone()),
-            TournamentApi(state.clone()),
-            AuthApi {
-                auth_service: Arc::clone(&state.services.auth),
-            },
+            DebugApi::new(state.db.clone()),
+            TournamentApi::new(Arc::clone(&state.services.tournaments)),
+            AuthApi::new(Arc::clone(&state.services.auth)),
         ),
         "TStats API",
         "0.1",
@@ -162,6 +138,32 @@ pub async fn run_server() -> miette::Result<()> {
 #[handler]
 fn cors_handler() -> http::StatusCode {
     http::StatusCode::OK
+}
+
+#[tracing::instrument]
+async fn create_state() -> Result<AppState> {
+    let base_path = parse_env(TSTATS_DATA_DIR, || {
+        std::env::current_dir()
+            .expect("could not get working directory")
+            .join("tsdata")
+    })?;
+    let paths = TStatsPaths::new(base_path)
+        .into_diagnostic()
+        .wrap_err("could not canonicalize path")?;
+    let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
+    let ((db, sqlx), redis, osu) = (db?, redis?, osu?);
+    let services = TStatsServices::new(&db, &redis, &paths);
+
+    info!("Storing data in {:?}", paths.base());
+
+    Ok(AppState {
+        db,
+        sqlx,
+        redis,
+        osu,
+        paths,
+        services,
+    })
 }
 
 /// Reads an environment variable and tries to parse it into the specified type.

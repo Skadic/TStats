@@ -14,41 +14,6 @@ use utils::{
 
 use crate::RedisConnectionPool;
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct OsuRefreshToken {
-    pub user_id: u32,
-    pub token: oauth2::RefreshToken,
-}
-
-impl Cacheable for OsuRefreshToken {
-    type KeyType = u32;
-
-    fn type_key() -> &'static str {
-        "osurefreshtoken"
-    }
-
-    fn key(&self) -> &Self::KeyType {
-        &self.user_id
-    }
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct OsuAccessToken {
-    pub user_id: u32,
-    pub token: oauth2::AccessToken,
-}
-
-impl Cacheable for OsuAccessToken {
-    type KeyType = u32;
-
-    fn type_key() -> &'static str {
-        "osuaccesstoken"
-    }
-
-    fn key(&self) -> &Self::KeyType {
-        &self.user_id
-    }
-}
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct OsuAuthCode {
@@ -144,7 +109,7 @@ impl AuthService {
         let user = request_user_data(access_token.secret().as_str()).await?;
         let user_id = user.user_id;
 
-        tracing::info!(user_id, "successfully authenticated user");
+        tracing::debug!(user_id, "successfully authenticated user");
 
         // All is well, so we save the accesss token and refresh token
         return Ok(AuthResult {

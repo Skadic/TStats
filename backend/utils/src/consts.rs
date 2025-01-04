@@ -11,4 +11,4 @@ pub const AES_256_KEY: &str = "AES_256_KEY";
 pub const TSTATS_DATA_DIR: &str = "TSTATS_DATA_DIR";
 pub const SESSION_SIGNING_KEY: &str = "SESSION_SIGNING_KEY";
 
-pub const OSU_SESSION: &str = "tstats_osu_session";
+pub const SESSION_CONTENT: &str = "session_content";

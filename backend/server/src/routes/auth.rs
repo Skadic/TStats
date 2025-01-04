@@ -7,12 +7,18 @@ use model::dto::auth::{
 use poem::session::Session;
 use poem_openapi::{param::Query, payload::Json, OpenApi};
 use tracing::debug;
-use utils::consts::OSU_SESSION;
+use utils::consts::SESSION_CONTENT;
 
 use crate::service::{AuthService, SessionContent};
 
 pub struct AuthApi {
-    pub auth_service: Arc<AuthService>,
+    auth_service: Arc<AuthService>,
+}
+
+impl AuthApi {
+    pub fn new(auth_service: Arc<AuthService>) -> Self {
+        Self { auth_service }
+    }
 }
 
 #[OpenApi(prefix_path = "/auth")]
@@ -45,7 +51,7 @@ impl AuthApi {
             .auth_service
             .deliver_auth_code(&request.auth_code, &request.state)
             .await?;
-        session.set(OSU_SESSION, &auth_result.session);
+        session.set(SESSION_CONTENT, &auth_result.session);
 
         Ok(Json(DeliverAuthCodeResponseDto {
             return_url: auth_result.return_url,
@@ -60,7 +66,7 @@ impl AuthApi {
         &self,
         session: &Session,
     ) -> poem::Result<Json<Option<AuthenticatedUserDto>>> {
-        let session = session.get::<SessionContent>(OSU_SESSION);
+        let session = session.get::<SessionContent>(SESSION_CONTENT);
 
         Ok(Json(session.map(|session| AuthenticatedUserDto {
             user_id: session.user_id,
