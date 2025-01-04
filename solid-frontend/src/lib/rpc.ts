@@ -7,6 +7,5 @@ export function tstatsClient(): Client<paths> {
 	return createClient<paths>({
 		baseUrl: BACKEND_URI,
 		credentials: "include",
-    
 	});
 }

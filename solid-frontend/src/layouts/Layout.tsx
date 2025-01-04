@@ -1,10 +1,9 @@
-import { RouteSectionProps } from "@solidjs/router";
 import Navbar from "../components/Navbar";
-import { ParentComponent } from "../lib/types";
+import { LayoutComponent } from "../lib/types";
 import { AuthContext, fetchSignedInUser } from "../lib/auth";
 import { createResource, createSignal } from "solid-js";
 
-const Layout: ParentComponent<RouteSectionProps<any>> = (props) => {
+const Layout: LayoutComponent<any> = (props) => {
 	const [signedInUser] = createResource(async () => {
 		return fetchSignedInUser().then((user) => {
 			return createSignal<number | null>(user);

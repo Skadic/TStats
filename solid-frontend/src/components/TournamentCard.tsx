@@ -1,5 +1,6 @@
 import { Component, createSignal } from "solid-js";
 import { Tournament } from "../lib/api/v1types";
+import { A } from "@solidjs/router";
 
 const TournamentCard: Component<{ tournament: Tournament }> = (props) => {
 	const tournament = () => props.tournament;
@@ -22,14 +23,14 @@ const TournamentCard: Component<{ tournament: Tournament }> = (props) => {
 
 	if (rankRange() !== "Open Rank") {
 		setRankRange(
-			(r) => `${r} ${tournament().bws ? "with BWS" : "without BWS"}`,
+			(r) => `${r} ${tournament().bws ? "with" : "without"} BWS`,
 		);
 	}
 
 	return (
 		<>
 			<div class="bg-bg-400 shadow-md shadow-bg-100 text-gray-200 rounded-2xl lg:rounded-lg min-w-full min-h-full transition-all duration-200 hover:scale-105">
-				<a href="/tournament/{tournament.id}">
+				<A href={`/tournament/${tournament().id}`}>
 					<img
 						class="object-cover rounded-t-xl lg:rounded-t-lg w-full lg:h-32"
 						alt="banner"
@@ -48,7 +49,7 @@ const TournamentCard: Component<{ tournament: Tournament }> = (props) => {
 							</div>
 						</div>
 					</div>
-				</a>
+				</A>
 			</div>
 		</>
 	);

@@ -1,4 +1,4 @@
-import { createResource, Match, Suspense, Switch } from "solid-js";
+import { createResource } from "solid-js";
 import { Component } from "../lib/types";
 import { requestAccess } from "../lib/auth";
 import { Navigate } from "@solidjs/router";

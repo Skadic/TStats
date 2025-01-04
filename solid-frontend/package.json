@@ -11,7 +11,7 @@
     "fmt": "npx @biomejs/biome format --write ./src",
     "lint": "npx @biomejs/biome lint --write ./src",
     "check:biome": "npx @biomejs/biome check --write ./src",
-    "gendtos": "openapi-typescript http://localhost:3000/spec -o src/lib/api/v1.d.ts",
+    "gendtos": "openapi-typescript https://localdev.skadic.moe:3000/spec -o src/lib/api/v1.d.ts",
     "test:ts": "tsc --noEmit"
   },
   "license": "MIT",
