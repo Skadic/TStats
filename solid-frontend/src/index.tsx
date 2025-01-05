@@ -7,8 +7,8 @@ import App from "./App";
 import Layout from "./layouts/Layout";
 import TournamentListView from "./pages/TournamentListView";
 import AuthPage from "./pages/AuthPage";
-import TournamentLayout from "./layouts/TournamentLayout";
-import TournamentView from "./pages/TournamentListView";
+import TournamentContextProvider from "./layouts/TournamentContextProvider";
+import TournamentView from "./pages/TournamentView";
 
 const root = document.getElementById("root");
 
@@ -24,7 +24,7 @@ render(
 			<Route path="/test" component={App} />
 			<Route path="/auth" component={AuthPage} />
 			<Route path="/" component={TournamentListView} />
-      <Route path="/tournament/:id" component={TournamentLayout}>
+      <Route path="/tournament/:id" component={TournamentContextProvider}>
         <Route path="/" component={TournamentView}/>
       </Route>
 		</Router>

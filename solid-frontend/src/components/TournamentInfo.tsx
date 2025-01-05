@@ -1,13 +1,10 @@
-// <TournamentInfo {tournament} {rankRestrictions} {countryRestrictions} />
-
-import { For, Index, JSX, Match, Show } from "solid-js";
+import { For, Index, JSX, Show } from "solid-js";
 import { Tournament } from "../lib/api/v1types";
 import { Component } from "../lib/types";
 import Flag from "./Flag";
 
-import styles from "TournamentInfo.module.css";
+import styles from "./TournamentInfo.module.css";
 
-//
 const TournamentInfo: Component<{ tournament: Tournament }> = (props) => {
 	const tournament = props.tournament;
 	const rankRestrictions = tournament.rankRestrictions;
@@ -41,18 +38,13 @@ const TournamentInfo: Component<{ tournament: Tournament }> = (props) => {
 		);
 	}
 
-	const styles = {
-		infoHeading: "text-2xl font-bold text-left pr-10 lg:text-right",
-		infoContent: "text-xl pl-10 text-left lg:text-left",
-	};
-
 	return (
 		<>
 			<div class="flex flex-col justify-center items-center rounded-2xl lg:rounded-lg p-3">
 				<h1 class="text-5xl lg:text-6xl font-bold text-center p-3 pb-5">
 					{tournament.name}
 				</h1>
-				<div class="flex [&>*]:py-3 [&>*]:flex-[0_1_40%] justify-center flex-wrap w-1/2">
+				<div class={styles.infoGrid}>
 					{/* Rank Ranges */}
 					<div class={styles.infoHeading}>
 						Rank Range{rankRestrictions.length > 1 ? "s" : ""}

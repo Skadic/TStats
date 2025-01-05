@@ -21,7 +21,7 @@ impl TournamentApi {
 #[OpenApi(prefix_path = "/tournaments")]
 impl TournamentApi {
     #[oai(path = "/", method = "get")]
-    //#[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip_all, name = "get_all_tournaments")]
     async fn get_all(&self) -> poem::Result<Json<Vec<TournamentDto>>> {
         self.tournament_service
             .get_all()
@@ -31,7 +31,7 @@ impl TournamentApi {
     }
 
     #[oai(path = "/:id", method = "get")]
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip_all,  name = "get_tournament_by_id")]
     async fn get(&self, Path(id): Path<i32>) -> poem::Result<Json<TournamentDto>> {
         self.tournament_service
             .get_by_id(id)

@@ -11,7 +11,7 @@
     "fmt": "npx @biomejs/biome format --write ./src",
     "lint": "npx @biomejs/biome lint --write ./src",
     "check:biome": "npx @biomejs/biome check --write ./src",
-    "gendtos": "openapi-typescript https://localdev.skadic.moe:3000/spec -o src/lib/api/v1.d.ts",
+    "gendtos": "openapi-typescript https://localdev.skadic.moe:3000/spec -o src/lib/api/v1.d.ts --root-types --root-types-no-schema-prefix",
     "test:ts": "tsc --noEmit"
   },
   "license": "MIT",
@@ -32,6 +32,7 @@
     "@solidjs/router": "^0.15.2",
     "biome": "^0.3.3",
     "flag-icons": "^7.2.3",
+    "fp-ts": "^2.16.9",
     "openapi-fetch": "^0.13.4",
     "solid-js": "^1.9.3"
   }

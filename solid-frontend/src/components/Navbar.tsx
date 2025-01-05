@@ -2,23 +2,25 @@ import { Image } from "@kobalte/core/image";
 import { Component } from "../lib/types";
 import { createResource, useContext } from "solid-js";
 import { Button } from "@kobalte/core/button";
-import {
-	AuthContext,
-	fetchSignedInUserAvatar,
-	requestAccess,
-} from "../lib/auth";
+import { requestAccess } from "../lib/auth";
 import { tstatsClient } from "../lib/rpc";
 import { A, useLocation } from "@solidjs/router";
+import { AuthContext } from "../contexts/AuthContext";
 
-function userAvatar(userId: number) {
+function userAvatar(userId: number | null) {
 	return userId ? `https://a.ppy.sh/${userId}` : null;
 }
 
 const Navbar: Component = () => {
 	const client = tstatsClient();
 
-	const [signedInUser, _] = useContext(AuthContext);
-	const [signedInUserAvatar] = createResource(signedInUser, (id) =>
+	const ctx = useContext(AuthContext);
+	if (!ctx) {
+		console.error("No Auth Context in Navbar");
+		return <></>;
+	}
+
+	const [signedInUserAvatar] = createResource(ctx.signedInUser, (id) =>
 		userAvatar(id),
 	);
 

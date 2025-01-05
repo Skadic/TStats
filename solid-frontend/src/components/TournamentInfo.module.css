@@ -1,0 +1,29 @@
+.infoGrid {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 1/2;
+}
+
+.infoGrid > * {
+	flex: 0 1 40%;
+	@apply py-3;
+}
+
+.infoHeading {
+	@apply text-2xl font-bold text-left pr-10;
+}
+
+.infoContent {
+	@apply text-xl pl-10 text-left;
+}
+
+@media (min-width: 1024px) {
+	.infoHeading {
+		text-align: right;
+	}
+
+	.infoContent {
+		text-align: left;
+	}
+}

@@ -1,16 +1,5 @@
-import {
-	type Context,
-	createContext,
-	createSignal,
-	type Signal,
-	useContext,
-} from "solid-js";
 import { type TStatsClient, tstatsClient } from "./rpc";
 import type { DeliverAuthCodeResponse } from "./api/v1types";
-
-export const AuthContext: Context<Signal<number | null>> = createContext(
-	createSignal<number | null>(null),
-);
 
 export async function requestAccess(
 	returnUrl: string,
@@ -58,12 +47,10 @@ export async function fetchSignedInUser(
 			},
 		})
 		.then((user) => {
-			const [_, setSignedInUser] = useContext(AuthContext);
 			if (user.data?.userId) {
-				setSignedInUser(user.data.userId);
 				return user.data.userId;
 			}
-			setSignedInUser(null);
+      console.error(`error fetching signed in user: ${user.error}`)
 			return null;
 		});
 }

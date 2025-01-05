@@ -1,29 +1,36 @@
 import { Navigate, RouteSectionProps, useSearchParams } from "@solidjs/router";
 import { Component } from "../lib/types";
-import { createResource, Match, Switch, useContext } from "solid-js";
-import { AuthContext, deliverAuthCode } from "../lib/auth";
+import { createResource, Show, useContext } from "solid-js";
+import { deliverAuthCode } from "../lib/auth";
+import { AuthContext } from "../contexts/AuthContext";
 
 const AuthPage: Component<RouteSectionProps<any>> = () => {
-	const [signedInUser, setSignedInUser] = useContext(AuthContext);
+	const ctx = useContext(AuthContext);
+	if (!ctx) {
+		console.error("No Auth Context in Auth Page");
+		return <></>;
+	}
 
-	const [params, _] = useSearchParams();
+	const { refetchSignedInUser } = ctx;
+
+	const [params, _setParams] = useSearchParams();
 	const [returnUrl] = createResource(async () => {
 		const response = await deliverAuthCode(
 			params.code?.toString()!,
 			params.state?.toString()!,
 		);
-
-		setSignedInUser(response?.userId ?? null);
+		await refetchSignedInUser();
 		return response?.returnUrl;
 	});
 
 	return (
 		<div class="p-8 flex justify-around">
-			<Switch fallback={<div class="text-4xl font-bold">Authorizing...</div>}>
-				<Match when={returnUrl()}>
-					<Navigate href={returnUrl()!} />
-				</Match>
-			</Switch>
+			<Show
+				when={returnUrl()}
+				fallback={<div class="text-4xl font-bold">Authorizing...</div>}
+			>
+				{(returnUrl) => <Navigate href={returnUrl()} />}
+			</Show>
 		</div>
 	);
 };

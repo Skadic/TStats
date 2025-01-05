@@ -257,5 +257,13 @@ export interface components {
     headers: never;
     pathItems: never;
 }
+export type AuthenticatedUser = components['schemas']['AuthenticatedUser'];
+export type Country = components['schemas']['Country'];
+export type DeliverAuthCodeRequest = components['schemas']['DeliverAuthCodeRequest'];
+export type DeliverAuthCodeResponse = components['schemas']['DeliverAuthCodeResponse'];
+export type OsuMode = components['schemas']['OsuMode'];
+export type RankRange = components['schemas']['RankRange'];
+export type RequestAuthCodeResponse = components['schemas']['RequestAuthCodeResponse'];
+export type Tournament = components['schemas']['Tournament'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;
