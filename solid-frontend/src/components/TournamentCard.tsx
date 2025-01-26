@@ -2,7 +2,7 @@ import { Component, createSignal } from "solid-js";
 import { Tournament } from "../lib/api/v1types";
 import { A } from "@solidjs/router";
 
-const TournamentCard: Component<{ tournament: Tournament }> = (props) => {
+export const TournamentCard: Component<{ tournament: Tournament }> = (props) => {
 	const tournament = () => props.tournament;
 	const rankRestrictions = tournament().rankRestrictions.filter(
 		(r) => r !== undefined,
@@ -54,5 +54,3 @@ const TournamentCard: Component<{ tournament: Tournament }> = (props) => {
 		</>
 	);
 };
-
-export default TournamentCard;

@@ -45,7 +45,7 @@ impl DebugApi {
 
         country_restriction::ActiveModel {
             tournament_id: A::Set(owc23.id),
-            country_code: A::Set("GER".to_owned()),
+            country_code: A::Set("DE".to_owned()),
         }
         .insert(db)
         .await

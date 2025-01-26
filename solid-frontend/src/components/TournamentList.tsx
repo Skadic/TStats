@@ -1,7 +1,7 @@
 import { For } from "solid-js";
 import { Tournament } from "../lib/api/v1types";
 import { Component } from "../lib/types";
-import TournamentCard from "./TournamentCard";
+import { TournamentCard } from "./TournamentCard";
 
 const TournamentList: Component<{ tournaments: Tournament[] | undefined }> = (
 	props,

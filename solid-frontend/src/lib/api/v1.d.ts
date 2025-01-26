@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/owc23": {
+    "/api/owc23": {
         parameters: {
             query?: never;
             header?: never;
@@ -37,7 +37,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tournament": {
+    "/api/tournament": {
         parameters: {
             query?: never;
             header?: never;
@@ -71,7 +71,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tournament/{id}": {
+    "/api/tournament/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -107,7 +107,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth": {
+    "/api/auth": {
         parameters: {
             query?: never;
             header?: never;
@@ -167,7 +167,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/user": {
+    "/api/auth/user": {
         parameters: {
             query?: never;
             header?: never;
@@ -202,7 +202,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tournament/:tournament_id/stage": {
+    "/api/tournament/{tournament_id}/stage": {
         parameters: {
             query?: never;
             header?: never;
@@ -239,7 +239,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tournament/:tournament_id/stage/{stage_order}": {
+    "/api/tournament/{tournament_id}/stage/{stage_order}": {
         parameters: {
             query?: never;
             header?: never;

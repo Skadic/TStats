@@ -91,7 +91,8 @@ pub async fn run_server() -> Result<()> {
         ),
         "TStats API",
         "0.1",
-    );
+    )
+    .url_prefix("/api");
     let spec_endpoint = openapi_service.spec_endpoint();
     let swagger_ui = openapi_service.swagger_ui();
 
@@ -104,7 +105,6 @@ pub async fn run_server() -> Result<()> {
     info!("Starting server");
 
     let route = Route::new()
-        //.at("/*", options(cors_handler))
         .nest("/api", openapi_service)
         .nest("/swagger", swagger_ui)
         .nest("/spec", spec_endpoint)
@@ -153,17 +153,13 @@ fn setup_logger() {
             ("model", LevelFilter::DEBUG),
             ("rosu_v2", LevelFilter::INFO),
             ("tower_http", LevelFilter::INFO),
+            ("poem", LevelFilter::DEBUG),
         ]))
         .with(ErrorLayer::default());
-    if let Ok(pretty_logging_enabled) = std::env::var("LOG_PRETTY")
-        .into_diagnostic()
-        .and_then(|v| v.parse::<bool>().into_diagnostic())
-    {
-        if pretty_logging_enabled {
-            registry
-                .with(tracing_subscriber::fmt::layer().without_time().pretty())
-                .init();
-        }
+    if tstats_config().log_pretty {
+        registry
+            .with(tracing_subscriber::fmt::layer().without_time().pretty())
+            .init();
     } else {
         registry
             .with(tracing_subscriber::fmt::layer().without_time().compact())

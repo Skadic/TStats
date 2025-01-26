@@ -18,23 +18,23 @@ impl StageApi {
     }
 }
 
-#[OpenApi(prefix_path = "tournament/:tournament_id/stage")]
+#[OpenApi(prefix_path = "/tournament")]
 impl StageApi {
     
     /// Fetch all stages for a tournament.
-    #[oai(path = "/", method = "get")]
+    #[oai(path = "/:tournament_id/stage", method = "get")]
     #[tracing::instrument(skip_all, name = "get_all_stages")]
     async fn get_all(&self, Path(tournament_id): Path<usize>) -> poem::Result<Json<Vec<StageDto>>> {
         self.stage_service
             .get_all(tournament_id)
-            .log_error("could not fetch tournaments")
+            .log_error("could not fetch stages")
             .internal_server_error()
             .await
             .map(Json)
     }
 
     /// Fetch a single stage for a tournament.
-    #[oai(path = "/:stage_order", method = "get")]
+    #[oai(path = "/:tournament_id/stage/:stage_order", method = "get")]
     #[tracing::instrument(skip_all, name = "get_stage_by_id")]
     async fn get(
         &self,
@@ -43,7 +43,7 @@ impl StageApi {
     ) -> poem::Result<Json<StageDto>> {
         self.stage_service
             .get_by_id(tournament_id, stage_order)
-            .log_error("could not fetch tournament")
+            .log_error("could not fetch stage")
             .internal_server_error()
             .and_then(|opt| async { opt.ok_or(poem::Error::from_status(StatusCode::NOT_FOUND)) })
             .await

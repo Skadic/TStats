@@ -4,9 +4,10 @@ import type { Tournament } from "./api/v1types";
 export async function getTournamentById(
 	id: number,
 	client: TStatsClient = tstatsClient(),
-): Promise<Tournament | null> {
-	 return await client
-		.GET("/tournament/{id}", {
+): Promise<Tournament> {
+	console.log(`fetching tournament with id ${id}`)
+	return await client
+		.GET("/api/tournament/{id}", {
 			params: {
 				path: {
 					id,
@@ -16,15 +17,13 @@ export async function getTournamentById(
 		.then(
 			(res) => {
 				const tournament = res.data;
-				if (res.data) {
-					return res.data;
+				if (tournament) {
+					return tournament;
 				}
-				console.error(`could not fetch tournament with id ${id}: ${res.error}`);
-				return null;
+				throw new Error(`could not fetch tournament with id ${id}: ${res.error}`);
 			},
 			(err) => {
-				console.error(`could not fetch tournament with id ${id}: ${err}`);
-				return null;
+				throw new Error(`could not fetch tournament with id ${id}: ${err}`);
 			},
 		);
 }

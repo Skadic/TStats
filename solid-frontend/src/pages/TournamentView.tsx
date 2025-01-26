@@ -1,36 +1,52 @@
-import { Match, Show, Switch, useContext } from "solid-js";
+import { createResource, For, Index, Match, Show, Switch, useContext } from "solid-js";
 import { TournamentContext } from "../contexts/TournamentContext";
 import TournamentInfo from "../components/TournamentInfo";
 
 import { PageComponent } from "../lib/types";
+import { Accordion } from "@kobalte/core/accordion";
+import { getAllStages } from "../lib/stage";
 
 export const TournamentView: PageComponent = () => {
 	const tournamentContext = useContext(TournamentContext);
 	if (!tournamentContext) {
 		console.error("No tournament context in tournament view");
+		return <>Tournament not found</>
 	}
+
+	const [stages] = createResource(tournamentContext, tournament => getAllStages(tournament.id));
+
 	return (
-		<Show
-			when={tournamentContext}
-			fallback={<div>Tournament not found</div>}
-			keyed
-		>
-			{(tournamentResult) => (
-				<Switch fallback={<div>Loading...</div>}>
-					<Match when={tournamentResult() === null}>Tournament not found</Match>
-					<Match when={tournamentResult()}>
-						{(tournament) => (
-							<div class="rounded-xl flex flex-col justify-center gap-8">
-								<TournamentInfo tournament={tournament()} />
-								<div class="lg:w-3/5 m-auto z-10">
-									<hr class="py-5" />
-									{/* Children */}
-								</div>
-							</div>
-						)}
-					</Match>
-				</Switch>
-			)}
-		</Show>
+		<Switch>
+			<Match when={!tournamentContext()}>Tournament not found</Match>
+			<Match when={tournamentContext()}>
+				{(tournament) =>
+					<div class="rounded-xl flex flex-col justify-center gap-8">
+						<TournamentInfo tournament={tournament()} />
+						<div class="lg:w-3/5 m-auto z-10">
+							<hr class="py-5" />
+
+							<Show when={stages()}  fallback={<div class="p-2 min-w-full">Could not fetch stages</div>}>
+								{(stages) =>
+									<Accordion collapsible>
+										<Index each={stages()} fallback={<div class="p-2 min-w-full">No stages found</div>}>
+											{(stage, i) =>
+												<Accordion.Item value={`stage-${i}`}>
+													<Accordion.Header class="text-4xl font-bold p-3 pb-5">
+														<Accordion.Trigger>{stage().name}</Accordion.Trigger>
+													</Accordion.Header>
+													<Accordion.Content>
+														Hello
+													</Accordion.Content>
+												</Accordion.Item>
+											}
+										</Index>
+									</Accordion>
+								}
+							</Show>
+						</div>
+					</div>
+				}
+			</Match>
+		</Switch>
 	);
 };

@@ -5,7 +5,7 @@ export async function requestAccess(
 	returnUrl: string,
 	client: TStatsClient = tstatsClient(),
 ): Promise<string | undefined> {
-	const response = await client.GET("/auth", {
+	const response = await client.GET("/api/auth", {
 		params: { query: { returnUrl: returnUrl } },
 	});
 
@@ -22,7 +22,7 @@ export async function deliverAuthCode(
 	csrfToken: string,
 	client: TStatsClient = tstatsClient(),
 ): Promise<DeliverAuthCodeResponse | undefined> {
-	const response = await client.POST("/auth", {
+	const response = await client.POST("/api/auth", {
 		body: {
 			authCode,
 			state: csrfToken,
@@ -41,7 +41,7 @@ export async function fetchSignedInUser(
 	client: TStatsClient = tstatsClient(),
 ): Promise<number | null> {
 	return client
-		.GET("/auth/user", {
+		.GET("/api/auth/user", {
 			params: {
 				cookie: undefined,
 			},
