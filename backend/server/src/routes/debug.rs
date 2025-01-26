@@ -1,4 +1,3 @@
-use miette::{Context, IntoDiagnostic};
 use model::db::sea_orm_active_enums::{MatchType, OsuMode};
 use model::db::{
     country_restriction, pool_bracket, pool_map, stage, team, team_member, tournament,
@@ -41,9 +40,8 @@ impl DebugApi {
         }
         .insert(db)
         .await
-        .into_diagnostic()
-        .wrap_err("could not insert owc23")
-        .log_internal_server_error("could not insert tournament")?;
+        .log_error("could not insert owc23")
+        .internal_server_error()?;
 
         country_restriction::ActiveModel {
             tournament_id: A::Set(owc23.id),
@@ -51,9 +49,8 @@ impl DebugApi {
         }
         .insert(db)
         .await
-        .into_diagnostic()
-        .wrap_err("could not insert owc23")
-        .log_internal_server_error("could not insert owc23")?;
+        .log_error("could not insert owc23")
+        .internal_server_error()?;
 
         let add_team_member = |id, player_id| async move {
             team_member::ActiveModel {

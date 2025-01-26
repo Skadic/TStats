@@ -1,0 +1,5 @@
+backend_host = "0.0.0.0"
+backend_port = 3000
+frontend_addr = "http://localhost:5173"
+log_pretty = true
+

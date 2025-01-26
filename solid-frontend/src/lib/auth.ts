@@ -50,7 +50,7 @@ export async function fetchSignedInUser(
 			if (user.data?.userId) {
 				return user.data.userId;
 			}
-      console.error(`error fetching signed in user: ${user.error}`)
+			console.error(`error fetching signed in user: ${user.error}`);
 			return null;
 		});
 }

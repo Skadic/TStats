@@ -1,23 +1,27 @@
 use std::sync::Arc;
 
 use model::dto::auth::{
-    AuthenticatedUserDto, DeliverAuthCodeRequestDto, DeliverAuthCodeResponseDto,
-    RequestAuthCodeResponseDto,
-};
+        AuthenticatedUserDto, DeliverAuthCodeRequestDto, DeliverAuthCodeResponseDto,
+        RequestAuthCodeResponseDto,
+    };
 use poem::session::Session;
 use poem_openapi::{param::Query, payload::Json, OpenApi};
 use tracing::debug;
-use utils::consts::SESSION_CONTENT;
+use utils::{consts::SESSION_CONTENT, LogErrorFuture, ToPoemErrorFuture};
 
-use crate::service::{AuthService, SessionContent};
+use crate::service::{AuthService, OsuService, SessionContent};
 
 pub struct AuthApi {
     auth_service: Arc<AuthService>,
+    osu_service: Arc<OsuService>,
 }
 
 impl AuthApi {
-    pub fn new(auth_service: Arc<AuthService>) -> Self {
-        Self { auth_service }
+    pub fn new(auth_service: Arc<AuthService>, osu_service: Arc<OsuService>) -> Self {
+        Self {
+            auth_service,
+            osu_service,
+        }
     }
 }
 
@@ -33,6 +37,8 @@ impl AuthApi {
         let auth_url = self
             .auth_service
             .request_auth_code(&return_url)
+            .log_error("could not request auth code")
+            .internal_server_error()
             .await?
             .to_string();
         Ok(Json(RequestAuthCodeResponseDto { auth_url }))
@@ -50,12 +56,14 @@ impl AuthApi {
         let auth_result = self
             .auth_service
             .deliver_auth_code(&request.auth_code, &request.state)
+            .log_error("could not deliver auth code")
+            .internal_server_error()
             .await?;
         session.set(SESSION_CONTENT, &auth_result.session);
 
         Ok(Json(DeliverAuthCodeResponseDto {
             return_url: auth_result.return_url,
-            user_id: auth_result.session.user_id,
+            user: auth_result.session.user,
         }))
     }
 
@@ -66,10 +74,10 @@ impl AuthApi {
         &self,
         session: &Session,
     ) -> poem::Result<Json<Option<AuthenticatedUserDto>>> {
-        let session = session.get::<SessionContent>(SESSION_CONTENT);
+        let Some(session) = session.get::<SessionContent>(SESSION_CONTENT) else {
+            return Ok(Json(None));
+        };
 
-        Ok(Json(session.map(|session| AuthenticatedUserDto {
-            user_id: session.user_id,
-        })))
+        Ok(Json(Some(session.user)))
     }
 }

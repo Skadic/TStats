@@ -6,8 +6,10 @@ const Layout: LayoutComponent<any> = (props) => {
 	return (
 		<div class="contents">
 			<div class="flex flex-col">
-				<AuthContextProvider><Navbar /></AuthContextProvider>
-				<div class="flex flex-col">{props.children}</div>
+				<AuthContextProvider>
+					<Navbar />
+					<div class="flex flex-col">{props.children}</div>
+				</AuthContextProvider>
 			</div>
 		</div>
 	);

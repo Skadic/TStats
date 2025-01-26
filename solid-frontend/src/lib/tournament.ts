@@ -6,7 +6,7 @@ export async function getTournamentById(
 	client: TStatsClient = tstatsClient(),
 ): Promise<Tournament | null> {
 	 return await client
-		.GET("/tournaments/{id}", {
+		.GET("/tournament/{id}", {
 			params: {
 				path: {
 					id,

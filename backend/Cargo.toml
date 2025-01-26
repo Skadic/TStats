@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["model", "server", "proto", "utils"]
+members = ["model", "server", "utils"]
 
 [package]
 name = "tstats_backend"
@@ -14,7 +14,7 @@ path = "src/main.rs"
 [workspace.dependencies]
 
 chrono = { version = "0.4" }
-config = "0.14"
+config = { version = "0.15", features = ["toml"] }
 deadpool-redis = { version = "0.18", features = ["rt_tokio_1"] }
 # Utilities for working with futures
 futures = "0.3"
@@ -22,7 +22,8 @@ jwt = "0.16"
 miette = { version = "7.4.0", features = ["fancy"]}
 poem = { version = "3.1", features = [ "redis-session", "server", "tokio-stream", "rustls"]}
 poem-openapi = { version = "5.1", features = [ "swagger-ui", "chrono" ] }
-redis = { version = "0.27", features = ["aio", "tokio-comp"] }
+redis = { version = "0.28", features = ["aio", "tokio-comp"] }
+rosu-v2 = { version = "0.9", features = ["serialize"] }
 # SQL ORM
 sea-orm = { version = "1.1", features = ["runtime-tokio-rustls"] }
 serde = { version = "1", features = ["derive"] }
@@ -35,13 +36,12 @@ sqlx = { version = "0.8", features = [
 ] }
 thiserror = "2"
 tokio = { version = "1.42", features = ["rt-multi-thread", "macros", "signal"] }
+tracing-subscriber = { version = "0.3" }
 url = "2.5"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
-tracing-subscriber = { version = "0.3" }
 server = { path = "server" }
 miette.workspace = true
 tokio.workspace = true

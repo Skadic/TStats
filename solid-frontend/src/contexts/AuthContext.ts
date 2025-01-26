@@ -2,6 +2,9 @@ import { createContext, createResource, type Resource } from "solid-js";
 import { fetchSignedInUser } from "../lib/auth";
 import { tstatsClient } from "../lib/rpc";
 
+
+export const AuthContext = createContext<AuthContextContent | undefined>();
+
 const client = tstatsClient();
 const [signedInUser, { mutate: _mutate, refetch }] = createResource<
 	number | null
@@ -11,8 +14,6 @@ const refetchUser = async () => {
 	await refetch();
 	return await fetchSignedInUser(client);
 };
-
-export const AuthContext = createContext<AuthContextContent | undefined>();
 
 export type AuthContextContent = {
 	signedInUser: Resource<number | null>;

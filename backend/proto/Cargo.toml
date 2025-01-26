@@ -15,7 +15,7 @@ prost = { version = "0.13" }
 prost-types = "0.13"
 tonic = "0.12"
 thiserror = "1"
-rosu-v2 = "0.9"
+rosu-v2.workspace = true
 serde = { version = "1", features = ["derive"] }
 sqlx.workspace = true
 url = "2.5"

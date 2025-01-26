@@ -4,13 +4,12 @@ import { createResource, Show, useContext } from "solid-js";
 import { deliverAuthCode } from "../lib/auth";
 import { AuthContext } from "../contexts/AuthContext";
 
-const AuthPage: Component<RouteSectionProps<any>> = () => {
+export const AuthPage: Component<RouteSectionProps<any>> = () => {
 	const ctx = useContext(AuthContext);
 	if (!ctx) {
 		console.error("No Auth Context in Auth Page");
 		return <></>;
 	}
-
 	const { refetchSignedInUser } = ctx;
 
 	const [params, _setParams] = useSearchParams();
@@ -34,5 +33,3 @@ const AuthPage: Component<RouteSectionProps<any>> = () => {
 		</div>
 	);
 };
-
-export default AuthPage;

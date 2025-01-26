@@ -40,6 +40,8 @@ impl TournamentService {
             .into_diagnostic()
             .wrap_err("failed to get tournaments")?;
 
+        tracing::info!("{tournaments:?}");
+
         // Get rank restrictions
         let rank_restrictions = tournaments
             .load_many(
@@ -66,33 +68,17 @@ impl TournamentService {
         let (rank_restrictions, country_restrictions) =
             tokio::try_join!(rank_restrictions, country_restrictions)?;
 
-        Ok(
-            futures::stream::iter(izip!(tournaments, rank_restrictions, country_restrictions,))
-                .then(
-                    |(tournament, rank_restriction, country_restriction)| async move {
-                        let rank_restrictions = rank_restriction.iter().map(Into::into).collect();
-                        let country_restrictions =
-                            country_restriction.iter().map(Into::into).collect();
-                        let banner = self.read_banner(tournament.banner).await?;
-
-                        Ok::<_, miette::Error>(TournamentDto {
-                            id: tournament.id,
-                            name: tournament.name,
-                            shorthand: tournament.shorthand,
-                            format: tournament.format as u32,
-                            bws: tournament.bws,
-                            mode: tournament.mode.into(),
-                            banner,
-                            start_date: tournament.start_date.map(Into::into),
-                            end_date: tournament.end_date.map(Into::into),
-                            rank_restrictions,
-                            country_restrictions,
-                        })
-                    },
-                )
-                .try_collect::<Vec<_>>()
-                .await?,
-        )
+        futures::stream::iter(izip!(tournaments, rank_restrictions, country_restrictions,))
+            .then(
+                |(tournament, rank_restrictions, country_restrictions)| async move {
+                    let banner = self.read_banner(tournament.banner.as_ref()).await?;
+                    Ok::<_, miette::Error>(
+                        (tournament, rank_restrictions, country_restrictions, banner).into(),
+                    )
+                },
+            )
+            .try_collect::<Vec<_>>()
+            .await
     }
 
     /// Fetch a single Tournament by its id.
@@ -132,28 +118,22 @@ impl TournamentService {
                     .wrap_err("failed to get country restrictions")
             });
 
-        let banner = self.read_banner(tournament.banner);
+        let banner = self.read_banner(tournament.banner.as_ref());
 
         // Wait for the queries and unpack them
         let (rank_restrictions, country_restrictions, banner) =
             tokio::try_join!(rank_restrictions, country_restrictions, banner)?;
 
-        Ok(Some(TournamentDto {
-            id: tournament.id,
-            name: tournament.name,
-            shorthand: tournament.shorthand,
-            format: tournament.format as u32,
-            bws: tournament.bws,
-            mode: tournament.mode.into(),
-            banner,
-            start_date: tournament.start_date.map(Into::into),
-            end_date: tournament.end_date.map(Into::into),
-            rank_restrictions: rank_restrictions.into_iter().map(Into::into).collect(),
-            country_restrictions: country_restrictions.into_iter().map(Into::into).collect(),
-        }))
+        Ok(Some(
+            (tournament, rank_restrictions, country_restrictions, banner).into(),
+        ))
     }
 
-    async fn read_banner(&self, banner_name: Option<String>) -> miette::Result<Option<Vec<u8>>> {
+    async fn read_banner<T: AsRef<str>>(
+        &self,
+        banner_name: Option<T>,
+    ) -> miette::Result<Option<Vec<u8>>> {
+        let banner_name = banner_name.map(|s| s.as_ref().to_owned());
         OptionFuture::from(
             banner_name.map(|banner_name| tokio::fs::read(self.paths.banner(&banner_name))),
         )

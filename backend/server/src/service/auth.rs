@@ -1,19 +1,39 @@
 use std::{ops::Deref, sync::Arc, time::Duration};
 
-use http::StatusCode;
+use futures::TryFutureExt;
+use miette::{Context, IntoDiagnostic};
+use model::dto::auth::AuthenticatedUserDto;
 use oauth2::{
     basic::BasicClient, AccessToken, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
     RedirectUrl, RefreshToken, Scope, TokenResponse, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use url::Url;
 
 use utils::{
-    cache::CacheResult, crypt::EncryptedToken, Cacheable, LogPoemError, LogPoemErrorFuture,
+    cache::{CacheError, CacheResult},
+    crypt::EncryptedToken,
+    Cacheable,
 };
 
 use crate::RedisConnectionPool;
 
+type OAuthClient = oauth2::Client<
+    oauth2::StandardErrorResponse<oauth2::basic::BasicErrorResponseType>,
+    oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>,
+    oauth2::StandardTokenIntrospectionResponse<
+        oauth2::EmptyExtraTokenFields,
+        oauth2::basic::BasicTokenType,
+    >,
+    oauth2::StandardRevocableToken,
+    oauth2::StandardErrorResponse<oauth2::RevocationErrorResponseType>,
+    oauth2::EndpointSet,
+    oauth2::EndpointNotSet,
+    oauth2::EndpointNotSet,
+    oauth2::EndpointNotSet,
+    oauth2::EndpointSet,
+>;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct OsuAuthCode {
@@ -34,7 +54,8 @@ impl Deref for OsuCsrfToken {
 
 #[derive(Clone)]
 pub struct AuthService {
-    oauth_client: BasicClient,
+    oauth_client: OAuthClient,
+    http_client: oauth2::reqwest::Client,
     redis: RedisConnectionPool,
 }
 
@@ -42,6 +63,7 @@ impl AuthService {
     pub fn new(redis: &RedisConnectionPool) -> Arc<Self> {
         Arc::new(Self {
             oauth_client: get_auth_client(),
+            http_client: oauth2::reqwest::Client::new(),
             redis: redis.clone(),
         })
     }
@@ -49,10 +71,26 @@ impl AuthService {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionContent {
-    pub user_id: u32,
+    pub user: AuthenticatedUserDto,
     pub access_token: AccessToken,
     pub refresh_token: RefreshToken,
     pub expires_in: Duration,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AuthError {
+    #[error("token missing in response from osu api: {0}")]
+    NoTokenFromOsuApi(&'static str),
+    #[error("error in osu oauth flow: {0}")]
+    OAuthError(&'static str),
+    #[error("CSRF token missing in cache")]
+    NoCsrfToken,
+    #[error("CSRF token mismatch")]
+    CsrfTokenMismatch,
+    #[error("error fetching osu user")]
+    ErrorFetchingOsuUser,
+    #[error(transparent)]
+    CacheError(#[from] CacheError),
 }
 
 #[derive(Debug)]
@@ -63,9 +101,9 @@ pub struct AuthResult {
 
 impl AuthService {
     #[tracing::instrument(skip_all)]
-    pub async fn request_auth_code(&self, return_url: &str) -> poem::Result<Url> {
+    pub async fn request_auth_code(&self, return_url: &str) -> Result<Url, AuthError> {
         let auth_url = OsuAuthCode::request(return_url, &self.oauth_client, &self.redis)
-            .log_internal_server_error("error requesting auth code")
+            .map_err(|_| AuthError::OAuthError("error requesting auth code"))
             .await?;
         Ok(auth_url)
     }
@@ -75,38 +113,42 @@ impl AuthService {
         &self,
         auth_code: &str,
         csrf_token: &str,
-    ) -> poem::Result<AuthResult> {
+    ) -> Result<AuthResult, AuthError> {
         let auth_code = AuthorizationCode::new(auth_code.to_string());
         let redis = &self.redis;
         let client = &self.oauth_client;
 
+        info!(state = csrf_token, "trying to sign in user");
+
         // Check whether the CSRF token received from the server matches the one from the cache
         let cached_csrf_token = OsuCsrfToken::uncache(redis, csrf_token)
-            .log_internal_server_error("error fetching CSRF token")
             .await?
-            .log_error("missing CSRF token in cache", StatusCode::UNAUTHORIZED)?;
+            .ok_or(AuthError::NoCsrfToken)?;
 
         if cached_csrf_token.secret() != &csrf_token {
-            return None.log_internal_server_error("CSRF token mismatch");
+            return Err(AuthError::CsrfTokenMismatch);
         }
 
         // Request Auth Token from osu API
         let token = client
             .exchange_code(auth_code)
-            .request_async(oauth2::reqwest::async_http_client)
-            .log_internal_server_error("could not get token from osu API")
+            .request_async(&self.http_client)
+            .map_err(|_| AuthError::OAuthError("could not get token from osu API"))
             .await?;
 
         let access_token = token.access_token().clone();
         let refresh_token = token
             .refresh_token()
-            .log_internal_server_error("osu API did not send refresh token")?
+            .ok_or(AuthError::OAuthError("osu API did not send refresh token"))?
             .clone();
         let expires_in = token
             .expires_in()
-            .log_internal_server_error("osu API did not send token expiry")?;
+            .ok_or(AuthError::OAuthError("osu API did not send refresh token"))?;
 
-        let user = request_user_data(access_token.secret().as_str()).await?;
+        let user = self
+            .request_user_data(access_token.secret().as_str())
+            .await
+            .map_err(|_| AuthError::ErrorFetchingOsuUser)?;
         let user_id = user.user_id;
 
         tracing::debug!(user_id, "successfully authenticated user");
@@ -114,7 +156,7 @@ impl AuthService {
         // All is well, so we save the accesss token and refresh token
         return Ok(AuthResult {
             session: SessionContent {
-                user_id,
+                user: user.into(),
                 access_token,
                 refresh_token,
                 expires_in,
@@ -122,52 +164,57 @@ impl AuthService {
             return_url: cached_csrf_token.1,
         });
     }
-}
 
-#[tracing::instrument(skip_all)]
-async fn request_user_data(access_token: &str) -> poem::Result<rosu_v2::model::user::User> {
-    use oauth2::http::{HeaderMap, HeaderName, HeaderValue};
-    // Try to request the current user's data
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        HeaderName::from_static("accept"),
-        HeaderValue::from_static("application/json"),
-    );
-    headers.insert(
-        HeaderName::from_static("content-type"),
-        HeaderValue::from_static("application/json"),
-    );
-    headers.insert(
-        HeaderName::from_static("authorization"),
-        HeaderValue::from_str(&format!("Bearer {access_token}")).unwrap(),
-    );
-    let resp = oauth2::reqwest::async_http_client(oauth2::HttpRequest {
-        url: Url::parse("https://osu.ppy.sh/api/v2/me").unwrap(),
-        method: oauth2::http::Method::GET,
-        headers,
-        body: vec![],
-    })
-    .await
-    .log_error(
-        "could not request user data using token",
-        StatusCode::UNAUTHORIZED,
-    )?;
+    #[tracing::instrument(skip_all)]
+    async fn request_user_data(
+        &self,
+        access_token: &str,
+    ) -> miette::Result<rosu_v2::model::user::User> {
+        use oauth2::http::{HeaderMap, HeaderName, HeaderValue};
+        // Try to request the current user's data
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("accept"),
+            HeaderValue::from_static("application/json"),
+        );
+        headers.insert(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_static("application/json"),
+        );
+        headers.insert(
+            HeaderName::from_static("authorization"),
+            HeaderValue::from_str(&format!("Bearer {access_token}")).unwrap(),
+        );
 
-    // We should have now received the user data. If not, we're probably not authenticated yet
-    let body_content = String::from_utf8_lossy(resp.body.as_slice());
-    let user = serde_json::from_str::<rosu_v2::model::user::User>(body_content.as_ref())
-        .log_error(
-            "could not parse data from osu API",
-            StatusCode::UNAUTHORIZED,
-        )?;
+        let resp = self
+            .http_client
+            .get(Url::parse("https://osu.ppy.sh/api/v2/me").unwrap())
+            .headers(headers)
+            .send()
+            .await
+            .into_diagnostic()
+            .wrap_err("could not fetch osu user")?;
 
-    Ok(user)
+        let body = resp
+            .bytes()
+            .await
+            .into_diagnostic()
+            .wrap_err("could not get bytes of osu user")?;
+
+        // We should have now received the user data. If not, we're probably not authenticated yet
+        let body_content = String::from_utf8_lossy(&body);
+        let user = serde_json::from_str::<rosu_v2::model::user::User>(body_content.as_ref())
+            .into_diagnostic()
+            .wrap_err("could not parse data from osu API")?;
+
+        Ok(user)
+    }
 }
 
 impl OsuAuthCode {
     pub async fn request(
         return_url: impl AsRef<str>,
-        client: &BasicClient,
+        client: &OAuthClient,
         redis: &RedisConnectionPool,
     ) -> CacheResult<Url> {
         let (auth_url, csrf_token) = client
@@ -208,19 +255,18 @@ impl Cacheable for OsuCsrfToken {
     }
 }
 
-pub fn get_auth_client() -> BasicClient {
+pub fn get_auth_client() -> OAuthClient {
     // We know these exist and are valid. Otherwise, this app wouldn't be running
     let client_id = std::env::var(crate::OSU_CLIENT_ID).unwrap();
     let client_secret = std::env::var(crate::OSU_CLIENT_SECRET).unwrap();
-    BasicClient::new(
-        ClientId::new(client_id),
-        Some(ClientSecret::new(client_secret)),
-        // These URLs are static. They will parse
-        AuthUrl::new("https://osu.ppy.sh/oauth/authorize".to_string()).unwrap(),
-        Some(TokenUrl::new("https://osu.ppy.sh/oauth/token".to_string()).unwrap()),
-    )
-    .set_redirect_uri(RedirectUrl::new("http://localdev.skadic.moe:5173/auth".to_string()).unwrap())
-    .set_auth_type(oauth2::AuthType::RequestBody)
+    BasicClient::new(ClientId::new(client_id))
+        .set_client_secret(ClientSecret::new(client_secret))
+        .set_auth_uri(AuthUrl::new("https://osu.ppy.sh/oauth/authorize".to_string()).unwrap())
+        .set_token_uri(TokenUrl::new("https://osu.ppy.sh/oauth/token".to_string()).unwrap())
+        .set_redirect_uri(
+            RedirectUrl::new("http://localdev.skadic.moe:5173/auth".to_string()).unwrap(),
+        )
+        .set_auth_type(oauth2::AuthType::RequestBody)
 }
 
 #[derive(Serialize, Deserialize)]

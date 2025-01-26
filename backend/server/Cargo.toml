@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 
 model = { path = "../model" }
-proto = { path = "../proto" }
 utils = { path = "../utils" }
 
 chrono.workspace = true
@@ -20,19 +19,19 @@ futures.workspace = true
 # HTTP utilities
 http = "1.1"
 # Iterator utilities
-itertools = "0.13"
+itertools = "0.14"
 jwt.workspace = true
 # Convenient error handling
 miette.workspace = true
 # Authentication using OAuth2
-oauth2 = "4.4"
+oauth2 = "5"
 poem.workspace = true
 poem-openapi.workspace = true
 rand = "0.8"
 # Redis client
 redis.workspace = true
 # Osu API connector
-rosu-v2 = { version = "0.9", features = ["serialize"] }
+rosu-v2.workspace = true
 sea-orm.workspace = true
 # Serialization/Deserialization
 serde.workspace = true
@@ -53,6 +52,7 @@ scrypt = "0.11.0"
 base64 = "0.22.0"
 aes-gcm = { version = "0.10.3", features = ["std"] }
 tracing-error = "0.2.0"
+tracing-subscriber.workspace = true
 
 [dev-dependencies]
 ctor = "0.2.7"

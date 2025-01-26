@@ -4,12 +4,11 @@ use std::fmt::Display;
 use std::{convert::Infallible, future::Future};
 
 use deadpool_redis::redis::{AsyncCommands, FromRedisValue};
-use miette::{Context, IntoDiagnostic};
+use miette::{Context, IntoDiagnostic, Diagnostic};
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
 /// A trait for structs cached in the redis store
-#[async_trait::async_trait]
 pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     type KeyType: ?Sized + Display + Send + Sync;
 
@@ -41,12 +40,12 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     ///
     /// An error can occur when serialization fails, or the set command in the redis store fails.
     ///
-    async fn cache(
+    fn cache(
         &self,
         redis: &deadpool_redis::Pool,
         expiry_time: Option<usize>,
-    ) -> Result<(), CacheError> {
-        cache(redis, self, expiry_time).await
+    ) -> impl Future<Output = Result<(), CacheError>> {
+        cache(redis, self, expiry_time)
     }
 
     /// Removes a value from redis.
@@ -60,11 +59,11 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     ///
     /// An error can occur when deserialization fails, or the del command in the redis store fails.
     ///
-    async fn uncache(
+    fn uncache(
         redis: &deadpool_redis::Pool,
         key: &Self::KeyType,
-    ) -> Result<Option<Self>, CacheError> {
-        uncache(redis, key).await
+    ) -> impl Future<Output = Result<Option<Self>, CacheError>> {
+        uncache(redis, key)
     }
 
     /// Gets a value from redis. Or `Ok(None)` if it doesn't exist
@@ -78,11 +77,11 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     ///
     /// An error can occur when deserialization fails, or the get command in the redis store fails.
     ///
-    async fn get_cached(
+    fn get_cached(
         key: &Self::KeyType,
         redis: &deadpool_redis::Pool,
-    ) -> Result<Option<Self>, CacheError> {
-        get_cached(redis, key).await
+    ) -> impl Future<Output = Result<Option<Self>, CacheError>> {
+        get_cached(redis, key)
     }
 
     /// Tries to get a value from the cache and returns it, if it exist.
@@ -100,16 +99,16 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     ///
     /// An error can occur during (de-)seriaization or if the redis set command fails.
     ///
-    async fn get_cached_or_infallible<Fut>(
+    fn get_cached_or_infallible<Fut>(
         redis: &deadpool_redis::Pool,
         key: &Self::KeyType,
         expiry_time: Option<usize>,
         get_fn: impl FnOnce() -> Fut + Send,
-    ) -> Result<Self, CacheError>
+    ) -> impl Future<Output = Result<Self, CacheError>>
     where
         Fut: Future<Output = Self> + Send,
     {
-        get_cached_or_infallible(redis, key, expiry_time, get_fn).await
+        get_cached_or_infallible(redis, key, expiry_time, get_fn)
     }
 
     /// Tries to get a value from the cache and returns it, if it exist.
@@ -128,24 +127,24 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     /// An error can occur during (de-)seriaization, if the redis set command fails or if the `get_fn`
     /// fails.
     ///
-    async fn get_cached_or<E, Fut>(
+    fn get_cached_or<E, Fut>(
         redis: &deadpool_redis::Pool,
         key: &Self::KeyType,
         expiry_time: Option<usize>,
         get_fn: impl FnOnce() -> Fut + Send,
-    ) -> Result<Self, CacheError>
+    ) -> impl Future<Output = Result<Self, CacheError>>
     where
         E: 'static + std::error::Error + Send + Sync,
         Fut: Future<Output = Result<Self, E>> + Send,
     {
-        get_cached_or(redis, key, expiry_time, get_fn).await
+        get_cached_or(redis, key, expiry_time, get_fn)
     }
 }
 
 pub type CacheResult<T> = Result<T, CacheError>;
 
 /// An error that can occur during caching
-#[derive(Debug, Error)]
+#[derive(Debug, Diagnostic, Error)]
 pub enum CacheError {
     #[error("error during (de)serialization: {0}")]
     Serde(#[from] serde_json::Error),
@@ -154,6 +153,7 @@ pub enum CacheError {
     #[error("error in redis connection pool: {0}")]
     Pool(#[from] deadpool_redis::PoolError),
     #[error("error in request: {0}")]
+    #[diagnostic(transparent)]
     Request(miette::Error),
 }
 

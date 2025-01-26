@@ -5,10 +5,10 @@ import "./index.css";
 import { Route, Router } from "@solidjs/router";
 import App from "./App";
 import Layout from "./layouts/Layout";
-import TournamentListView from "./pages/TournamentListView";
-import AuthPage from "./pages/AuthPage";
-import TournamentContextProvider from "./layouts/TournamentContextProvider";
-import TournamentView from "./pages/TournamentView";
+import { Homepage } from "./pages/Homepage";
+import { AuthPage } from "./pages/AuthPage";
+import { TournamentView } from "./pages/TournamentView";
+import { TournamentLayout } from "./layouts/TournamentLayout";
 
 const root = document.getElementById("root");
 
@@ -23,10 +23,10 @@ render(
 		<Router root={Layout}>
 			<Route path="/test" component={App} />
 			<Route path="/auth" component={AuthPage} />
-			<Route path="/" component={TournamentListView} />
-      <Route path="/tournament/:id" component={TournamentContextProvider}>
-        <Route path="/" component={TournamentView}/>
-      </Route>
+			<Route path="/" component={Homepage} />
+			<Route path="/tournament/:id" component={TournamentLayout}>
+				<Route path="/" component={TournamentView} />
+			</Route>
 		</Router>
 	),
 	root!,

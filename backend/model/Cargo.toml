@@ -9,6 +9,7 @@ edition = "2021"
 chrono.workspace = true
 utils = { path = "../utils" }
 poem-openapi.workspace = true
+rosu-v2.workspace = true
 sea-orm = { version = "1", features = [
   "sqlx-postgres",
   "runtime-tokio-rustls",

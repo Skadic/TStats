@@ -4,3 +4,5 @@
 *.local
 .prod_env
 apidoc.yaml^
+config/tstats/config-*
+certs

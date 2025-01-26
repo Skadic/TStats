@@ -1,30 +1,33 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
-use base64::prelude::BASE64_STANDARD;
-use base64::Engine;
 use deadpool_redis::Config;
-use http::{HeaderValue, Method};
-use miette::{miette, Context, IntoDiagnostic, Result};
+use http::Method;
+use miette::{Context, IntoDiagnostic, Result};
 use poem::listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener};
 use poem::middleware::Cors;
 use poem::session::{CookieConfig, CookieSession};
-use poem::web::cookie::{CookieKey, SameSite};
-use poem::{handler, options, EndpointExt, Route, Server};
+use poem::web::cookie::SameSite;
+use poem::{handler, EndpointExt, Route, Server};
 use poem_openapi::OpenApiService;
 use rosu_v2::Osu;
 use routes::auth::AuthApi;
+use routes::debug::DebugApi;
+use routes::stage::StageApi;
 use routes::tournament::TournamentApi;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use service::TStatsServices;
+use settings::TStatsConfig;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use tracing::level_filters::LevelFilter;
 use tracing::{error, info, info_span, warn};
 
-use routes::debug::DebugApi;
-
+use tracing_error::ErrorLayer;
+use tracing_subscriber::filter::Targets;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 use utils::{consts::*, TStatsPaths};
 
 type RedisConnection = deadpool_redis::Connection;
@@ -32,6 +35,13 @@ type RedisConnectionPool = deadpool_redis::Pool;
 
 mod routes;
 mod service;
+mod settings;
+
+static CONFIG: LazyLock<TStatsConfig> = LazyLock::new(|| TStatsConfig::read().unwrap());
+
+pub fn tstats_config() -> &'static TStatsConfig {
+    &CONFIG
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -44,44 +54,30 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn redis_connection(&self) -> Result<RedisConnection, miette::Error> {
-        self.redis.get().await.map_err(|e| {
-            error!(source = %e, "could not get redis connection");
-            miette!("could not connect to redis")
-        })
+    pub async fn redis_connection(&self) -> miette::Result<RedisConnection> {
+        self.redis
+            .get()
+            .await
+            .into_diagnostic()
+            .wrap_err("could not connect to redis")
+            .inspect_err(|e| {
+                error!(error = %e, "could not get redis connection");
+            })
     }
 }
 
 const KEY: &str = include_str!("../../../certs/private.key.pem");
 const CERT: &str = include_str!("../../../certs/domain.cert.pem");
 
-#[tracing::instrument]
+//#[tracing::instrument]
 pub async fn run_server() -> Result<()> {
-    let server_setup_span = info_span!("server_setup").entered();
+    setup_logger();
+    let cfg = tstats_config();
+    let server_setup_span = info_span!("setup").entered();
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
     }
-    let session_signing_key = parse_env(SESSION_SIGNING_KEY, || String::new())
-        .and_then(|s| BASE64_STANDARD.decode(s).into_diagnostic())
-        .map(|v| CookieKey::from(&v))?;
-
-    let frontend_method = parse_env(FRONTEND_METHOD, || "http".to_owned())?;
-    let frontend_host: String = parse_env(FRONTEND_HOST, || "localhost".to_owned())?;
-    let frontend_port = parse_env(FRONTEND_PORT, || "5173".to_owned())?;
-    let host: IpAddr = parse_env(BACKEND_HOST, || IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))?;
-    let port = parse_env(BACKEND_PORT, || 3000)?;
-
-    let frontend_addr: HeaderValue = format!("{frontend_method}://{frontend_host}:{frontend_port}")
-        .parse()
-        .into_diagnostic()
-        .wrap_err("could not parse frontend url: {e}")?;
-    let addr: SocketAddr = SocketAddr::new(host, port);
-
-    info!("Serving at {addr}");
-    info!("Allowing requests from {frontend_addr:?}");
-
-    info!("Starting server");
 
     let state = create_state().await?;
     drop(server_setup_span);
@@ -89,8 +85,9 @@ pub async fn run_server() -> Result<()> {
     let openapi_service = OpenApiService::new(
         (
             DebugApi::new(state.db.clone()),
-            TournamentApi::new(Arc::clone(&state.services.tournaments)),
-            AuthApi::new(Arc::clone(&state.services.auth)),
+            TournamentApi::new(state.services.tournament()),
+            AuthApi::new(state.services.auth(), state.services.osu()),
+            StageApi::new(state.services.stage()),
         ),
         "TStats API",
         "0.1",
@@ -98,8 +95,16 @@ pub async fn run_server() -> Result<()> {
     let spec_endpoint = openapi_service.spec_endpoint();
     let swagger_ui = openapi_service.swagger_ui();
 
+    let serve_addr = tstats_config().backend_addr();
+    let frontend_origin = cfg.frontend_addr.origin().unicode_serialization();
+
+    info!("Serving at {serve_addr}");
+    info!("Allowing requests from {}", frontend_origin);
+
+    info!("Starting server");
+
     let route = Route::new()
-        .at("/*", options(cors_handler))
+        //.at("/*", options(cors_handler))
         .nest("/api", openapi_service)
         .nest("/swagger", swagger_ui)
         .nest("/spec", spec_endpoint)
@@ -113,12 +118,12 @@ pub async fn run_server() -> Result<()> {
                     "Content-Type",
                     "X-Auth-Token",
                 ])
-                .allow_origin(frontend_addr)
+                .allow_origin(frontend_origin)
                 .allow_credentials(true),
         )
         .with(poem::middleware::Tracing)
         .with(CookieSession::new(
-            CookieConfig::signed(session_signing_key)
+            CookieConfig::signed(cfg.session_signing_key.clone())
                 .max_age(Some(Duration::from_secs(86400)))
                 .same_site(Some(SameSite::None))
                 .secure(true)
@@ -127,7 +132,7 @@ pub async fn run_server() -> Result<()> {
         ));
 
     Server::new(
-        TcpListener::bind(addr)
+        TcpListener::bind(serve_addr)
             .rustls(RustlsConfig::new().fallback(RustlsCertificate::new().key(KEY).cert(CERT))),
     )
     .run(route)
@@ -140,7 +145,32 @@ fn cors_handler() -> http::StatusCode {
     http::StatusCode::OK
 }
 
-#[tracing::instrument]
+fn setup_logger() {
+    let registry = tracing_subscriber::registry()
+        .with(Targets::new().with_targets([
+            ("server", LevelFilter::DEBUG),
+            ("utils", LevelFilter::DEBUG),
+            ("model", LevelFilter::DEBUG),
+            ("rosu_v2", LevelFilter::INFO),
+            ("tower_http", LevelFilter::INFO),
+        ]))
+        .with(ErrorLayer::default());
+    if let Ok(pretty_logging_enabled) = std::env::var("LOG_PRETTY")
+        .into_diagnostic()
+        .and_then(|v| v.parse::<bool>().into_diagnostic())
+    {
+        if pretty_logging_enabled {
+            registry
+                .with(tracing_subscriber::fmt::layer().without_time().pretty())
+                .init();
+        }
+    } else {
+        registry
+            .with(tracing_subscriber::fmt::layer().without_time().compact())
+            .init();
+    };
+}
+
 async fn create_state() -> Result<AppState> {
     let base_path = parse_env(TSTATS_DATA_DIR, || {
         std::env::current_dir()
@@ -150,9 +180,8 @@ async fn create_state() -> Result<AppState> {
     let paths = TStatsPaths::new(base_path)
         .into_diagnostic()
         .wrap_err("could not canonicalize path")?;
-    let (db, redis, osu) = tokio::join!(setup_database(), setup_redis(), setup_osu());
-    let ((db, sqlx), redis, osu) = (db?, redis?, osu?);
-    let services = TStatsServices::new(&db, &redis, &paths);
+    let ((db, sqlx), redis, osu) = tokio::try_join!(setup_database(), setup_redis(), setup_osu())?;
+    let services = TStatsServices::new(&db, &redis, &paths, Arc::clone(&osu));
 
     info!("Storing data in {:?}", paths.base());
 
@@ -190,13 +219,11 @@ where
     }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(name = "database")]
 async fn setup_database() -> miette::Result<(DatabaseConnection, PgPool)> {
-    let database_url = std::env::var(DATABASE_URL)
-        .into_diagnostic()
-        .wrap_err("DATABASE_URL not set")?;
+    let database_url = tstats_config().postgres.url.as_str();
     info!("connecting to database...");
-    let mut opt = ConnectOptions::new(&database_url);
+    let mut opt = ConnectOptions::new(database_url);
     opt.connect_timeout(Duration::from_secs(1));
     let db: DatabaseConnection = Database::connect(opt)
         .await
@@ -219,11 +246,9 @@ async fn setup_database() -> miette::Result<(DatabaseConnection, PgPool)> {
     Ok((db, pool))
 }
 
-#[tracing::instrument]
+#[tracing::instrument(name = "redis")]
 async fn setup_redis() -> miette::Result<deadpool_redis::Pool> {
-    let redis_url = std::env::var(REDIS_URL)
-        .into_diagnostic()
-        .wrap_err("REDIS_URL not set")?;
+    let redis_url = tstats_config().redis.url.clone();
     info!("connecting to redis");
 
     let cfg = Config::from_url(redis_url);
@@ -237,18 +262,11 @@ async fn setup_redis() -> miette::Result<deadpool_redis::Pool> {
     Ok(pool)
 }
 
-#[tracing::instrument]
+#[tracing::instrument(name = "osu")]
 async fn setup_osu() -> miette::Result<Arc<Osu>> {
-    let osu_client_id = std::env::var(OSU_CLIENT_ID)
-        .into_diagnostic()
-        .wrap_err("OSU_CLIENT_ID not set")?
-        .parse::<u64>()
-        .into_diagnostic()
-        .wrap_err("OSU_CLIENT_ID must be a non-negative integer")?;
-
-    let osu_client_secret = std::env::var(OSU_CLIENT_SECRET)
-        .into_diagnostic()
-        .wrap_err("OSU_CLIENT_SECRET not set")?;
+    let osu_cfg = &tstats_config().osu;
+    let osu_client_id = osu_cfg.client_id;
+    let osu_client_secret = osu_cfg.client_secret.clone();
     info!("connecting to osu api...");
     let osu = Arc::new(
         Osu::new(osu_client_id, osu_client_secret)

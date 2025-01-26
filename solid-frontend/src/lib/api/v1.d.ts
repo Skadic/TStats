@@ -37,7 +37,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tournaments": {
+    "/tournament": {
         parameters: {
             query?: never;
             header?: never;
@@ -71,7 +71,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tournaments/{id}": {
+    "/tournament/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -202,6 +202,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tournament/:tournament_id/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch all stages for a tournament. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tournament_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json; charset=utf-8": components["schemas"]["Stage"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tournament/:tournament_id/stage/{stage_order}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch a single stage for a tournament. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tournament_id: number;
+                    stage_order: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json; charset=utf-8": components["schemas"]["Stage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -209,6 +284,8 @@ export interface components {
         AuthenticatedUser: {
             /** Format: uint32 */
             userId: number;
+            username: string;
+            country: string;
         };
         Country: {
             countryCode: string;
@@ -218,27 +295,39 @@ export interface components {
             state: string;
         };
         DeliverAuthCodeResponse: {
-            /** Format: uint32 */
-            userId: number;
             returnUrl: string;
+            user: components["schemas"]["AuthenticatedUser"];
         };
         /** @enum {string} */
         OsuMode: "Catch" | "Mania" | "Osu" | "Taiko";
         RankRange: {
-            /** Format: uint32 */
+            /** Format: uint64 */
             min: number;
-            /** Format: uint32 */
+            /** Format: uint64 */
             max: number;
         };
         RequestAuthCodeResponse: {
             authUrl: string;
         };
+        Stage: {
+            /** Format: uint64 */
+            tournamentId: number;
+            /** Format: uint64 */
+            stageOrder: number;
+            name: string;
+            /** Format: uint64 */
+            bestOf: number;
+            /** Format: naive-date */
+            startDate?: string;
+            /** Format: naive-date */
+            endDate?: string;
+        };
         Tournament: {
-            /** Format: int32 */
+            /** Format: uint64 */
             id: number;
             name: string;
             shorthand: string;
-            /** Format: uint32 */
+            /** Format: uint64 */
             format: number;
             bws: boolean;
             mode: components["schemas"]["OsuMode"];
@@ -264,6 +353,7 @@ export type DeliverAuthCodeResponse = components['schemas']['DeliverAuthCodeResp
 export type OsuMode = components['schemas']['OsuMode'];
 export type RankRange = components['schemas']['RankRange'];
 export type RequestAuthCodeResponse = components['schemas']['RequestAuthCodeResponse'];
+export type Stage = components['schemas']['Stage'];
 export type Tournament = components['schemas']['Tournament'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;
