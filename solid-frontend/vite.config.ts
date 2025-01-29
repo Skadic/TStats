@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [solidPlugin()],
   server: {
     port: 5173,
-    host: true
+    host: true,
+    allowedHosts: ["localdev.skadic.moe"]
   },
   build: {
     target: 'esnext',

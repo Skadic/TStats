@@ -277,6 +277,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tournament/{tournament_id}/stage/{stage_order}/pool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetches the pool for a tournament's stage. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tournament_id: number;
+                    stage_order: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json; charset=utf-8": components["schemas"]["Pool"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -286,6 +324,28 @@ export interface components {
             userId: number;
             username: string;
             country: string;
+        };
+        Beatmap: {
+            /** @description The song's artist's name */
+            artistName: string;
+            /** @description The song's name */
+            title: string;
+            /** @description The beatmap's difficulty name */
+            difficultyName: string;
+            /**
+             * Format: uint32
+             * @description The id of the mapset
+             */
+            mapsetId: number;
+            /**
+             * Format: uint32
+             * @description The id of the beatmap
+             */
+            mapId: number;
+            /** @description The creator of the beatmap */
+            creator: components["schemas"]["OsuUser"] & unknown;
+            /** @description This map's difficulty */
+            difficulty: components["schemas"]["Difficulty"] & unknown;
         };
         Country: {
             countryCode: string;
@@ -298,8 +358,61 @@ export interface components {
             returnUrl: string;
             user: components["schemas"]["AuthenticatedUser"];
         };
+        Difficulty: {
+            /** Format: float */
+            stars: number;
+            /**
+             * Format: uint32
+             * @description The map's length in seconds
+             */
+            totalLength: number;
+            /**
+             * Format: uint32
+             * @description The map's drain time in seconds
+             */
+            drainTime: number;
+            /** Format: uint32 */
+            maxCombo: number;
+            /** Format: float */
+            bpm: number;
+            /** Format: float */
+            cs: number;
+            /** Format: float */
+            ar: number;
+            /** Format: float */
+            od: number;
+            /** Format: float */
+            hp: number;
+        };
         /** @enum {string} */
         OsuMode: "Catch" | "Mania" | "Osu" | "Taiko";
+        /** @description An osu user */
+        OsuUser: {
+            /**
+             * Format: uint32
+             * @description The osu user id
+             */
+            userId: number;
+            /** @description The username with a maximum length of 15 characters */
+            username: string;
+            /** @description 2-Character country code */
+            country: string;
+            /** @description The file name of the user's profile banner */
+            coverUrl: string;
+        };
+        Pool: {
+            /** Format: uint64 */
+            tournamentId: number;
+            /** Format: uint64 */
+            stageOrder: number;
+            brackets: components["schemas"]["PoolBracket"][];
+        };
+        PoolBracket: {
+            /** Format: uint64 */
+            order: number;
+            name: string;
+            maps: components["schemas"]["Beatmap"][];
+        };
         RankRange: {
             /** Format: uint64 */
             min: number;
@@ -347,10 +460,15 @@ export interface components {
     pathItems: never;
 }
 export type AuthenticatedUser = components['schemas']['AuthenticatedUser'];
+export type Beatmap = components['schemas']['Beatmap'];
 export type Country = components['schemas']['Country'];
 export type DeliverAuthCodeRequest = components['schemas']['DeliverAuthCodeRequest'];
 export type DeliverAuthCodeResponse = components['schemas']['DeliverAuthCodeResponse'];
+export type Difficulty = components['schemas']['Difficulty'];
 export type OsuMode = components['schemas']['OsuMode'];
+export type OsuUser = components['schemas']['OsuUser'];
+export type Pool = components['schemas']['Pool'];
+export type PoolBracket = components['schemas']['PoolBracket'];
 export type RankRange = components['schemas']['RankRange'];
 export type RequestAuthCodeResponse = components['schemas']['RequestAuthCodeResponse'];
 export type Stage = components['schemas']['Stage'];

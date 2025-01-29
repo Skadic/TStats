@@ -4,24 +4,19 @@ use crate::RedisConnectionPool;
 
 mod auth;
 mod osu;
+mod pool;
 mod stage;
 mod tournament;
 
 pub use auth::*;
 pub use osu::*;
-use rosu_v2::Osu;
-use sea_orm::DatabaseConnection;
+pub use pool::*;
 pub use stage::*;
 pub use tournament::*;
-use utils::TStatsPaths;
 
-#[derive(Clone)]
-pub struct TStatsServices {
-    auth: Arc<AuthService>,
-    tournament: Arc<TournamentService>,
-    stage: Arc<StageService>,
-    osu: Arc<OsuService>,
-}
+use rosu_v2::Osu;
+use sea_orm::DatabaseConnection;
+use utils::TStatsPaths;
 
 macro_rules! service_getter {
     { $service:ident -> $t:ty $(,)? } => {
@@ -34,6 +29,14 @@ macro_rules! service_getter {
         service_getter! { $($services -> $ts),+ }
     }
 }
+#[derive(Clone)]
+pub struct TStatsServices {
+    auth: Arc<AuthService>,
+    tournament: Arc<TournamentService>,
+    stage: Arc<StageService>,
+    pool: Arc<PoolService>,
+    osu: Arc<OsuService>,
+}
 
 impl TStatsServices {
     pub fn new(
@@ -42,11 +45,13 @@ impl TStatsServices {
         tstats_paths: &TStatsPaths,
         osu: Arc<Osu>,
     ) -> Self {
+        let osu_service = OsuService::new(osu, redis.clone());
         Self {
             auth: AuthService::new(redis),
             tournament: TournamentService::new(db.clone(), tstats_paths.clone()),
             stage: StageService::new(db.clone()),
-            osu: OsuService::new(osu, redis.clone()),
+            osu: Arc::clone(&osu_service),
+            pool: PoolService::new(db.clone(), osu_service)
         }
     }
 
@@ -55,5 +60,6 @@ impl TStatsServices {
         tournament -> TournamentService,
         stage -> StageService,
         osu -> OsuService,
+        pool -> PoolService
     }
 }

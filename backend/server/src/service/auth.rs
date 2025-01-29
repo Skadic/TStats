@@ -1,7 +1,7 @@
 use std::{ops::Deref, sync::Arc, time::Duration};
 
 use futures::TryFutureExt;
-use miette::{Context, IntoDiagnostic};
+use miette::{Context, Diagnostic, IntoDiagnostic};
 use model::dto::auth::AuthenticatedUserDto;
 use oauth2::{
     basic::BasicClient, AccessToken, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
@@ -77,7 +77,7 @@ pub struct SessionContent {
     pub expires_in: Duration,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Diagnostic)]
 pub enum AuthError {
     #[error("token missing in response from osu api: {0}")]
     NoTokenFromOsuApi(&'static str),
@@ -90,7 +90,8 @@ pub enum AuthError {
     #[error("error fetching osu user")]
     ErrorFetchingOsuUser,
     #[error(transparent)]
-    CacheError(#[from] CacheError),
+    #[diagnostic(transparent)]
+    CacheError(#[from] #[diagnostic_source] CacheError),
 }
 
 #[derive(Debug)]

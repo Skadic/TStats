@@ -14,6 +14,7 @@ use poem_openapi::OpenApiService;
 use rosu_v2::Osu;
 use routes::auth::AuthApi;
 use routes::debug::DebugApi;
+use routes::pool::PoolApi;
 use routes::stage::StageApi;
 use routes::tournament::TournamentApi;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
@@ -71,13 +72,13 @@ const CERT: &str = include_str!("../../../certs/domain.cert.pem");
 
 //#[tracing::instrument]
 pub async fn run_server() -> Result<()> {
-    setup_logger();
-    let cfg = tstats_config();
-    let server_setup_span = info_span!("setup").entered();
     // Load environment variables from .env file
     if let Err(e) = dotenvy::dotenv() {
         warn!("could not read .env file. expecting environment variables to be defined: {e}");
     }
+    setup_logger();
+    let cfg = tstats_config();
+    let server_setup_span = info_span!("setup").entered();
 
     let state = create_state().await?;
     drop(server_setup_span);
@@ -86,8 +87,9 @@ pub async fn run_server() -> Result<()> {
         (
             DebugApi::new(state.db.clone()),
             TournamentApi::new(state.services.tournament()),
-            AuthApi::new(state.services.auth(), state.services.osu()),
+            AuthApi::new(state.services.auth()),
             StageApi::new(state.services.stage()),
+            PoolApi::new(state.services.pool())
         ),
         "TStats API",
         "0.1",

@@ -4,7 +4,7 @@ use url::Url;
 use utils::Cacheable;
 
 /// An osu user
-#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Object)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Object)]
 #[oai(rename = "OsuUser", rename_all = "camelCase")]
 pub struct OsuUserDto {
     /// The osu user id

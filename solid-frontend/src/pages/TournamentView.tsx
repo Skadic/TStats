@@ -5,6 +5,8 @@ import TournamentInfo from "../components/TournamentInfo";
 import { PageComponent } from "../lib/types";
 import { Accordion } from "@kobalte/core/accordion";
 import { getAllStages } from "../lib/stage";
+import { getPool } from "../lib/pool";
+import { Pool, Stage } from "../lib/api/v1";
 
 export const TournamentView: PageComponent = () => {
 	const tournamentContext = useContext(TournamentContext);
@@ -13,7 +15,16 @@ export const TournamentView: PageComponent = () => {
 		return <>Tournament not found</>
 	}
 
-	const [stages] = createResource(tournamentContext, tournament => getAllStages(tournament.id));
+	const [stages] = createResource(tournamentContext, async (tournament) => {
+		const stages = await getAllStages(tournament.id)
+		const pools = await Promise.all(stages.map(stage => getPool(stage.tournamentId, stage.stageOrder)))
+
+		const stagesWithPool: { stage: Stage, pool: Pool }[] = [];
+		for (let i = 0; i < stages.length; i++) {
+			stagesWithPool.push({ stage: stages[i], pool: pools[i] })
+		}
+		return stagesWithPool
+	});
 
 	return (
 		<Switch>
@@ -25,14 +36,14 @@ export const TournamentView: PageComponent = () => {
 						<div class="lg:w-3/5 m-auto z-10">
 							<hr class="py-5" />
 
-							<Show when={stages()}  fallback={<div class="p-2 min-w-full">Could not fetch stages</div>}>
+							<Show when={stages()} fallback={<div class="p-2 min-w-full">Could not fetch stages</div>}>
 								{(stages) =>
 									<Accordion collapsible>
 										<Index each={stages()} fallback={<div class="p-2 min-w-full">No stages found</div>}>
 											{(stage, i) =>
 												<Accordion.Item value={`stage-${i}`}>
 													<Accordion.Header class="text-4xl font-bold p-3 pb-5">
-														<Accordion.Trigger>{stage().name}</Accordion.Trigger>
+														<Accordion.Trigger>{stage().stage.name}</Accordion.Trigger>
 													</Accordion.Header>
 													<Accordion.Content>
 														Hello

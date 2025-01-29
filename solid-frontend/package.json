@@ -18,22 +18,22 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "autoprefixer": "^10.4.20",
-    "openapi-typescript": "^7.5.1",
-    "oxlint": "^0.15.5",
-    "postcss": "^8.4.49",
+    "openapi-typescript": "^7.6.0",
+    "oxlint": "^0.15.8",
+    "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.7",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11",
     "vite-plugin-solid": "^2.11.0"
   },
   "dependencies": {
     "@catppuccin/tailwindcss": "^0.1.6",
     "@kobalte/core": "^0.13.7",
-    "@solidjs/router": "^0.15.2",
+    "@solidjs/router": "^0.15.3",
     "biome": "^0.3.3",
-    "flag-icons": "^7.2.3",
+    "flag-icons": "^7.3.2",
     "fp-ts": "^2.16.9",
     "openapi-fetch": "^0.13.4",
-    "solid-js": "^1.9.3"
+    "solid-js": "^1.9.4"
   }
 }

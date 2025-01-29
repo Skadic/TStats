@@ -9,18 +9,16 @@ use poem_openapi::{param::Query, payload::Json, OpenApi};
 use tracing::debug;
 use utils::{consts::SESSION_CONTENT, LogErrorFuture, ToPoemErrorFuture};
 
-use crate::service::{AuthService, OsuService, SessionContent};
+use crate::service::{AuthService, SessionContent};
 
 pub struct AuthApi {
     auth_service: Arc<AuthService>,
-    osu_service: Arc<OsuService>,
 }
 
 impl AuthApi {
-    pub fn new(auth_service: Arc<AuthService>, osu_service: Arc<OsuService>) -> Self {
+    pub fn new(auth_service: Arc<AuthService>) -> Self {
         Self {
             auth_service,
-            osu_service,
         }
     }
 }

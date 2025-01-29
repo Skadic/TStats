@@ -1,10 +1,10 @@
 //! This module contains utilities for cacheing values using Redis.
 
 use std::fmt::Display;
-use std::{convert::Infallible, future::Future};
+use std::future::Future;
 
 use deadpool_redis::redis::{AsyncCommands, FromRedisValue};
-use miette::{Context, IntoDiagnostic, Diagnostic};
+use miette::{Context, Diagnostic};
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
@@ -44,7 +44,7 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
         &self,
         redis: &deadpool_redis::Pool,
         expiry_time: Option<usize>,
-    ) -> impl Future<Output = Result<(), CacheError>> {
+    ) -> impl Future<Output = CacheResult<()>> {
         cache(redis, self, expiry_time)
     }
 
@@ -62,7 +62,7 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     fn uncache(
         redis: &deadpool_redis::Pool,
         key: &Self::KeyType,
-    ) -> impl Future<Output = Result<Option<Self>, CacheError>> {
+    ) -> impl Future<Output = CacheResult<Option<Self>>> {
         uncache(redis, key)
     }
 
@@ -80,7 +80,7 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     fn get_cached(
         key: &Self::KeyType,
         redis: &deadpool_redis::Pool,
-    ) -> impl Future<Output = Result<Option<Self>, CacheError>> {
+    ) -> impl Future<Output = CacheResult<Option<Self>>> {
         get_cached(redis, key)
     }
 
@@ -104,7 +104,7 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
         key: &Self::KeyType,
         expiry_time: Option<usize>,
         get_fn: impl FnOnce() -> Fut + Send,
-    ) -> impl Future<Output = Result<Self, CacheError>>
+    ) -> impl Future<Output = CacheResult<Self>>
     where
         Fut: Future<Output = Self> + Send,
     {
@@ -127,15 +127,14 @@ pub trait Cacheable: Serialize + DeserializeOwned + Send + Sync {
     /// An error can occur during (de-)seriaization, if the redis set command fails or if the `get_fn`
     /// fails.
     ///
-    fn get_cached_or<E, Fut>(
+    fn get_cached_or<Fut>(
         redis: &deadpool_redis::Pool,
         key: &Self::KeyType,
         expiry_time: Option<usize>,
         get_fn: impl FnOnce() -> Fut + Send,
-    ) -> impl Future<Output = Result<Self, CacheError>>
+    ) -> impl Future<Output = miette::Result<Self>>
     where
-        E: 'static + std::error::Error + Send + Sync,
-        Fut: Future<Output = Result<Self, E>> + Send,
+        Fut: Future<Output = miette::Result<Self>> + Send,
     {
         get_cached_or(redis, key, expiry_time, get_fn)
     }
@@ -147,14 +146,32 @@ pub type CacheResult<T> = Result<T, CacheError>;
 #[derive(Debug, Diagnostic, Error)]
 pub enum CacheError {
     #[error("error during (de)serialization: {0}")]
-    Serde(#[from] serde_json::Error),
+    Serde(
+        #[from]
+        #[source]
+        serde_json::Error,
+    ),
     #[error("error interacting with redis: {0}")]
-    Redis(#[from] deadpool_redis::redis::RedisError),
+    Redis(
+        #[from]
+        #[source]
+        deadpool_redis::redis::RedisError,
+    ),
     #[error("error in redis connection pool: {0}")]
-    Pool(#[from] deadpool_redis::PoolError),
+    Pool(
+        #[from]
+        #[source]
+        deadpool_redis::PoolError,
+    ),
     #[error("error in request: {0}")]
     #[diagnostic(transparent)]
-    Request(miette::Error),
+    Request(#[diagnostic_source] miette::Error),
+}
+
+impl From<miette::Error> for CacheError {
+    fn from(value: miette::Error) -> Self {
+        Self::Request(value)
+    }
 }
 
 /// Stores a value in redis.
@@ -173,7 +190,7 @@ pub async fn cache<V: Cacheable>(
     redis: &deadpool_redis::Pool,
     v: &V,
     expiry_time: Option<usize>,
-) -> Result<(), CacheError> {
+) -> CacheResult<()> {
     let serialized = serde_json::to_string(v)?;
     let mut conn = redis.get().await?;
 
@@ -218,9 +235,7 @@ pub async fn uncache<V: Cacheable>(
     };
 
     // Try to parse it to the output value
-    serde_json::from_str::<V>(&s)
-        .map(Some)
-        .map_err(CacheError::from)
+    Ok(serde_json::from_str::<V>(&s).map(Some)?)
 }
 
 /// Gets a value from redis. Or `Ok(None)` if it doesn't exist
@@ -237,8 +252,8 @@ pub async fn uncache<V: Cacheable>(
 pub async fn get_cached<V: Cacheable>(
     redis: &deadpool_redis::Pool,
     key: &V::KeyType,
-) -> Result<Option<V>, CacheError> {
-    let mut conn = redis.get().await?;
+) -> CacheResult<Option<V>> {
+    let mut conn = redis.get().await.map_err(CacheError::from)?;
     // Try to find the value in the cache
     let Some(s) = conn
         .get::<String, deadpool_redis::redis::Value>(V::full_key_with(key))
@@ -255,9 +270,7 @@ pub async fn get_cached<V: Cacheable>(
     };
 
     // Try to parse it to the output value
-    serde_json::from_str::<V>(&s)
-        .map(Some)
-        .map_err(CacheError::from)
+    Ok(serde_json::from_str::<V>(&s).map(Some)?)
 }
 
 /// Tries to get a value from the cache and returns it, if it exist.
@@ -280,13 +293,14 @@ pub async fn get_cached_or_infallible<V, Fut>(
     key: &V::KeyType,
     expiry_time: Option<usize>,
     get_fn: impl FnOnce() -> Fut,
-) -> Result<V, CacheError>
+) -> CacheResult<V>
 where
     V: Cacheable,
     Fut: Future<Output = V>,
 {
-    get_cached_or::<V, Infallible, _>(redis, key, expiry_time, || async { Ok(get_fn().await) })
+    get_cached_or::<V, _>(redis, key, expiry_time, || async { Ok(get_fn().await) })
         .await
+        .map_err(|e| /* The fetch function is infallible and therefore will always return a CacheError */ e.downcast().unwrap())
 }
 
 /// Tries to get a value from the cache and returns it, if it exist.
@@ -302,19 +316,18 @@ where
 ///
 /// # Errors
 ///
-/// An error can occur during (de-)seriaization, if the redis set command fails or if the `get_fn`
+/// An error can occur during (de-)serialization, if the redis set command fails or if the `get_fn`
 /// fails.
 ///
-pub async fn get_cached_or<V, E, Fut>(
+pub async fn get_cached_or<V, Fut>(
     redis: &deadpool_redis::Pool,
     key: &V::KeyType,
     expiry_time: Option<usize>,
     get_fn: impl FnOnce() -> Fut,
-) -> Result<V, CacheError>
+) -> miette::Result<V>
 where
     V: Cacheable,
-    E: 'static + std::error::Error + Send + Sync,
-    Fut: Future<Output = Result<V, E>>,
+    Fut: Future<Output = miette::Result<V>>,
 {
     // Try to find the value in the cache
     if let Ok(Some(v)) = get_cached::<V>(redis, key).await {
@@ -325,9 +338,7 @@ where
     // Otherwise, try to get it from the function
     let v = get_fn()
         .await
-        .into_diagnostic()
-        .wrap_err("error requesting value")
-        .map_err(CacheError::Request)?;
+        .wrap_err("error fetching backup value for cache")?;
 
     // Cache the value and return it
     cache(redis, &v, expiry_time).await?;
