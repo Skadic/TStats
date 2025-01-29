@@ -7,7 +7,7 @@ import TournamentList from "../components/TournamentList";
 
 async function fetchTournaments(): Promise<Tournament[]> {
 	const client = tstatsClient();
-	return await client.GET("/tournament").then((result) => result.data!);
+	return await client.GET("/api/tournament").then((result) => result.data!);
 }
 
 export const Homepage: PageComponent<EmptyObject> = () => {
