@@ -1,48 +1,28 @@
-import { For, Show } from "solid-js";
-import { Stage } from "../lib/api/v1";
+import { For, Index, Show } from "solid-js";
+import { Pool, Stage } from "../lib/api/v1";
 import { Component } from "../lib/types";
 
 import { Accordion } from "@kobalte/core/accordion";
+import { PoolMapCard } from "./PoolMapCard";
 
 
-export const StageCard: Component<{stage: Stage}> = (props) => {
-    const stage = props.stage;
+export const StageCard: Component<{ stage: Stage, pool: Pool }> = (props) => {
+	const stage = props.stage;
+	const pool = props.pool;
 
-
-
-	return (
-		<div
-			use:melt={$item(stage.name ?? 'unnamed stage')}
-			class="flex-1 my-3 rounded-lg pb-4 bg-bg-400"
-		>
-			<button
-				use:melt={$trigger(stage.name ?? 'unnamed stage')}
-				class="w-full text-3xl font-bold flex p-2 rounded-lg bg-bg-500 hover:scale-105 transition-all"
-			>
-				{stage.name ?? 'unnamed stage'}
-				{#if (stage.bestOf ?? -1) > 0}
-					<h2 class="flex-1 text-right">Best of {stage.bestOf ?? -1}</h2>
-				{/if}
-			</button>
-
-<Show when={}>
-			{#if $value === stage.name ?? 'unnamed stage'}
-				<div
-					use:melt={$content(stage.name ?? 'unnamed stage')}
-					transition:slide={{ duration: 200 }}
-				>
-					<StageCard
-						tournamentId={tournament.key?.id ?? -1}
-						stage={{
-							name: stage.name ?? 'unnamed stage',
-							bestOf: stage.bestOf ?? -1,
-							stageOrder: i
-						}}
-					/>
+	return <Index each={pool.brackets}>
+		{(bracket, bracketIndex) =>
+			<div class="p-2">
+				<div class="flex flex-col gap-2 px-4 bg-bg-500 shadow-xl rounded-xl py-4 pb-6">
+					<Index each={bracket().maps}>
+						{(map, mapIndex) =>
+							<div class=" transition-all duration-200 hover:scale-105">
+								<PoolMapCard map={map()} tournamentId={stage.tournamentId} stageOrder={stage.stageOrder} bracket={bracket()} mapOrder={mapIndex}/>
+							</div>
+						}
+					</Index>
 				</div>
-			{/if}
-
-</Show>
-		</div>
-	);
+			</div>
+		}
+	</Index>;
 };
