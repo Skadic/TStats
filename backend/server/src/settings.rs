@@ -9,11 +9,12 @@ use base64::{prelude::BASE64_STANDARD, Engine};
 use config::{Config, Environment, File};
 use miette::{miette, Context, IntoDiagnostic};
 use poem::web::cookie::CookieKey;
+use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer};
 use tracing::info;
 use url::Url;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct PostgresConfig {
     pub url: Url,
     pub username: String,

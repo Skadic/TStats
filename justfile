@@ -31,7 +31,7 @@ compose:
 
 # Run the frontend as a dev server
 frontend:
-  cd frontend && npm run dev
+  cd frontend && bun run dev
 
 # Apply all migrations to the database
 migrate:

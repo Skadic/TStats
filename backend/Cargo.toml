@@ -15,15 +15,16 @@ path = "src/main.rs"
 
 chrono = { version = "0.4" }
 config = { version = "0.15", features = ["toml"] }
-deadpool-redis = { version = "0.18", features = ["rt_tokio_1"] }
+deadpool-redis = { version = "0.20", features = ["rt_tokio_1"] }
 # Utilities for working with futures
 futures = "0.3"
 jwt = "0.16"
-miette = { version = "7.4.0", features = ["fancy"]}
-poem = { version = "3.1", features = [ "redis-session", "server", "tokio-stream", "rustls"]}
+miette = { version = "7.6", features = ["fancy"]}
+poem = { version = "3.1", features = [ "redis-session", "server", "tokio-stream", "rustls", "acme-webpki-roots"]}
 poem-openapi = { version = "5.1", features = [ "swagger-ui", "chrono" ] }
-redis = { version = "0.28", features = ["aio", "tokio-comp"] }
-rosu-v2 = { version = "0.9", features = ["serialize"] }
+redis = { version = "0.32", features = ["aio", "tokio-comp"] }
+rosu-v2 = { version = "0.11", features = ["serialize"] }
+schemars = { version = "0.9" }
 # SQL ORM
 sea-orm = { version = "1.1", features = ["runtime-tokio-rustls"] }
 serde = { version = "1", features = ["derive"] }
@@ -35,7 +36,7 @@ sqlx = { version = "0.8", features = [
     "runtime-tokio-rustls",
 ] }
 thiserror = "2"
-tokio = { version = "1.42", features = ["rt-multi-thread", "macros", "signal"] }
+tokio = { version = "1.45", features = ["rt-multi-thread", "macros", "signal"] }
 tracing-subscriber = { version = "0.3" }
 url = "2.5"
 

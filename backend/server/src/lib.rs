@@ -18,6 +18,8 @@ use routes::pool::PoolApi;
 use routes::stage::StageApi;
 use routes::tournament::TournamentApi;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use serde::Deserialize;
+use serde_json::json;
 use service::TStatsServices;
 use settings::TStatsConfig;
 use sqlx::postgres::PgPoolOptions;
@@ -29,7 +31,7 @@ use tracing_error::ErrorLayer;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use utils::{consts::*, TStatsPaths};
+use utils::{consts::*, LogError, TStatsPaths};
 
 type RedisConnection = deadpool_redis::Connection;
 type RedisConnectionPool = deadpool_redis::Pool;
@@ -67,9 +69,6 @@ impl AppState {
     }
 }
 
-const KEY: &str = include_str!("../../../certs/private.key.pem");
-const CERT: &str = include_str!("../../../certs/domain.cert.pem");
-
 //#[tracing::instrument]
 pub async fn run_server() -> Result<()> {
     // Load environment variables from .env file
@@ -89,7 +88,7 @@ pub async fn run_server() -> Result<()> {
             TournamentApi::new(state.services.tournament()),
             AuthApi::new(state.services.auth()),
             StageApi::new(state.services.stage()),
-            PoolApi::new(state.services.pool())
+            PoolApi::new(state.services.pool()),
         ),
         "TStats API",
         "0.1",
@@ -133,13 +132,39 @@ pub async fn run_server() -> Result<()> {
                 .domain(".skadic.moe"),
         ));
 
-    Server::new(
-        TcpListener::bind(serve_addr)
-            .rustls(RustlsConfig::new().fallback(RustlsCertificate::new().key(KEY).cert(CERT))),
-    )
-    .run(route)
-    .await
-    .into_diagnostic()
+    Server::new(TcpListener::bind(serve_addr).rustls(RustlsConfig::new().fallback(get_certs().await?)))
+        .run(route)
+        .await
+        .into_diagnostic()
+}
+
+async fn get_certs() -> miette::Result<RustlsCertificate> {
+    let certs = reqwest::Client::new()
+        .post("https://api.porkbun.com/api/json/v3/ssl/retrieve/skadic.moe")
+        .json(&json!({
+            "apikey": "",
+            "secretapikey": ""
+        }))
+        .send()
+        .await
+        .log_error("error fetching certificates from api")?;
+
+    #[derive(Deserialize, Debug)]
+    struct CertsRaw {
+        #[serde(rename = "certificatechain")]
+        certificate_chain: String,
+        #[serde(rename = "privatekey")]
+        private_key: String,
+    }
+
+    let certs = certs
+        .json::<CertsRaw>()
+        .await
+        .log_error("could not deserialize cert response")?;
+
+    Ok(RustlsCertificate::new()
+        .key(certs.private_key)
+        .cert(certs.certificate_chain))
 }
 
 #[handler]
